@@ -5,7 +5,8 @@
   "main": "main.js",
   "scripts": {
     "start": "electron .",
-    "rebuild": "electron-rebuild -f -w node-hid,winax"
+    "rebuild": "electron-rebuild -f -w node-hid,winax",
+    "package-win": "electron-packager . \"JoyCon Clicker\" --platform=win32 --arch=x64 --out=dist_packager --overwrite --icon=assets/icon.ico --ignore=\"^/dist_.*\" --ignore=\"^/node_modules/(electron|electron-packager|electron-rebuild|\\.bin)(/|$)\" --ignore=\"^/\\.git$\" --ignore=\"^/\\.vscode$\" --ignore=\"^/assets$\""
   },
   "keywords": [
     "electron",
@@ -21,7 +22,8 @@
   "license": "ISC",
   "devDependencies": {
     "@electron/rebuild": "^3.7.2",
-    "electron": "^35.1.5"
+    "electron": "^35.1.5",
+    "electron-packager": "^17.1.2"
   },
   "dependencies": {
     "node-hid": "^3.1.2",
