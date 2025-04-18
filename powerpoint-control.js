@@ -11,8 +11,6 @@ class PowerPointControl {
         if (!this.isWindows) {
             console.warn("[PowerPointControl] PowerPoint automation is only supported on Windows.");
         }
-        // アプリケーション起動時に一度接続を試みる (任意)
-        // this.connect(); // コンストラクタで呼ぶ必要はない (main.jsで呼ぶため)
     }
 
     /**
@@ -65,9 +63,15 @@ class PowerPointControl {
                     typeof pres.SlideShowWindow.View.Previous === 'function')
                 {
                     return pres.SlideShowWindow.View; // Viewオブジェクトを返す
-                } else { /* console.warn(...) */ }
-            } else { /* console.warn(...) */ }
-        } catch (e) { console.error("[PowerPointControl] Error accessing PowerPoint properties:", e.message); }
+                } else {
+                    /* console.warn(...) */
+                }
+            } else {
+                /* console.warn(...) */ 
+            }
+        } catch (e) {
+            console.error("[PowerPointControl] Error accessing PowerPoint properties:", e.message); 
+        }
         return null; // 見つからなかった場合
     }
 
@@ -76,9 +80,17 @@ class PowerPointControl {
         if (!this.isWindows) return false;
         const view = this._getSlideShowView(); // Viewオブジェクトを取得
         if (view) {
-            try { console.log("[PowerPointControl] Executing View.Next()"); view.Next(); return true; }
-            catch (e) { console.error("[PowerPointControl] Error calling Next():", e.message); }
-        } else { console.warn("[PowerPointControl] Cannot execute Next(): Slide show view not found."); }
+            try {
+                console.log("[PowerPointControl] Executing View.Next()");
+                view.Next();
+                return true;
+            }
+            catch (e) {
+                console.error("[PowerPointControl] Error calling Next():", e.message);
+             }
+        } else {
+            console.warn("[PowerPointControl] Cannot execute Next(): Slide show view not found.");
+        }
         return false; // 失敗
     }
 
@@ -87,9 +99,17 @@ class PowerPointControl {
         if (!this.isWindows) return false;
         const view = this._getSlideShowView(); // Viewオブジェクトを取得
         if (view) {
-            try { console.log("[PowerPointControl] Executing View.Previous()"); view.Previous(); return true; }
-            catch (e) { console.error("[PowerPointControl] Error calling Previous():", e.message); }
-        } else { console.warn("[PowerPointControl] Cannot execute Previous(): Slide show view not found."); }
+            try {
+                console.log("[PowerPointControl] Executing View.Previous()");
+                view.Previous();
+                return true;
+            }
+            catch (e) {
+                console.error("[PowerPointControl] Error calling Previous():", e.message);
+            }
+        } else {
+            console.warn("[PowerPointControl] Cannot execute Previous(): Slide show view not found.");
+        }
         return false; // 失敗
     }
 }
