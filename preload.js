@@ -11,7 +11,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
     onJoyConButtonX: (callback) => ipcRenderer.on('button-x', (event, ...args) => callback(...args)),
     onJoyConButtonDown: (callback) => ipcRenderer.on('button-down', (event, ...args) => callback(...args)),
     // ボタン押下瞬間（リセット用）
-    onJoyConButtonSL: (callback) => ipcRenderer.on('joycon-button-sl', (event, ...args) => callback(...args)),
     onJoyConButtonXPressed: (callback) => ipcRenderer.on('button-x-pressed', (event, ...args) => callback(...args)),
     onJoyConButtonDownPressed: (callback) => ipcRenderer.on('button-down-pressed', (event, ...args) => callback(...args)),
 

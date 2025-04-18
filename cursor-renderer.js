@@ -134,12 +134,6 @@ window.electronAPI.onJoyConGyro((data) => {
 
 // 接続状態更新リスナーは削除済み
 
-/** SLボタン押下 (リセット) */
-window.electronAPI.onJoyConButtonSL((data) => {
-    console.log(`SL Button pressed for ${data.id}. Resetting.`);
-    resetCursor(data.id);
-});
-
 /** JoyCon R Xボタン状態受信 (表示/非表示トグル) */
 window.electronAPI.onJoyConButtonX((data) => {
     // console.log("X Button state received:", data.pressed);

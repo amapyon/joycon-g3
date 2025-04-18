@@ -145,11 +145,6 @@ class JoyConManager extends EventEmitter {
                  if (data.length > buttonByteIndex) {
                      const buttonByte = data[buttonByteIndex];
 
-                     // SL ボタン (押下瞬間イベント)
-                     const currentSlPressed = (buttonByte & SL_BUTTON_MASK) !== 0;
-                     if (currentSlPressed && !lastButtonState.slPressed) { this.emit('button-sl', { id: cursorId }); } // ★イベント名: button-sl★
-                     lastButtonState.slPressed = currentSlPressed;
-
                      if (isLeft) { // 左 Joy-Con
                          const DOWN_BUTTON_MASK = 0x01; const LEFT_BUTTON_MASK = 0x08; const RIGHT_BUTTON_MASK = 0x04;
                          const currentDownPressed = (buttonByte & DOWN_BUTTON_MASK) !== 0;

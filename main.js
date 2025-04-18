@@ -54,7 +54,7 @@ app.whenReady().then(() => {
         });
     });
     // ボタン押下瞬間イベント -> カーソルウィンドウへ転送 (リセット用)
-     ['button-sl', 'button-x-pressed', 'button-down-pressed'].forEach(eventName => {
+     ['button-x-pressed', 'button-down-pressed'].forEach(eventName => {
         joyconManager.on(eventName, (data) => {
             const targetWindow = WindowManager.getCursorWindow();
              if (targetWindow && !targetWindow.isDestroyed()) {
