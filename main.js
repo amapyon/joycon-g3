@@ -1,8 +1,8 @@
 // main.js
-const { app, BrowserWindow } = require('electron'); // screen, ipcMain は他モジュールへ
+const { app, BrowserWindow } = require('electron');
 const path = require('path');
 const JoyConManager = require('./joycon');
-const powerpointControl = require('./powerpoint-control'); // リネーム後のモジュール
+const powerpointControl = require('./powerpoint-control');
 const WindowManager = require('./window-manager');
 const IpcHandler = require('./ipc-handler');
 
@@ -16,7 +16,6 @@ app.whenReady().then(() => {
     console.log("App Ready. Initializing modules...");
 
     // PowerPoint制御モジュール初期化 (接続試行)
-    // initialize() は connect() に変更、または constructor で行う設計も可
     const connected = powerpointControl.connect();
     if (!connected) {
         console.warn("Initial connection to PowerPoint failed. Ensure PowerPoint is running.");
@@ -74,7 +73,7 @@ app.whenReady().then(() => {
     // --- ここまで ---
 
     // JoyCon接続と定期スキャンを開始
-    joyconManager.startScanningAndConnect(); // 初回接続とスキャン開始
+    joyconManager.startScanningAndConnect();
 
     // macOS用 activate イベント
     app.on('activate', () => {
