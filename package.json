@@ -1,0 +1,30 @@
+{
+  "name": "joycon-multi-cursor-final",
+  "version": "1.1.0",
+  "description": "Select display, control cursors with Joy-Cons (Gyro, Button Toggles/Resets), PowerPoint control via COM",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "rebuild": "electron-rebuild -f -w node-hid,winax"
+  },
+  "keywords": [
+    "electron",
+    "joycon",
+    "node-hid",
+    "gyro",
+    "multi-display",
+    "winax",
+    "powerpoint",
+    "com"
+  ],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "@electron/rebuild": "^3.7.2",
+    "electron": "^35.1.5"
+  },
+  "dependencies": {
+    "node-hid": "^3.1.2",
+    "winax": "^3.6.2"
+  }
+}

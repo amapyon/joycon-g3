@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'">
+    <title>Select Display</title>
+    <link rel="stylesheet" href="style.css">
+    <style>
+        /* main-window 専用のスタイル */
+        body { padding: 20px; background-color: #f4f4f4; font-size: 14px; }
+        label { display: block; margin-bottom: 8px; font-weight: bold; color: #333; }
+        select { width: 100%; padding: 10px; margin-bottom: 20px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
+        button { padding: 12px 25px; cursor: pointer; border: none; border-radius: 4px; font-size: 14px; transition: background-color 0.2s ease; margin-right: 10px; vertical-align: middle; /* ボタンの縦位置揃え */ }
+        #launch-button { background-color: #28a745; color: white; }
+        #launch-button:hover { background-color: #218838; }
+        #close-button { background-color: #6c757d; color: white; }
+        #close-button:hover { background-color: #5a6268; }
+        button:disabled { background-color: #cccccc; cursor: not-allowed; }
+        #error-message { color: #dc3545; margin-top: 15px; font-weight: bold; min-height: 1.2em; }
+        hr { margin-top: 25px; margin-bottom: 15px; border: 0; border-top: 1px solid #ccc; }
+        #main-joycon-status { font-size: 0.9em; color: #555; }
+        /* style.css の .connected, .disconnected を利用 */
+    </style>
+</head>
+<body>
+    <h1>Select Display for Cursor Window</h1>
+
+    <label for="display-select">Target Display:</label>
+    <select id="display-select" disabled>
+        <option value="">-- Loading Displays --</option>
+    </select>
+
+    <div> <button id="launch-button" disabled>Launch Cursor Window</button>
+        <button id="close-button" style="display: none;">Close Cursor Window</button>
+    </div>
+
+    <div id="error-message"></div>
+
+    <hr>
+    <div id="main-joycon-status">
+        <strong>Joy-Con Status:</strong>
+        <span id="main-status-left" class="disconnected">Left: Disconnected</span> |
+        <span id="main-status-right" class="disconnected">Right: Disconnected</span>
+    </div>
+
+    <script src="main-renderer.js"></script>
+</body>
+</html>
