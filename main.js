@@ -48,9 +48,7 @@ app.whenReady().then(() => {
     ['button-x', 'button-down'].forEach(eventName => {
         joyconManager.on(eventName, (data) => {
              const targetWindow = WindowManager.getCursorWindow();
-             console.log("[Main] Received 'button-x' event from JoyConManager:", data);
              if (targetWindow && !targetWindow.isDestroyed()) {
-                console.log("[Main] Sending 'joycon-button-x' IPC to cursor window."); // 送信前ログ
                  targetWindow.webContents.send(eventName, data);
              }
         });
@@ -58,7 +56,6 @@ app.whenReady().then(() => {
     // ボタン押下瞬間イベント -> カーソルウィンドウへ転送 (リセット用)
      ['button-sl', 'button-x-pressed', 'button-down-pressed'].forEach(eventName => {
         joyconManager.on(eventName, (data) => {
-            console.log([eventName, data]);
             const targetWindow = WindowManager.getCursorWindow();
              if (targetWindow && !targetWindow.isDestroyed()) {
                  targetWindow.webContents.send(eventName, data);

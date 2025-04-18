@@ -50,7 +50,7 @@ function createWindow() {
         // macOS以外ではアプリ終了 (これはappのイベントで処理される)
     });
 
-    mainWindow.webContents.openDevTools(); // デバッグ用
+    // mainWindow.webContents.openDevTools(); // デバッグ用
     return mainWindow; // 作成したウィンドウ参照を返す
 }
 
@@ -130,7 +130,7 @@ function createCursorWindowInternal(targetDisplay) {
     });
 
     // デバッグ用DevTools (別ウィンドウで開く)
-    cursorWindow.webContents.openDevTools({ mode: 'detach' });
+    // cursorWindow.webContents.openDevTools({ mode: 'detach' });
 }
 
 /** 利用可能なディスプレイリストをメインウィンドウに送信 */

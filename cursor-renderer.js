@@ -142,13 +142,13 @@ window.electronAPI.onJoyConButtonSL((data) => {
 
 /** JoyCon R Xボタン状態受信 (表示/非表示トグル) */
 window.electronAPI.onJoyConButtonX((data) => {
-    console.log("X Button state received:", data.pressed);
+    // console.log("X Button state received:", data.pressed);
     const cursorElement = cursorElements.cursor2; // 右カーソル対象
     const cursorData = cursors.cursor2;
 
-    console.log("  -> Targeting Element:", cursorElement);
-    console.log("  -> Targeting Data Object:", cursorData);
-    
+    // console.log("  -> Targeting Element:", cursorElement);
+    // console.log("  -> Targeting Data Object:", cursorData);
+
     if (cursorElement && cursorData) {
         const shouldBeVisible = data.pressed;
         cursorData.isVisible = shouldBeVisible;
