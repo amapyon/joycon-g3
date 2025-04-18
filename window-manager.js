@@ -107,6 +107,7 @@ function createCursorWindowInternal(targetDisplay) {
         }
     });
 
+    cursorWindow.setIgnoreMouseEvents(true, { forward: true });
     cursorWindow.loadFile(path.join(__dirname, 'cursor-window.html')); // カーソル用HTML
 
     cursorWindow.webContents.on('did-finish-load', () => {
@@ -146,7 +147,7 @@ function sendAvailableDisplays() {
         const primaryDisplayId = screen.getPrimaryDisplay().id;
         const displayInfoList = displays.map(d => ({
             id: d.id,
-            label: `Display ${d.id} (${d.bounds.width}x${d.bounds.height}) ${d.id === primaryDisplayId ? '[Primary]' : ''}`,
+            label: `${d.label} (${d.bounds.width}x${d.bounds.height}) ${d.id === primaryDisplayId ? '[Primary]' : ''}`,
             bounds: d.bounds,
             isPrimary: d.id === primaryDisplayId
         }));
