@@ -28,7 +28,7 @@ const cursors = {
             dx: { axis: 'gyroZ', sign: -1 }, // 左右(dx): Z軸, 符号反転
             dy: { axis: 'gyroY', sign: -1 }  // 上下(dy): Y軸, 符号反転
         },
-        isVisible: false // 初期状態は非表示 (下ボタンで表示)
+        isVisible: false
     },
     cursor2: { // 右 Joy-Con (cursor2)
         x: windowWidth / 2 || 100, y: windowHeight / 2 || 100, // 初期位置
@@ -40,7 +40,7 @@ const cursors = {
             dx: { axis: 'gyroZ', sign: 1 },   // 左右(dx): Z軸, 符号そのまま
             dy: { axis: 'gyroY', sign: -1 }  // 上下(dy): Y軸, 符号反転
         },
-        isVisible: false // ★Xボタンで表示するため、初期は非表示★
+        isVisible: false
     }
 };
 
@@ -85,8 +85,12 @@ function updateCursorElementPosition(cursorId) {
             // console.log(`Updating element ${cursorId}: left=${(cursorData.x - halfWidth).toFixed(0)}, top=${(cursorData.y - halfHeight).toFixed(0)}`); // デバッグ用
             element.style.left = `${cursorData.x - halfWidth}px`;
             element.style.top = `${cursorData.y - halfHeight}px`;
-        } else { /* console.warn(`[${cursorId}] Invalid element dimensions.`); */ }
-    } else { /* console.warn(`[${cursorId}] Skipping pos update.`); */ }
+        } else {
+            /* console.warn(`[${cursorId}] Invalid element dimensions.`); */
+        }
+    } else {
+        /* console.warn(`[${cursorId}] Skipping pos update.`); */
+    }
 }
 
 // --- イベントリスナー ---
@@ -223,10 +227,11 @@ function renderLoop() {
                     cursorData.x = Math.max(halfWidth, Math.min(windowWidth - halfWidth, cursorData.x));
                     cursorData.y = Math.max(halfHeight, Math.min(windowHeight - halfHeight, cursorData.y));
                     updateCursorElementPosition(id); // 要素位置更新
-                } else { console.error(`[${id}] Skipping pos update due to NaN coord.`); }
+                } else {
+                    console.error(`[${id}] Skipping pos update due to NaN coord.`);
+                }
             }
         }
-        // isVisibleがfalseでも、要素のvisibilityは各ボタンリスナーで制御されている
     }
     // 次のフレームで再帰呼び出し
     requestAnimationFrame(renderLoop);
