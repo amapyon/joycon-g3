@@ -8,7 +8,7 @@ h1 { margin-top: 0; }
 .cursor {
     width: 48px; height: 48px; border-radius: 50%; position: fixed;
     border: 3px solid; box-sizing: border-box; pointer-events: none;
-    opacity: 0.5; /* カーソル透明度 */
+    opacity: 0.7; /* カーソル透明度 */
     will-change: left, top; z-index: 5;
 }
 
