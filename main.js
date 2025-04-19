@@ -10,6 +10,26 @@ const IpcHandler = require('./ipc-handler');
 // 各モジュールはシングルトンとしてインスタンス化 (joyconはクラスなのでnewする)
 const joyconManager = new JoyConManager(); // スキャン間隔はデフォルト(5s)
 
+// ---- ★プレゼンテーションリストをメインウィンドウに送信する関数★ ----
+function sendAvailablePresentations() {
+    const mainWindow = WindowManager.getMainWindow(); // WindowManagerから取得
+    if (mainWindow && !mainWindow.isDestroyed()) {
+         console.log("[Main] Getting available presentations...");
+         try {
+             // powerpointControl モジュールに関数を移譲
+             const presentations = powerpointControl.getOpenPresentations();
+             console.log(`[Main] Sending ${presentations.length} presentations to main window.`);
+             mainWindow.webContents.send('available-presentations', presentations);
+         } catch (e) {
+             console.error("[Main] Error getting/sending presentations:", e);
+             // エラー発生時も空リストを送るなどしてUIを更新
+             mainWindow.webContents.send('available-presentations', []);
+             // エラー通知も検討
+             // WindowManager.sendLaunchErrorToMain(`PPT List Error: ${e.message}`);
+         }
+    }
+}
+
 // --- Electron アプリケーションライフサイクル ---
 
 app.whenReady().then(() => {
@@ -25,6 +45,24 @@ app.whenReady().then(() => {
 
     // メインUIウィンドウ作成 (WindowManager経由)
     WindowManager.createWindow();
+
+    // ★did-finish-loadでプレゼンリストも送信★
+    // WindowManager.createWindow が BrowserWindow インスタンスを返すように修正が必要かも
+    const mainWin = WindowManager.getMainWindow(); // 作成直後に参照取得 (非同期性に注意)
+    if (mainWin) {
+        mainWin.webContents.on('did-finish-load', () => {
+            // ディスプレイリスト送信は WindowManager 内で行われる
+            // プレゼンテーションリスト送信をここからトリガー
+            sendAvailablePresentations();
+            // 初期の接続状態も送信
+            mainWin.webContents.send('joycon-status-update', {
+                 leftConnected: !!joyconManager.hidL,
+                 rightConnected: !!joyconManager.hidR
+             });
+        });
+    } else {
+         console.error("Failed to get mainWindow reference immediately after creation.");
+    }
 
     // IPCハンドラー設定 (IpcHandler経由, WindowManagerを渡す)
     IpcHandler.setupIpcHandlers(WindowManager);

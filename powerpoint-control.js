@@ -43,35 +43,99 @@ class PowerPointControl {
     }
 
     /**
+     * ★開かれているプレゼンテーションのリストを取得★
+     * @returns {Array<{id: string, name: string, isRunning: boolean}>} プレゼンテーション情報の配列
+     */
+    getOpenPresentations() {
+        const presentations = [];
+        if (!this.connect()) { // 接続試行
+            console.warn("[PowerPointControl] Cannot get presentations, not connected.");
+            return presentations;
+        }
+        try {
+            // Presentations コレクションを取得
+            if (this.ppApp.Presentations && typeof this.ppApp.Presentations.Count === 'number') {
+                const count = this.ppApp.Presentations.Count;
+                console.log(`[PowerPointControl] Found ${count} presentations.`);
+                // 各プレゼンテーション情報を取得 (COMコレクションは通常1ベースインデックス)
+                for (let i = 1; i <= count; i++) {
+                    try {
+                        const pres = this.ppApp.Presentations.Item(i);
+                        if (pres && pres.FullName) { // 有効なオブジェクトか確認
+                            let isSlideShowRunning = false;
+                            // スライドショーウィンドウが存在するかどうかで実行中か判定
+                            try {
+                                // pres.SlideShowWindow が存在し、かつ有効なHWNDを持つか
+                                if (pres.SlideShowWindow && pres.SlideShowWindow.HWND) {
+                                    isSlideShowRunning = true;
+                                }
+                            } catch { /* SlideShowWindowがなければエラーになるので無視 */ }
+
+                            presentations.push({
+                                id: pres.FullName, // フルパスをIDとして使用
+                                name: pres.Name,   // ファイル名
+                                isRunning: isSlideShowRunning // スライドショー実行中フラグ
+                            });
+                        }
+                    } catch (e) {
+                        console.warn(`[PPControl] Error accessing presentation at index ${i}:`, e.message);
+                    }
+                }
+            } else {
+                console.warn("[PPControl] Presentations collection not available.");
+            }
+        } catch (e) { console.error("[PPControl] Error getting presentations list:", e.message); }
+        return presentations;
+    }
+
+    /**
+     * ★操作対象のプレゼンテーションを設定★
+     * @param {string} identifier - 対象プレゼンテーションの識別子 (FullName)
+     */
+    setTarget(identifier) {
+        console.log(`[PPControl] Setting target presentation to: ${identifier}`);
+        this.targetPresentationIdentifier = identifier;
+    }
+    
+    /**
      * 現在実行中のスライドショーの View オブジェクトを取得試行 (内部利用)
      * @returns {object | null} View オブジェクトまたは null
      */
-    _getSlideShowView() { // ★ _getSlideShowView メソッド ★
-        if (!this.isWindows) return null;
-
-        // 接続されていなければ接続試行 (connectメソッドを呼ぶ)
-        if (!this.connect()) {
+    _getSlideShowView() {
+        if (!this.isWindows || !this.targetPresentationIdentifier) {
+            // console.warn("[PPControl] Target presentation not set."); // ターゲットがまだない場合はログを出さない方が静かかも
             return null;
         }
+        if (!this.connect()) return null; // 接続確認
 
         try {
-            // ActivePresentation -> SlideShowWindow -> View のパスで取得を試みる
-            if (this.ppApp.Presentations && typeof this.ppApp.Presentations.Count === 'number' && this.ppApp.Presentations.Count > 0 && this.ppApp.ActivePresentation) {
-                const pres = this.ppApp.ActivePresentation;
-                if (pres.SlideShowWindow && pres.SlideShowWindow.View &&
-                    typeof pres.SlideShowWindow.View.Next === 'function' &&
-                    typeof pres.SlideShowWindow.View.Previous === 'function')
-                {
-                    return pres.SlideShowWindow.View; // Viewオブジェクトを返す
-                } else {
-                    /* console.warn(...) */
+            // SlideShowWindows コレクションを検索する方がより確実
+            if (this.ppApp.SlideShowWindows && typeof this.ppApp.SlideShowWindows.Count === 'number') {
+                const count = this.ppApp.SlideShowWindows.Count;
+                for (let i = 1; i <= count; i++) { // 1ベースインデックス
+                    try {
+                        const ssw = this.ppApp.SlideShowWindows(i);
+                        // 対応するプレゼンテーションの SlideShowWindow かどうかを確認
+                        if (ssw.Presentation && ssw.Presentation.FullName === this.targetPresentationIdentifier) {
+                             // View オブジェクトが有効か確認
+                             if (ssw.View && typeof ssw.View.Next === 'function' && typeof ssw.View.Previous === 'function') {
+                                 // console.log(`[PPControl] Found matching SlideShowView for target.`); // デバッグ用
+                                 return ssw.View; // 発見したらViewを返す
+                             }
+                        }
+                    } catch(e) {
+                        console.warn(`[PPControl] Error checking SlideShowWindow at index ${i}:`, e.message); 
+                    }
                 }
+                // console.warn(`[PPControl] No running SlideShowWindow found matching target: ${this.targetPresentationIdentifier}`);
             } else {
-                /* console.warn(...) */ 
+                console.warn("[PPControl] SlideShowWindows collection not available.");
             }
         } catch (e) {
-            console.error("[PowerPointControl] Error accessing PowerPoint properties:", e.message); 
-        }
+            // エラー時は接続リセット推奨
+            console.error("[PPControl] Error accessing SlideShowWindows collection:", e.message);
+            this.ppApp = null;
+        } 
         return null; // 見つからなかった場合
     }
 

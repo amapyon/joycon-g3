@@ -24,7 +24,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
     // カーソルウィンドウ閉じる指示（メイン -> メインプロセス）
     closeCursorWindow: () => ipcRenderer.send('close-cursor-window'),
     // カーソルウィンドウが閉じた通知 受信
-    onCursorWindowClosed: (callback) => ipcRenderer.on('cursor-window-closed', (event, ...args) => callback(...args))
+    onCursorWindowClosed: (callback) => ipcRenderer.on('cursor-window-closed', (event, ...args) => callback(...args)),
+    // プレゼンリスト受信
+    onAvailablePresentations: (callback) => ipcRenderer.on('available-presentations', (event, ...args) => callback(...args)), 
+    // ターゲット設定指示送信
+    setTargetPresentation: (identifier) => ipcRenderer.send('set-target-presentation', identifier)
 });
 
 console.log('Preload script loaded.');

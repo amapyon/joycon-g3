@@ -8,6 +8,7 @@ const errorMessageDiv = document.getElementById('error-message');
 // Joy-Conステータス表示用
 const mainStatusLeft = document.getElementById('main-status-left');
 const mainStatusRight = document.getElementById('main-status-right');
+const pptSelect = document.getElementById('ppt-select'); // ★PPT選択要素の参照★
 
 // --- イベントリスナー設定 ---
 
@@ -42,6 +43,58 @@ window.electronAPI.onAvailableDisplays((displays) => {
     // カーソルウィンドウが開いていなければ閉じるボタンは隠す
     // (起動直後なので隠れた状態のまま)
     closeButton.style.display = 'none';
+});
+
+// ★プレゼンテーションリスト受信リスナーを追加★
+window.electronAPI.onAvailablePresentations((presentations) => {
+    console.log("Main Renderer: Received presentations:", presentations);
+    pptSelect.innerHTML = ''; // ドロップダウンをクリア
+
+    if (presentations && presentations.length > 0) {
+         let firstRunningShowId = null; // 最初に実行中のスライドショーIDを記憶
+         presentations.forEach((pres, index) => {
+             const option = document.createElement('option');
+             option.value = pres.id; // valueに識別子(FullName)を設定
+             option.textContent = pres.name; // ファイル名を表示
+             if (pres.isRunning) {
+                 option.textContent += " (Slide Show Active)"; // 実行中表示
+                 option.style.fontWeight = 'bold'; // 太字にするなど
+                 if (!firstRunningShowId) {
+                     firstRunningShowId = pres.id; // 最初の実行中IDを保持
+                 }
+             }
+             pptSelect.appendChild(option);
+         });
+         pptSelect.disabled = false; // 選択可能に
+
+         // スライドショー実行中のものが最初にあればそれを選択、なければ最初のものを選択
+         const targetIdToSelect = firstRunningShowId || presentations[0].id;
+         pptSelect.value = targetIdToSelect;
+         // 初期ターゲットをメインプロセスに通知
+         window.electronAPI.setTargetPresentation(targetIdToSelect);
+         console.log(`Main Renderer: Initial target presentation set to: ${targetIdToSelect}`);
+
+    } else {
+        const option = document.createElement('option');
+        option.value = "";
+        option.textContent = "-- No Presentations Open --";
+        pptSelect.appendChild(option);
+        pptSelect.disabled = true; // 選択不可に
+        // ターゲットなしを通知？ (任意)
+        window.electronAPI.setTargetPresentation(null);
+    }
+});
+
+// ★プレゼンテーション選択変更時のイベントリスナーを追加★
+pptSelect.addEventListener('change', () => {
+    const selectedId = pptSelect.value;
+    if (selectedId) {
+        console.log(`Main Renderer: Setting target presentation to: ${selectedId}`);
+        window.electronAPI.setTargetPresentation(selectedId); // 選択をメインプロセスに通知
+    } else {
+         console.log(`Main Renderer: No presentation selected.`);
+         window.electronAPI.setTargetPresentation(null); // ターゲット解除を通知
+    }
 });
 
 /**
@@ -121,5 +174,6 @@ window.electronAPI.onJoyConStatusUpdate((status) => {
 // 起動ボタンと閉じるボタンは最初は無効/非表示 (ディスプレイリスト受信後に有効化)
 launchButton.disabled = true;
 closeButton.style.display = 'none';
+pptSelect.disabled = true; // ★PPT選択も最初は無効★
 
 console.log('Main Renderer script loaded.');
