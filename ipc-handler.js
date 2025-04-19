@@ -4,6 +4,7 @@
 const { ipcMain, screen } = require('electron');
 // WindowManagerモジュールをインポートして、ウィンドウ操作を行う
 const WindowManager = require('./window-manager');
+const powerpointControl = require('./powerpoint-control'); // ★ powerpointControl をインポート ★
 
 /**
  * IPCイベントリスナーをセットアップする関数
@@ -79,6 +80,20 @@ function setupIpcHandlers(windowManagerInstance = WindowManager) {
         }
     });
 
+    /**
+     * ★ターゲットプレゼンテーション設定指示 ('set-target-presentation')★
+     * メインウィンドウでプレゼンテーションが選択されたときに送信される
+     * @param {Electron.IpcMainEvent} event - IPCイベントオブジェクト
+     * @param {string | null} identifier - 対象プレゼンテーションの識別子(FullName) または null
+     */
+    ipcMain.on('set-target-presentation', (event, identifier) => {
+        console.log(`[IPC Handler] Received 'set-target-presentation': ${identifier}`);
+        // powerpoint-control モジュールの setTarget 関数を呼び出す
+        powerpointControl.setTarget(identifier);
+        // 必要であれば確認応答を返す (今回は不要)
+        // event.reply('target-set-ack', identifier);
+    });
+    
     // 他にメインプロセスがレンダラーから受け取る必要のある指示があれば、
     // ここに ipcMain.on(...) を追加します。
     // 例: 設定の保存、Joy-Con感度の変更指示など

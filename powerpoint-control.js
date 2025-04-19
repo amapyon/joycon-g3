@@ -53,6 +53,31 @@ class PowerPointControl {
             return presentations;
         }
         try {
+             // ★ 実行中のスライドショーのファイルパス(FullName)を先にリストアップ ★
+             let runningSlideShowPaths = new Set(); // 重複を避けるためSetを使用
+             if (this.ppApp.SlideShowWindows && typeof this.ppApp.SlideShowWindows.Count === 'number') {
+                 const sswCount = this.ppApp.SlideShowWindows.Count;
+                 console.log(`[PPControl] Found ${sswCount} running slide show windows.`);
+                 for (let j = 1; j <= sswCount; j++) { // 1ベースインデックス
+                     try {
+                         // SlideShowWindowオブジェクトを取得 (Item(j) または (j) を試す)
+                         // 前回 Presentations で Item(j) が必要だったので、こちらも Item(j) を使う
+                         const ssw = this.ppApp.SlideShowWindows.Item(j);
+                         // const ssw = this.ppApp.SlideShowWindows(j); // もし Item(j) でエラーならこちら
+ 
+                         // そのウィンドウに対応するプレゼンテーションのフルパスを取得
+                         if (ssw && ssw.Presentation && ssw.Presentation.FullName) {
+                             runningSlideShowPaths.add(ssw.Presentation.FullName);
+                         }
+                     } catch (sswError) {
+                         console.warn(`[PPControl] Error accessing SlideShowWindow at index ${j}:`, sswError.message);
+                     }
+                 }
+                 console.log("[PPControl] Running slide show paths:", Array.from(runningSlideShowPaths));
+             } else {
+                  console.warn("[PPControl] SlideShowWindows collection not available or empty.");
+             }
+
             // Presentations コレクションを取得
             if (this.ppApp.Presentations && typeof this.ppApp.Presentations.Count === 'number') {
                 const count = this.ppApp.Presentations.Count;
@@ -62,14 +87,7 @@ class PowerPointControl {
                     try {
                         const pres = this.ppApp.Presentations.Item(i);
                         if (pres && pres.FullName) { // 有効なオブジェクトか確認
-                            let isSlideShowRunning = false;
-                            // スライドショーウィンドウが存在するかどうかで実行中か判定
-                            try {
-                                // pres.SlideShowWindow が存在し、かつ有効なHWNDを持つか
-                                if (pres.SlideShowWindow && pres.SlideShowWindow.HWND) {
-                                    isSlideShowRunning = true;
-                                }
-                            } catch { /* SlideShowWindowがなければエラーになるので無視 */ }
+                            const isSlideShowRunning = runningSlideShowPaths.has(pres.FullName);
 
                             presentations.push({
                                 id: pres.FullName, // フルパスをIDとして使用
@@ -114,7 +132,7 @@ class PowerPointControl {
                 const count = this.ppApp.SlideShowWindows.Count;
                 for (let i = 1; i <= count; i++) { // 1ベースインデックス
                     try {
-                        const ssw = this.ppApp.SlideShowWindows(i);
+                        const ssw = this.ppApp.SlideShowWindows.Item(i);
                         // 対応するプレゼンテーションの SlideShowWindow かどうかを確認
                         if (ssw.Presentation && ssw.Presentation.FullName === this.targetPresentationIdentifier) {
                              // View オブジェクトが有効か確認
