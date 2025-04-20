@@ -21,7 +21,7 @@ function createWindow() {
     console.log("[WindowManager] Creating main window...");
     mainWindow = new BrowserWindow({
         width: 500,
-        height: 400, // ステータス表示用に高さを確保
+        height: 600, // ステータス表示用に高さを確保
         webPreferences: {
             preload: path.join(__dirname, 'preload.js'), // preloadスクリプト指定
             contextIsolation: true,
@@ -131,7 +131,7 @@ function createCursorWindowInternal(targetDisplay) {
     });
 
     // デバッグ用DevTools (別ウィンドウで開く)
-    // cursorWindow.webContents.openDevTools({ mode: 'detach' });
+    cursorWindow.webContents.openDevTools({ mode: 'detach' });
 }
 
 /** 利用可能なディスプレイリストをメインウィンドウに送信 */

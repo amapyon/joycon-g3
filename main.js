@@ -5,30 +5,11 @@ const JoyConManager = require('./joycon');
 const powerpointControl = require('./powerpoint-control');
 const WindowManager = require('./window-manager');
 const IpcHandler = require('./ipc-handler');
+const sensorFusionProcessor = require('./sensor-fusion'); // ★インポート★
 
 // --- グローバルインスタンス ---
 // 各モジュールはシングルトンとしてインスタンス化 (joyconはクラスなのでnewする)
 const joyconManager = new JoyConManager(); // スキャン間隔はデフォルト(5s)
-
-// ---- ★プレゼンテーションリストをメインウィンドウに送信する関数★ ----
-function sendAvailablePresentations() {
-    const mainWindow = WindowManager.getMainWindow(); // WindowManagerから取得
-    if (mainWindow && !mainWindow.isDestroyed()) {
-         console.log("[Main] Getting available presentations...");
-         try {
-             // powerpointControl モジュールに関数を移譲
-             const presentations = powerpointControl.getOpenPresentations();
-             console.log(`[Main] Sending ${presentations.length} presentations to main window.`);
-             mainWindow.webContents.send('available-presentations', presentations);
-         } catch (e) {
-             console.error("[Main] Error getting/sending presentations:", e);
-             // エラー発生時も空リストを送るなどしてUIを更新
-             mainWindow.webContents.send('available-presentations', []);
-             // エラー通知も検討
-             // WindowManager.sendLaunchErrorToMain(`PPT List Error: ${e.message}`);
-         }
-    }
-}
 
 // --- Electron アプリケーションライフサイクル ---
 
@@ -51,56 +32,93 @@ app.whenReady().then(() => {
     const mainWin = WindowManager.getMainWindow(); // 作成直後に参照取得 (非同期性に注意)
     if (mainWin) {
         mainWin.webContents.on('did-finish-load', () => {
-            // ディスプレイリスト送信は WindowManager 内で行われる
-            // プレゼンテーションリスト送信をここからトリガー
-            sendAvailablePresentations();
-            // 初期の接続状態も送信
-            mainWin.webContents.send('joycon-status-update', {
-                 leftConnected: !!joyconManager.hidL,
-                 rightConnected: !!joyconManager.hidR
-             });
+            // プレゼンテーションリスト取得・送信
+            if (powerpointControl) { // powerpointControl が初期化失敗している可能性も考慮
+                try {
+                    const presentations = powerpointControl.getOpenPresentations();
+                    if (mainWin && !mainWin.isDestroyed()) {
+                        mainWin.webContents.send('available-presentations', presentations);
+                    }
+                } catch (e) {
+                    console.error("Error getting/sending presentations on did-finish-load:", e);
+                    if (mainWin && !mainWin.isDestroyed()) {
+                        mainWin.webContents.send('available-presentations', []);
+                        WindowManager.sendLaunchErrorToMain(`PPT List Error: ${e.message}`);
+                    }
+                }
+            }
+            // 初期の接続状態送信
+            if (joyconManager && mainWin && !mainWin.isDestroyed()) {
+                mainWin.webContents.send('joycon-status-update', {
+                    leftConnected: !!joyconManager.hidL,
+                    rightConnected: !!joyconManager.hidR
+                });
+            }
         });
     } else {
-         console.error("Failed to get mainWindow reference immediately after creation.");
+        console.error("Failed to get mainWindow reference immediately after creation.");
     }
 
     // IPCハンドラー設定 (IpcHandler経由, WindowManagerを渡す)
     IpcHandler.setupIpcHandlers(WindowManager);
 
-    // --- JoyConManager イベントリスナー設定 ---
-    // イベントを受け取り、適切な処理を行う
-    joyconManager.on('gyro', (data) => {
-        const targetWindow = WindowManager.getCursorWindow(); // WindowManagerから参照取得
-        if (targetWindow && !targetWindow.isDestroyed()) {
-            targetWindow.webContents.send('joycon-gyro', data);
+    // IMUデータ -> SensorFusion -> カーソルウィンドウへ角度送信
+    joyconManager.on('imu-data', (data) => {
+        // センサーフュージョンモジュールで角度を計算
+        const attitude = sensorFusionProcessor.updateAttitude(data);
+        // 計算結果をカーソルウィンドウに送信
+        if (attitude) {
+            const targetWindow = WindowManager.getCursorWindow();
+            if (targetWindow && !targetWindow.isDestroyed()) {
+                // ★ IPCチャンネル名は 'joycon-attitude' ★
+                targetWindow.webContents.send('joycon-attitude', {
+                    id: data.id,
+                    roll: attitude.roll,
+                    pitch: attitude.pitch
+                });
+            }
         }
     });
+
+    // 接続状態 -> メインウィンドウへ
     joyconManager.on('status-update', (status) => {
-        const targetWindow = WindowManager.getMainWindow(); // メインウィンドウに通知
+        const targetWindow = WindowManager.getMainWindow();
         if (targetWindow && !targetWindow.isDestroyed()) {
             targetWindow.webContents.send('joycon-status-update', status);
         }
     });
 
-    // ボタン状態通知イベント -> カーソルウィンドウへ転送
+    // ボタン状態通知 -> カーソルウィンドウへ
     ['button-x', 'button-down'].forEach(eventName => {
         joyconManager.on(eventName, (data) => {
              const targetWindow = WindowManager.getCursorWindow();
              if (targetWindow && !targetWindow.isDestroyed()) {
-                 targetWindow.webContents.send(eventName, data);
+                 // ★ IPCチャンネル名は 'joycon-' + eventName ★
+                 targetWindow.webContents.send(`joycon-${eventName}`, data);
              }
         });
     });
 
-    // ボタン押下瞬間イベント -> カーソルウィンドウへ転送 (リセット用)
-     ['button-x-pressed', 'button-down-pressed'].forEach(eventName => {
-        joyconManager.on(eventName, (data) => {
-            const targetWindow = WindowManager.getCursorWindow();
-             if (targetWindow && !targetWindow.isDestroyed()) {
-                 targetWindow.webContents.send(eventName, data);
-             }
-        });
+    // ★ X/Downボタン押下瞬間 (リセンター + レンダラーへリセット通知) ★
+    joyconManager.on('button-x-pressed', (data) => {
+        console.log(`[Main] X Pressed Trigger for ${data.id}. Recenter.`);
+        sensorFusionProcessor.recenter(data.id);
+        // sensorFusionProcessor.calibrate(data.id, /* rawGyro */); // キャリブレーション呼び出し (データ必要)
+        const targetWindow = WindowManager.getCursorWindow();
+        if (targetWindow && !targetWindow.isDestroyed()) {
+            targetWindow.webContents.send('joycon-button-x-pressed', data); // レンダラーのリセットも呼ぶ
+        }
     });
+    joyconManager.on('button-down-pressed', (data) => {
+        console.log(`[Main] Down Pressed Trigger for ${data.id}. Recenter.`);
+        sensorFusionProcessor.recenter(data.id);
+        // sensorFusionProcessor.calibrate(data.id, /* rawGyro */);
+        const targetWindow = WindowManager.getCursorWindow();
+        if (targetWindow && !targetWindow.isDestroyed()) {
+            targetWindow.webContents.send('joycon-button-down-pressed', data); // レンダラーのリセットも呼ぶ
+        }
+    });
+
     // PowerPoint 操作イベント -> powerpointControl のメソッド呼び出し
     joyconManager.on('ppt-next', () => {
         console.log("Main: Event PPT Next -> Calling powerpointControl.next()");

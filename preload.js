@@ -6,10 +6,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
     // --- カーソルウィンドウが使用するAPI ---
     // JoyConの状態やデータ受信
     onJoyConStatusUpdate: (callback) => ipcRenderer.on('joycon-status-update', (event, ...args) => callback(...args)),
-    onJoyConGyro: (callback) => ipcRenderer.on('joycon-gyro', (event, ...args) => callback(...args)),
+    // onJoyConGyro: (callback) => ipcRenderer.on('joycon-gyro', (event, ...args) => callback(...args)),
+    onJoyConAttitude: (callback) => ipcRenderer.on('joycon-attitude', (event, ...args) => callback(...args)), // ★追加★ {id, pitch, roll}
     // ボタン状態（表示/非表示トグル用）
-    onJoyConButtonX: (callback) => ipcRenderer.on('button-x', (event, ...args) => callback(...args)),
-    onJoyConButtonDown: (callback) => ipcRenderer.on('button-down', (event, ...args) => callback(...args)),
+    onJoyConButtonX: (callback) => ipcRenderer.on('joycon-button-x', (event, ...args) => callback(...args)),
+    onJoyConButtonDown: (callback) => ipcRenderer.on('joycon-button-down', (event, ...args) => callback(...args)),
     // ボタン押下瞬間（リセット用）
     onJoyConButtonXPressed: (callback) => ipcRenderer.on('button-x-pressed', (event, ...args) => callback(...args)),
     onJoyConButtonDownPressed: (callback) => ipcRenderer.on('button-down-pressed', (event, ...args) => callback(...args)),

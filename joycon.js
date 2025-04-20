@@ -258,72 +258,86 @@ class JoyConManager extends EventEmitter {
         }
     }
 
-    /** 受信データを解析し、イベントを発行 (★イベント名をシンプルに★) */
+    /** 受信データを解析し、★IMUデータ(加速度+ジャイロ)★とボタンイベントを発行 */
     parseJoyConData(hidDevice, data, isLeft) {
         const reportId = data[0];
         if (reportId === 0x30 && data.length >= 25) { // 標準フルレポート想定
-             try {
-                 // ジャイロデータ
-                 const gyroX = data.readInt16LE(19);
-                 const gyroY = data.readInt16LE(21);
-                 const gyroZ = data.readInt16LE(23);
-                 const cursorId = isLeft ? 'cursor1' : 'cursor2';
-                 this.emit('gyro', { id: cursorId, x: gyroX, y: gyroY, z: gyroZ }); // ★イベント名: gyro★
+            try {
+                const cursorId = isLeft ? 'cursor1' : 'cursor2';
 
-                 // ボタンデータ
-                 let buttonByteIndex = isLeft ? 5 : 3;
-                 let lastButtonState = isLeft ? this.lastButtonStateL : this.lastButtonStateR;
+                // --- ★IMUデータ (加速度 + ジャイロ) 読み取り★ ---
+                // オフセットは標準レポートの場合 (要検証)
+                const accelOffsetX = 13; const accelOffsetY = 15; const accelOffsetZ = 17;
+                const gyroOffsetX = 19; const gyroOffsetY = 21; const gyroOffsetZ = 23;
 
-                 if (data.length > buttonByteIndex) {
-                     const buttonByte = data[buttonByteIndex];
+                const accelX = data.readInt16LE(accelOffsetX);
+                const accelY = data.readInt16LE(accelOffsetY);
+                const accelZ = data.readInt16LE(accelOffsetZ);
+                const gyroX = data.readInt16LE(gyroOffsetX);
+                const gyroY = data.readInt16LE(gyroOffsetY);
+                const gyroZ = data.readInt16LE(gyroOffsetZ);
 
-                     if (isLeft) { // 左 Joy-Con
-                         const DOWN_BUTTON_MASK = 0x01;
-                         const LEFT_BUTTON_MASK = 0x08;
-                         const RIGHT_BUTTON_MASK = 0x04;
-                         const currentDownPressed = (buttonByte & DOWN_BUTTON_MASK) !== 0;
-                         const currentLeftPressed = (buttonByte & LEFT_BUTTON_MASK) !== 0;
-                         const currentRightPressed = (buttonByte & RIGHT_BUTTON_MASK) !== 0;
+                // ★新しい 'imu-data' イベントを発行★
+                this.emit('imu-data', {
+                    id: cursorId,
+                    accel: { x: accelX, y: accelY, z: accelZ },
+                    gyro: { x: gyroX, y: gyroY, z: gyroZ }
+                });
 
-                         this.emit('button-down', { pressed: currentDownPressed }); // ★イベント名: button-down★
-                         if (currentDownPressed && !lastButtonState.downPressed) {
+                // ボタンデータ
+                let buttonByteIndex = isLeft ? 5 : 3;
+                let lastButtonState = isLeft ? this.lastButtonStateL : this.lastButtonStateR;
+
+                if (data.length > buttonByteIndex) {
+                    const buttonByte = data[buttonByteIndex];
+
+                    if (isLeft) { // 左 Joy-Con
+                        const DOWN_BUTTON_MASK = 0x01;
+                        const LEFT_BUTTON_MASK = 0x08;
+                        const RIGHT_BUTTON_MASK = 0x04;
+                        const currentDownPressed = (buttonByte & DOWN_BUTTON_MASK) !== 0;
+                        const currentLeftPressed = (buttonByte & LEFT_BUTTON_MASK) !== 0;
+                        const currentRightPressed = (buttonByte & RIGHT_BUTTON_MASK) !== 0;
+
+                        this.emit('button-down', { pressed: currentDownPressed }); // ★イベント名: button-down★
+                        if (currentDownPressed && !lastButtonState.downPressed) {
                             this.emit('button-down-pressed', { id: cursorId }); // ★イベント名: button-down-pressed★
                         }
-                         if (currentLeftPressed && !lastButtonState.leftPressed) {
+                        if (currentLeftPressed && !lastButtonState.leftPressed) {
                             this.emit('ppt-next'); // PPT操作イベント
                         }
-                         if (currentRightPressed && !lastButtonState.rightPressed) {
+                        if (currentRightPressed && !lastButtonState.rightPressed) {
                             this.emit('ppt-prev'); // PPT操作イベント
                         }
 
                         lastButtonState.downPressed = currentDownPressed;
                         lastButtonState.leftPressed = currentLeftPressed;
                         lastButtonState.rightPressed = currentRightPressed;
-                     } else { // 右 Joy-Con
-                         const X_BUTTON_MASK = 0x02;
-                         const A_BUTTON_MASK = 0x08;
-                         const Y_BUTTON_MASK = 0x01;
-                         const currentXPressed = (buttonByte & X_BUTTON_MASK) !== 0;
-                         const currentAPressed = (buttonByte & A_BUTTON_MASK) !== 0;
-                         const currentYPressed = (buttonByte & Y_BUTTON_MASK) !== 0;
+                    } else { // 右 Joy-Con
+                        const X_BUTTON_MASK = 0x02;
+                        const A_BUTTON_MASK = 0x08;
+                        const Y_BUTTON_MASK = 0x01;
+                        const currentXPressed = (buttonByte & X_BUTTON_MASK) !== 0;
+                        const currentAPressed = (buttonByte & A_BUTTON_MASK) !== 0;
+                        const currentYPressed = (buttonByte & Y_BUTTON_MASK) !== 0;
 
-                         this.emit('button-x', { pressed: currentXPressed }); // ★イベント名: button-x★
-                         if (currentXPressed && !lastButtonState.xPressed) {
+                        this.emit('button-x', { pressed: currentXPressed }); // ★イベント名: button-x★
+                        if (currentXPressed && !lastButtonState.xPressed) {
                             this.emit('button-x-pressed', { id: cursorId }); // ★イベント名: button-x-pressed★
                         }
-                         if (currentAPressed && !lastButtonState.aPressed) {
+                        if (currentAPressed && !lastButtonState.aPressed) {
                             this.emit('ppt-next'); // PPT操作イベント
                         }
-                         if (currentYPressed && !lastButtonState.yPressed) {
+                        if (currentYPressed && !lastButtonState.yPressed) {
                             this.emit('ppt-prev'); // PPT操作イベント
                         }
 
-                         lastButtonState.xPressed = currentXPressed;
-                         lastButtonState.aPressed = currentAPressed;
-                         lastButtonState.yPressed = currentYPressed;
-                     }
-                 }
-             } catch (e) {
+                        lastButtonState.xPressed = currentXPressed;
+                        lastButtonState.aPressed = currentAPressed;
+                        lastButtonState.yPressed = currentYPressed;
+                    }
+                }
+            } catch (e) {
                 console.error(`[${isLeft ? 'L' : 'R'}] Parse Error:`, e);
             }
         }
