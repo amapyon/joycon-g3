@@ -102,7 +102,9 @@ class PowerPointControl {
             } else {
                 console.warn("[PPControl] Presentations collection not available.");
             }
-        } catch (e) { console.error("[PPControl] Error getting presentations list:", e.message); }
+        } catch (e) {
+            console.error("[PPControl] Error getting presentations list:", e.message);
+        }
         return presentations;
     }
 
