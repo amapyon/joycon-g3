@@ -13,7 +13,7 @@ let windowHeight = window.innerHeight;
 // --- 設定値 (ユーザー指定の値) ---
 const defaultSensitivityX = 36; // 横方向の感度 (ロール角に対して)
 const defaultSensitivityY = 36; // 縦方向の感度 (ピッチ角に対して)
-const defaultSmoothingFactor = 0.5; // ★スムージング係数 (0 < factor < 1): 小さいほど滑らか(遅い)★
+const defaultSmoothingFactor = 0.7; // ★スムージング係数 (0 < factor < 1): 小さいほど滑らか(遅い)★
 // デッドゾーンと減衰係数は main.js/joycon.js 側で処理 or 不要に
 
 // --- 各カーソルの状態と左右個別の設定 ---
