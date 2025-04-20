@@ -16,11 +16,11 @@ const pptSelect = document.getElementById('ppt-select'); // ★PPT選択要素�
  * ディスプレイリストを受信し、ドロップダウンメニューを生成するリスナー
  */
 window.electronAPI.onAvailableDisplays((displays) => {
-    console.log("Main Renderer: Received displays", displays);
+    console.log('Main Renderer: Received displays', displays);
     displaySelect.innerHTML = ''; // ドロップダウンをクリア
 
     if (displays && displays.length > 0) {
-        displays.forEach(display => {
+        displays.forEach((display) => {
             const option = document.createElement('option');
             option.value = display.id; // valueにディスプレイIDを設定
             option.textContent = display.label; // 表示テキスト
@@ -33,8 +33,8 @@ window.electronAPI.onAvailableDisplays((displays) => {
     } else {
         // ディスプレイが見つからない場合
         const option = document.createElement('option');
-        option.value = "";
-        option.textContent = "-- No Displays Found --";
+        option.value = '';
+        option.textContent = '-- No Displays Found --';
         displaySelect.appendChild(option);
         displaySelect.disabled = true;
         launchButton.disabled = true;
@@ -47,7 +47,7 @@ window.electronAPI.onAvailableDisplays((displays) => {
 
 // ★プレゼンテーションリスト受信リスナーを追加★
 window.electronAPI.onAvailablePresentations((presentations) => {
-    console.log("Main Renderer: Received presentations:", presentations);
+    console.log('Main Renderer: Received presentations:', presentations);
     pptSelect.innerHTML = ''; // ドロップダウンをクリア
 
     if (presentations && presentations.length > 0) {
@@ -57,7 +57,7 @@ window.electronAPI.onAvailablePresentations((presentations) => {
             option.value = pres.id; // valueに識別子(FullName)を設定
             option.textContent = pres.name; // ファイル名を表示
             if (pres.isRunning) {
-                option.textContent += " (Slide Show Active)"; // 実行中表示
+                option.textContent += ' (Slide Show Active)'; // 実行中表示
                 option.style.fontWeight = 'bold'; // 太字にするなど
                 if (!firstRunningShowId) {
                     firstRunningShowId = pres.id; // 最初の実行中IDを保持
@@ -73,11 +73,10 @@ window.electronAPI.onAvailablePresentations((presentations) => {
         // 初期ターゲットをメインプロセスに通知
         window.electronAPI.setTargetPresentation(targetIdToSelect);
         console.log(`Main Renderer: Initial target presentation set to: ${targetIdToSelect}`);
-
     } else {
         const option = document.createElement('option');
-        option.value = "";
-        option.textContent = "-- No Presentations Open --";
+        option.value = '';
+        option.textContent = '-- No Presentations Open --';
         pptSelect.appendChild(option);
         pptSelect.disabled = true; // 選択不可に
         // ターゲットなしを通知？ (任意)
@@ -121,7 +120,7 @@ launchButton.addEventListener('click', () => {
  * 「Close Cursor Window」ボタンのクリックイベントリスナー
  */
 closeButton.addEventListener('click', () => {
-    console.log("Main Renderer: Requesting to close cursor window...");
+    console.log('Main Renderer: Requesting to close cursor window...');
     errorMessageDiv.textContent = 'Closing cursor window...';
     window.electronAPI.closeCursorWindow(); // mainプロセスに閉じるよう指示
     // UIの状態更新は onCursorWindowClosed イベントで行う
@@ -131,7 +130,7 @@ closeButton.addEventListener('click', () => {
  * カーソルウィンドウが閉じた通知を受け取るリスナー
  */
 window.electronAPI.onCursorWindowClosed(() => {
-    console.log("Main Renderer: Cursor window closed notification received.");
+    console.log('Main Renderer: Cursor window closed notification received.');
     errorMessageDiv.textContent = 'Cursor window closed. Select a display to launch again.';
     // UIを再度有効化
     displaySelect.disabled = false;
@@ -144,7 +143,7 @@ window.electronAPI.onCursorWindowClosed(() => {
  * カーソルウィンドウ起動エラーの通知を受け取るリスナー
  */
 window.electronAPI.onLaunchError((message) => {
-    console.error("Main Renderer: Launch Error received:", message);
+    console.error('Main Renderer: Launch Error received:', message);
     errorMessageDiv.textContent = `Error launching cursor window: ${message}`;
     // エラー発生時は再度選択できるようにUIを有効化
     launchButton.disabled = false;

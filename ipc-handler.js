@@ -5,6 +5,7 @@ const { ipcMain, screen } = require('electron');
 // WindowManagerモジュールをインポートして、ウィンドウ操作を行う
 const WindowManager = require('./window-manager');
 const powerpointControl = require('./powerpoint-control'); // ★ powerpointControl をインポート ★
+const imuProcessor = require('./imu-processor'); // ★IMUプロセッサーをインポート★
 
 /**
  * IPCイベントリスナーをセットアップする関数
@@ -12,7 +13,7 @@ const powerpointControl = require('./powerpoint-control'); // ★ powerpointCont
  * @param {object} windowManagerInstance - WindowManager のインスタンス (依存性の注入)
  */
 function setupIpcHandlers(windowManagerInstance = WindowManager) {
-    console.log("Setting up IPC Handlers...");
+    console.log('Setting up IPC Handlers...');
 
     // --- メインウィンドウ (main-renderer.js) からの指示を受信 ---
 
@@ -33,9 +34,9 @@ function setupIpcHandlers(windowManagerInstance = WindowManager) {
             // screenモジュールを使ってディスプレイ情報を取得
             const displays = screen.getAllDisplays();
             if (!displays) {
-                throw new Error("Screen API unavailable or returned invalid display list.");
+                throw new Error('Screen API unavailable or returned invalid display list.');
             }
-            const selectedDisplay = displays.find(d => d.id === targetId);
+            const selectedDisplay = displays.find((d) => d.id === targetId);
 
             if (selectedDisplay) {
                 // WindowManager経由でカーソルウィンドウを作成
@@ -49,7 +50,7 @@ function setupIpcHandlers(windowManagerInstance = WindowManager) {
             }
         } catch (e) {
             // その他の予期せぬエラー
-            console.error("IPC launch-cursor-window error:", e);
+            console.error('IPC launch-cursor-window error:', e);
             // WindowManager経由でエラーをメインウィンドウに通知
             windowManagerInstance.sendLaunchErrorToMain(`Launch Error: ${e.message}`);
         }
@@ -64,12 +65,12 @@ function setupIpcHandlers(windowManagerInstance = WindowManager) {
         // WindowManager経由でカーソルウィンドウの参照を取得
         const windowToClose = windowManagerInstance.getCursorWindow();
         if (windowToClose && !windowToClose.isDestroyed()) {
-            console.log("IPC Handler: Closing cursor window.");
+            console.log('IPC Handler: Closing cursor window.');
             windowToClose.close(); // ウィンドウを閉じる
             // 'closed' イベントは window-manager.js 内のリスナーで処理され、
             // メインウィンドウへの通知 ('cursor-window-closed') が行われる
         } else {
-            console.log("IPC Handler: Cursor window already closed or not found.");
+            console.log('IPC Handler: Cursor window already closed or not found.');
             // 必要ならメインウィンドウに「既に閉じている」ことを通知しても良い
             // windowManagerInstance.sendLaunchErrorToMain('Cursor window is already closed.');
             // メインウィンドウのUI状態をリセットするために通知だけ送る
@@ -98,10 +99,10 @@ function setupIpcHandlers(windowManagerInstance = WindowManager) {
     // ここに ipcMain.on(...) を追加します。
     // 例: 設定の保存、Joy-Con感度の変更指示など
 
-    console.log("IPC Handlers setup complete.");
+    console.log('IPC Handlers setup complete.');
 }
 
 // セットアップ関数をエクスポート
 module.exports = {
-    setupIpcHandlers
+    setupIpcHandlers,
 };
