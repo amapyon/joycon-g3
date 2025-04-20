@@ -81,6 +81,7 @@ app.whenReady().then(() => {
             targetWindow.webContents.send('joycon-status-update', status);
         }
     });
+
     // ボタン状態通知イベント -> カーソルウィンドウへ転送
     ['button-x', 'button-down'].forEach(eventName => {
         joyconManager.on(eventName, (data) => {
@@ -90,6 +91,7 @@ app.whenReady().then(() => {
              }
         });
     });
+
     // ボタン押下瞬間イベント -> カーソルウィンドウへ転送 (リセット用)
      ['button-x-pressed', 'button-down-pressed'].forEach(eventName => {
         joyconManager.on(eventName, (data) => {
@@ -119,7 +121,9 @@ app.whenReady().then(() => {
             WindowManager.createWindow(); // WindowManager経由
         } else {
             const mainWin = WindowManager.getMainWindow();
-            if (!mainWin || mainWin.isDestroyed()) { WindowManager.createWindow(); }
+            if (!mainWin || mainWin.isDestroyed()) {
+                WindowManager.createWindow();
+            }
         }
     });
 

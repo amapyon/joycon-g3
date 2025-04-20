@@ -86,10 +86,10 @@ function updateCursorElementPosition(cursorId) {
             element.style.left = `${cursorData.x - halfWidth}px`;
             element.style.top = `${cursorData.y - halfHeight}px`;
         } else {
-            /* console.warn(`[${cursorId}] Invalid element dimensions.`); */
+            console.warn(`[${cursorId}] Invalid element dimensions.`);
         }
     } else {
-        /* console.warn(`[${cursorId}] Skipping pos update.`); */
+        console.warn(`[${cursorId}] Skipping pos update.`);
     }
 }
 
@@ -256,5 +256,5 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // 描画ループを開始
     requestAnimationFrame(renderLoop);
-    console.log('Cursor Renderer script initialized.');
+    console.log('Cursor Renderer script initialized for attitude control.');
 });

@@ -41,7 +41,9 @@ class JoyConManager extends EventEmitter {
     /** Joy-Conデバイスのパスを検索 */
     findJoyCons() {
         try {
-            if (!HID || typeof HID.devices !== 'function') { throw new Error("node-hid not available"); }
+            if (!HID || typeof HID.devices !== 'function') {
+                throw new Error("node-hid not available");
+            }
             const devices = HID.devices();
             let joyconLPath = null;
             let joyconRPath = null;
@@ -107,7 +109,18 @@ class JoyConManager extends EventEmitter {
     }
 
     /** HIDデバイスを安全に閉じる */
-    closeHidDevice(hidDevice) { if (hidDevice) { try { hidDevice.removeAllListeners('data'); hidDevice.removeAllListeners('error'); hidDevice.close(); console.log("HID device closed."); } catch (e) { console.error("Close HID Error:", e); } } }
+    closeHidDevice(hidDevice) {
+        if (hidDevice) {
+            try {
+                hidDevice.removeAllListeners('data');
+                hidDevice.removeAllListeners('error');
+                hidDevice.close();
+                console.log("HID device closed.");
+            } catch (e) {
+                console.error("Close HID Error:", e);
+            }
+        }
+    }
 
     /** 指定されたJoy-Con接続を閉じる */
     closeJoyCon(isLeft) {
@@ -258,7 +271,6 @@ class JoyConManager extends EventEmitter {
                  this.emit('gyro', { id: cursorId, x: gyroX, y: gyroY, z: gyroZ }); // ★イベント名: gyro★
 
                  // ボタンデータ
-                 const SL_BUTTON_MASK = 0x20;
                  let buttonByteIndex = isLeft ? 5 : 3;
                  let lastButtonState = isLeft ? this.lastButtonStateL : this.lastButtonStateR;
 
@@ -284,7 +296,9 @@ class JoyConManager extends EventEmitter {
                             this.emit('ppt-prev'); // PPT操作イベント
                         }
 
-                         lastButtonState.downPressed = currentDownPressed; lastButtonState.leftPressed = currentLeftPressed; lastButtonState.rightPressed = currentRightPressed;
+                        lastButtonState.downPressed = currentDownPressed;
+                        lastButtonState.leftPressed = currentLeftPressed;
+                        lastButtonState.rightPressed = currentRightPressed;
                      } else { // 右 Joy-Con
                          const X_BUTTON_MASK = 0x02;
                          const A_BUTTON_MASK = 0x08;
