@@ -72,11 +72,11 @@ function setupIpcHandlers(windowManagerInstance = WindowManager) {
             console.log("IPC Handler: Cursor window already closed or not found.");
             // 必要ならメインウィンドウに「既に閉じている」ことを通知しても良い
             // windowManagerInstance.sendLaunchErrorToMain('Cursor window is already closed.');
-             // メインウィンドウのUI状態をリセットするために通知だけ送る
-             const mainWin = windowManagerInstance.getMainWindow();
-             if (mainWin && !mainWin.isDestroyed()){
+            // メインウィンドウのUI状態をリセットするために通知だけ送る
+            const mainWin = windowManagerInstance.getMainWindow();
+            if (mainWin && !mainWin.isDestroyed()) {
                 mainWin.webContents.send('cursor-window-closed');
-             }
+            }
         }
     });
 
@@ -93,7 +93,7 @@ function setupIpcHandlers(windowManagerInstance = WindowManager) {
         // 必要であれば確認応答を返す (今回は不要)
         // event.reply('target-set-ack', identifier);
     });
-    
+
     // 他にメインプロセスがレンダラーから受け取る必要のある指示があれば、
     // ここに ipcMain.on(...) を追加します。
     // 例: 設定の保存、Joy-Con感度の変更指示など

@@ -51,28 +51,28 @@ window.electronAPI.onAvailablePresentations((presentations) => {
     pptSelect.innerHTML = ''; // ドロップダウンをクリア
 
     if (presentations && presentations.length > 0) {
-         let firstRunningShowId = null; // 最初に実行中のスライドショーIDを記憶
-         presentations.forEach((pres, index) => {
-             const option = document.createElement('option');
-             option.value = pres.id; // valueに識別子(FullName)を設定
-             option.textContent = pres.name; // ファイル名を表示
-             if (pres.isRunning) {
-                 option.textContent += " (Slide Show Active)"; // 実行中表示
-                 option.style.fontWeight = 'bold'; // 太字にするなど
-                 if (!firstRunningShowId) {
-                     firstRunningShowId = pres.id; // 最初の実行中IDを保持
-                 }
-             }
-             pptSelect.appendChild(option);
-         });
-         pptSelect.disabled = false; // 選択可能に
+        let firstRunningShowId = null; // 最初に実行中のスライドショーIDを記憶
+        presentations.forEach((pres, index) => {
+            const option = document.createElement('option');
+            option.value = pres.id; // valueに識別子(FullName)を設定
+            option.textContent = pres.name; // ファイル名を表示
+            if (pres.isRunning) {
+                option.textContent += " (Slide Show Active)"; // 実行中表示
+                option.style.fontWeight = 'bold'; // 太字にするなど
+                if (!firstRunningShowId) {
+                    firstRunningShowId = pres.id; // 最初の実行中IDを保持
+                }
+            }
+            pptSelect.appendChild(option);
+        });
+        pptSelect.disabled = false; // 選択可能に
 
-         // スライドショー実行中のものが最初にあればそれを選択、なければ最初のものを選択
-         const targetIdToSelect = firstRunningShowId || presentations[0].id;
-         pptSelect.value = targetIdToSelect;
-         // 初期ターゲットをメインプロセスに通知
-         window.electronAPI.setTargetPresentation(targetIdToSelect);
-         console.log(`Main Renderer: Initial target presentation set to: ${targetIdToSelect}`);
+        // スライドショー実行中のものが最初にあればそれを選択、なければ最初のものを選択
+        const targetIdToSelect = firstRunningShowId || presentations[0].id;
+        pptSelect.value = targetIdToSelect;
+        // 初期ターゲットをメインプロセスに通知
+        window.electronAPI.setTargetPresentation(targetIdToSelect);
+        console.log(`Main Renderer: Initial target presentation set to: ${targetIdToSelect}`);
 
     } else {
         const option = document.createElement('option');
@@ -92,8 +92,8 @@ pptSelect.addEventListener('change', () => {
         console.log(`Main Renderer: Setting target presentation to: ${selectedId}`);
         window.electronAPI.setTargetPresentation(selectedId); // 選択をメインプロセスに通知
     } else {
-         console.log(`Main Renderer: No presentation selected.`);
-         window.electronAPI.setTargetPresentation(null); // ターゲット解除を通知
+        console.log(`Main Renderer: No presentation selected.`);
+        window.electronAPI.setTargetPresentation(null); // ターゲット解除を通知
     }
 });
 

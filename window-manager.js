@@ -72,8 +72,8 @@ function createCursorWindow(targetDisplay) {
         // closed イベントを待たずに新しいウィンドウを開くと問題が起きる可能性があるため、
         // 少し待機時間を設けるか、closed イベント後に生成するのがより安全
         cursorWindow.once('closed', () => {
-             // 閉じた後に新しいウィンドウを生成
-             createCursorWindowInternal(targetDisplay);
+            // 閉じた後に新しいウィンドウを生成
+            createCursorWindowInternal(targetDisplay);
         });
         cursorWindow.close();
     } else {
@@ -140,7 +140,7 @@ function sendAvailableDisplays() {
         console.warn("[WindowManager] Cannot send display list: Main window not available.");
         return;
     }
-     try {
+    try {
         const displays = screen.getAllDisplays();
         // screen APIが利用できない場合のフォールバック
         if (!displays || !screen.getPrimaryDisplay) { throw new Error("Screen API unavailable."); }
@@ -153,11 +153,11 @@ function sendAvailableDisplays() {
         }));
         console.log(`[WindowManager] Found ${displayInfoList.length} displays. Sending list to main window.`);
         mainWindow.webContents.send('available-displays', displayInfoList);
-    } catch(e) {
+    } catch (e) {
         console.error("[WindowManager] Error getting/sending display list:", e);
         sendLaunchErrorToMain(`Error getting displays: ${e.message}`); // エラー通知
         if (mainWindow && !mainWindow.isDestroyed()) {
-             mainWindow.webContents.send('available-displays', []); // 空リストを送る
+            mainWindow.webContents.send('available-displays', []); // 空リストを送る
         }
     }
 }
@@ -168,18 +168,18 @@ function sendCursorWindowClosedToMain() {
         console.log("[WindowManager] Sending 'cursor-window-closed' to main window.");
         mainWindow.webContents.send('cursor-window-closed');
     } else {
-         console.log("[WindowManager] Main window not available to send close notification.");
+        console.log("[WindowManager] Main window not available to send close notification.");
     }
 }
 
 /** 起動エラーをメインウィンドウに通知 */
 function sendLaunchErrorToMain(message) {
-     if (mainWindow && !mainWindow.isDestroyed()) {
+    if (mainWindow && !mainWindow.isDestroyed()) {
         console.log(`[WindowManager] Sending launch error to main window: ${message}`);
         mainWindow.webContents.send('launch-error', message);
-     } else {
-          console.warn(`[WindowManager] Main window not available to send launch error: ${message}`);
-     }
+    } else {
+        console.warn(`[WindowManager] Main window not available to send launch error: ${message}`);
+    }
 }
 
 /** メインウィンドウの参照を取得 */
@@ -193,7 +193,7 @@ function getMainWindow() {
 
 /** カーソルウィンドウの参照を取得 */
 function getCursorWindow() {
-     // 存在し、破棄されていないウィンドウのみ返す
+    // 存在し、破棄されていないウィンドウのみ返す
     if (cursorWindow && !cursorWindow.isDestroyed()) {
         return cursorWindow;
     }

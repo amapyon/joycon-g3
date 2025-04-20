@@ -26,7 +26,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     // カーソルウィンドウが閉じた通知 受信
     onCursorWindowClosed: (callback) => ipcRenderer.on('cursor-window-closed', (event, ...args) => callback(...args)),
     // プレゼンリスト受信
-    onAvailablePresentations: (callback) => ipcRenderer.on('available-presentations', (event, ...args) => callback(...args)), 
+    onAvailablePresentations: (callback) => ipcRenderer.on('available-presentations', (event, ...args) => callback(...args)),
     // ターゲット設定指示送信
     setTargetPresentation: (identifier) => ipcRenderer.send('set-target-presentation', identifier)
 });

@@ -75,7 +75,7 @@ class PowerPointControl {
                 }
                 console.log("[PPControl] Running slide show paths:", Array.from(runningSlideShowPaths));
             } else {
-            console.warn("[PPControl] SlideShowWindows collection not available or empty.");
+                console.warn("[PPControl] SlideShowWindows collection not available or empty.");
             }
 
             // Presentations コレクションを取得
@@ -116,7 +116,7 @@ class PowerPointControl {
         console.log(`[PPControl] Setting target presentation to: ${identifier}`);
         this.targetPresentationIdentifier = identifier;
     }
-    
+
     /**
      * 現在実行中のスライドショーの View オブジェクトを取得試行 (内部利用)
      * @returns {object | null} View オブジェクトまたは null
@@ -143,8 +143,8 @@ class PowerPointControl {
                                 return ssw.View; // 発見したらViewを返す
                             }
                         }
-                    } catch(e) {
-                        console.warn(`[PPControl] Error checking SlideShowWindow at index ${i}:`, e.message); 
+                    } catch (e) {
+                        console.warn(`[PPControl] Error checking SlideShowWindow at index ${i}:`, e.message);
                     }
                 }
                 console.warn(`[PPControl] No running SlideShowWindow found matching target: ${this.targetPresentationIdentifier}`);
@@ -155,7 +155,7 @@ class PowerPointControl {
             // エラー時は接続リセット推奨
             console.error("[PPControl] Error accessing SlideShowWindows collection:", e.message);
             this.ppApp = null;
-        } 
+        }
         return null; // 見つからなかった場合
     }
 
@@ -171,7 +171,7 @@ class PowerPointControl {
             }
             catch (e) {
                 console.error("[PowerPointControl] Error calling Next():", e.message);
-             }
+            }
         } else {
             console.warn("[PowerPointControl] Cannot execute Next(): Slide show view not found.");
         }
