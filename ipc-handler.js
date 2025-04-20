@@ -95,6 +95,14 @@ function setupIpcHandlers(windowManagerInstance = WindowManager) {
         // event.reply('target-set-ack', identifier);
     });
 
+    ipcMain.on('start-calibration', (event) => {
+        console.log("[IPC Handler] Received 'start-calibration' request.");
+        // IMUプロセッサーにキャリブレーション開始を指示
+        // 左右両方を対象とする
+        imuProcessor.startGyroCalibration('cursor1'); // 左Joy-Con
+        imuProcessor.startGyroCalibration('cursor2'); // 右Joy-Con
+    });
+
     // 他にメインプロセスがレンダラーから受け取る必要のある指示があれば、
     // ここに ipcMain.on(...) を追加します。
     // 例: 設定の保存、Joy-Con感度の変更指示など

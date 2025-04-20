@@ -125,6 +125,24 @@ app.whenReady().then(() => {
     });
     // --- ここまで ---
 
+    // --- ★ IMUProcessor イベントリスナー設定 ★ ---
+    // 角度更新 -> カーソルウィンドウへIPC送信
+    imuProcessor.on('attitude-update', (attitudeData) => {
+        const targetWindow = WindowManager.getCursorWindow();
+        if (targetWindow && !targetWindow.isDestroyed()) {
+            targetWindow.webContents.send('joycon-attitude', attitudeData);
+        }
+    });
+    // キャリブレーション状態更新 -> メインウィンドウへIPC送信
+    imuProcessor.on('calibration-status', (statusInfo) => {
+        console.log('[Main] Received calibration status:', statusInfo);
+        const targetWindow = WindowManager.getMainWindow();
+        if (targetWindow && !targetWindow.isDestroyed()) {
+            targetWindow.webContents.send('calibration-status-update', statusInfo);
+        }
+    });
+    // --- ここまで追加 ---
+
     // JoyCon接続と定期スキャンを開始
     joyconManager.startScanningAndConnect();
 

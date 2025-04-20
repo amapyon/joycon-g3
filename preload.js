@@ -29,7 +29,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
     // プレゼンリスト受信
     onAvailablePresentations: (callback) => ipcRenderer.on('available-presentations', (event, ...args) => callback(...args)),
     // ターゲット設定指示送信
-    setTargetPresentation: (identifier) => ipcRenderer.send('set-target-presentation', identifier)
+    setTargetPresentation: (identifier) => ipcRenderer.send('set-target-presentation', identifier),
+
+    startCalibration: () => ipcRenderer.send('start-calibration'), // キャリブレーション開始指示
+    onCalibrationStatusUpdate: (callback) => ipcRenderer.on('calibration-status-update', (event, ...args) => callback(...args)), // ステータス受信
+
+    onJoyConStatusUpdate: (callback) => ipcRenderer.on('joycon-status-update', (event, ...args) => callback(...args)),
 });
 
 console.log('Preload script loaded.');

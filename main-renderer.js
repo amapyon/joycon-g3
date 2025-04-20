@@ -10,6 +10,9 @@ const mainStatusLeft = document.getElementById('main-status-left');
 const mainStatusRight = document.getElementById('main-status-right');
 const pptSelect = document.getElementById('ppt-select'); // ★PPT選択要素の参照★
 
+const calibrateButton = document.getElementById('calibrate-button'); // ★追加★
+const calibrationStatus = document.getElementById('calibration-status'); // ★追加★
+
 // --- イベントリスナー設定 ---
 
 /**
@@ -167,6 +170,46 @@ window.electronAPI.onJoyConStatusUpdate((status) => {
         mainStatusRight.textContent = status.rightConnected ? 'Right: Connected' : 'Right: Disconnected';
         mainStatusRight.className = status.rightConnected ? 'connected' : 'disconnected';
     }
+});
+
+/**
+ *  キャリブレーションボタンのクリックイベント
+ */
+calibrateButton.addEventListener('click', () => {
+    console.log('Main Renderer: Calibrate button clicked.');
+    calibrationStatus.textContent = 'Calibrating... Keep Joy-Cons still!';
+    calibrateButton.disabled = true; // 実行中は無効化
+    window.electronAPI.startCalibration(); // メインプロセスに指示
+});
+
+/**
+ *  キャリブレーションステータス更新イベント
+ */
+window.electronAPI.onCalibrationStatusUpdate((statusInfo) => {
+    console.log('Main Renderer: Received calibration status:', statusInfo);
+    let message = `Calibration ${statusInfo.status}.`;
+    if (statusInfo.status === 'complete') {
+        // 完了したら詳細を表示してもよい (例: バイアス値)
+        // message += ` Bias L: ${statusInfo.biasL?.x},${statusInfo.biasL?.y},${statusInfo.biasL?.z}`;
+        // message += ` Bias R: ${statusInfo.biasR?.x},${statusInfo.biasR?.y},${statusInfo.biasR?.z}`;
+        message = 'Calibration Complete!';
+        // 完了したらボタンを再度有効化
+        calibrateButton.disabled = false;
+        // 少ししたらデフォルトメッセージに戻す
+        setTimeout(() => {
+            calibrationStatus.textContent = '(Place Joy-Cons on a flat surface before calibrating)';
+        }, 3000);
+    } else if (statusInfo.status === 'started') {
+        message = `Calibrating ${statusInfo.id || 'Joy-Cons'}... Keep still!`;
+    } else if (statusInfo.status === 'aborted') {
+        message = `Calibration Aborted for ${statusInfo.id || ''} (not enough data?).`;
+        calibrateButton.disabled = false; // 中止でも有効化
+    } else {
+        // error など
+        message = `Calibration failed: ${statusInfo.error || 'Unknown error'}`;
+        calibrateButton.disabled = false; // エラーでも有効化
+    }
+    calibrationStatus.textContent = message;
 });
 
 // --- 初期状態設定 ---
