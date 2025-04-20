@@ -3,28 +3,23 @@
 // --- グローバル変数 ---
 const cursorElements = {
     cursor1: document.getElementById('cursor1'), // 左 (L) Joy-Con 対応
-    cursor2: document.getElementById('cursor2')  // 右 (R) Joy-Con 対応
+    cursor2: document.getElementById('cursor2'), // 右 (R) Joy-Con 対応
 };
-// ステータス表示関連は削除済み
 
 // ウィンドウサイズ (リサイズに対応するため let で宣言)
 let windowWidth = window.innerWidth;
 let windowHeight = window.innerHeight;
 
 // --- 設定値 (ユーザー指定の値) ---
-// const defaultGyroSensitivity = 10; // ★ ユーザー指定値 (非常に高感度) ★
-// const defaultDeadzone = 80;        // ★ ユーザー指定値 (より敏感) ★
-// const defaultDampingFactor = 0.95;   // 速度減衰係数 (1に近いほど慣性が残る)
-// ★角度(度)に対する感度: 1度傾けたら何ピクセル動くか★
-const defaultSensitivityX = 8; // 横方向の感度 (ロール角に対して)
-const defaultSensitivityY = 8; // 縦方向の感度 (ピッチ角に対して)
-// ★スムージング係数 (0 < factor < 1): 小さいほど滑らか(遅い)★
-const defaultSmoothingFactor = 0.15;
+const defaultSensitivityX = 36; // 横方向の感度 (ロール角に対して)
+const defaultSensitivityY = 36; // 縦方向の感度 (ピッチ角に対して)
+const defaultSmoothingFactor = 0.15; // ★スムージング係数 (0 < factor < 1): 小さいほど滑らか(遅い)★
 // デッドゾーンと減衰係数は main.js/joycon.js 側で処理 or 不要に
 
 // --- 各カーソルの状態と左右個別の設定 ---
 const cursors = {
-    cursor1: { // 左 Joy-Con (cursor1)
+    cursor1: {
+        // 左 Joy-Con (cursor1)
         x: windowWidth / 2 || 100, // 現在位置
         y: windowHeight / 2 || 100, // 現在位置
         targetX: windowWidth / 2 || 100, // ★目標位置★
@@ -37,20 +32,13 @@ const cursors = {
         map: {
             xFrom: 'roll',
             yFrom: 'pitch',
-            xSign: 1,
-            ySign: -1 // Lの上下移動反転は維持
+            xSign: -1,
+            ySign: -1,
         },
-        // dx: 0, dy: 0, // 初期速度
-        // sensitivity: defaultGyroSensitivity,
-        // deadzone: defaultDeadzone,
-        // damping: defaultDampingFactor,
-        // map: {
-        //     dx: { axis: 'gyroZ', sign: -1 }, // 左右(dx): Z軸, 符号反転
-        //     dy: { axis: 'gyroY', sign: -1 }  // 上下(dy): Y軸, 符号反転
-        // },
-        isVisible: false
+        isVisible: false,
     },
-    cursor2: { // 右 Joy-Con (cursor2)
+    cursor2: {
+        // 右 Joy-Con (cursor2)
         x: windowWidth / 2 || 100, // 現在位置
         y: windowHeight / 2 || 100, // 現在位置
         targetX: windowWidth / 2 || 100, // ★目標位置★
@@ -62,20 +50,10 @@ const cursors = {
             xFrom: 'roll',
             yFrom: 'pitch',
             xSign: 1,
-            ySign: -1 // Rの上下移動反転も維持
+            ySign: -1, // Rの上下移動反転も維持
         },
-
-        // x: windowWidth / 2 || 100, y: windowHeight / 2 || 100, // 初期位置
-        // dx: 0, dy: 0, // 初期速度
-        // sensitivity: defaultGyroSensitivity, // 必要なら左右で値を変更
-        // deadzone: defaultDeadzone,
-        // damping: defaultDampingFactor,
-        // map: {
-        //     dx: { axis: 'gyroZ', sign: 1 },   // 左右(dx): Z軸, 符号そのまま
-        //     dy: { axis: 'gyroY', sign: -1 }  // 上下(dy): Y軸, 符号反転
-        // },
-        isVisible: false
-    }
+        isVisible: false,
+    },
 };
 
 // --- ヘルパー関数 ---
@@ -92,7 +70,14 @@ function resetCursor(cursorId) {
     const centerY = windowHeight / 2;
 
     // ウィンドウサイズ確認
-    if (typeof windowWidth !== 'number' || typeof windowHeight !== 'number' || Number.isNaN(windowWidth) || Number.isNaN(windowHeight) || windowWidth <= 0 || windowHeight <= 0) {
+    if (
+        typeof windowWidth !== 'number' ||
+        typeof windowHeight !== 'number' ||
+        Number.isNaN(windowWidth) ||
+        Number.isNaN(windowHeight) ||
+        windowWidth <= 0 ||
+        windowHeight <= 0
+    ) {
         console.error(`[${cursorId}] Cannot reset cursor: Invalid window dimensions! w=${windowWidth}, h=${windowHeight}. Using default position.`);
         cursorData.x = 100;
         cursorData.y = 100;
@@ -105,9 +90,6 @@ function resetCursor(cursorId) {
         cursorData.targetX = centerX;
         cursorData.targetY = centerY;
     }
-    // // 速度もリセット
-    // cursorData.dx = 0;
-    // cursorData.dy = 0;
 
     // NaNチェック
     if (Number.isNaN(cursorData.x) || Number.isNaN(cursorData.y)) {
@@ -141,48 +123,6 @@ function updateCursorElementPosition(cursorId) {
 
 // --- イベントリスナー ---
 
-/** ジャイロデータ受信 (effectiveGyroキー名修正済み) */
-// window.electronAPI.onJoyConGyro((data) => {
-//     const cursorId = data.id;
-//     const cursorData = cursors[cursorId];
-//     if (!cursorData) return; // カーソルデータがなければ処理しない
-
-//     const rawGyro = { x: data.x, y: data.y, z: data.z };
-
-//     // デッドゾーン処理
-//     const effectiveGyro = {
-//         gyroX: Math.abs(rawGyro.x) > cursorData.deadzone ? rawGyro.x : 0, // キー名を gyroX に
-//         gyroY: Math.abs(rawGyro.y) > cursorData.deadzone ? rawGyro.y : 0, // キー名を gyroY に
-//         gyroZ: Math.abs(rawGyro.z) > cursorData.deadzone ? rawGyro.z : 0  // キー名を gyroZ に
-//     };
-
-//     // 速度計算
-//     const sensitivity = cursorData.sensitivity;
-//     const mapping = cursorData.map;
-
-//     if (typeof sensitivity !== 'number' || sensitivity <= 0 || Number.isNaN(sensitivity)) { // 0以下のチェック追加
-//         console.error(`[${cursorId}] Invalid sensitivity: ${sensitivity}. Setting speed to 0.`);
-//         cursorData.dx = 0; cursorData.dy = 0; return;
-//     }
-
-//     const dxAxis = mapping?.dx?.axis; const dxSign = mapping?.dx?.sign ?? 1;
-//     if (dxAxis && effectiveGyro[dxAxis] !== undefined) { // effectiveGyro['gyroZ'] などでアクセス
-//         cursorData.dx = effectiveGyro[dxAxis] / sensitivity * dxSign;
-//     } else { cursorData.dx = 0; }
-
-//     const dyAxis = mapping?.dy?.axis; const dySign = mapping?.dy?.sign ?? 1;
-//     if (dyAxis && effectiveGyro[dyAxis] !== undefined) { // effectiveGyro['gyroY'] などでアクセス
-//         cursorData.dy = effectiveGyro[dyAxis] / sensitivity * dySign;
-//     } else { cursorData.dy = 0; }
-
-//     // NaN チェック
-//     if (Number.isNaN(cursorData.dx) || Number.isNaN(cursorData.dy)) {
-//         console.error(`[${cursorId}] NaN DETECTED in speed calculation! dx=${cursorData.dx}, dy=${cursorData.dy}`);
-//         cursorData.dx = 0; cursorData.dy = 0; // 応急処置
-//     }
-// });
-
-// ★ onJoyConGyro を削除し、onJoyConAttitude を追加 ★
 /** 姿勢データ(角度)受信 */
 window.electronAPI.onJoyConAttitude((data) => {
     const cursorId = data.id;
@@ -206,7 +146,7 @@ window.electronAPI.onJoyConAttitude((data) => {
     // マッピングに基づいて計算 (ロール -> X, ピッチ -> Y と仮定)
     if (mapping.xFrom === 'roll') {
         targetX = centerX + roll * sensitivityX * mapping.xSign;
-    } else if(mapping.xFrom === 'pitch') {
+    } else if (mapping.xFrom === 'pitch') {
         targetX = centerX + pitch * sensitivityX * mapping.xSign;
     }
     // 必要ならヨー軸もマッピング可能
@@ -233,44 +173,16 @@ window.electronAPI.onJoyConButtonX((data) => {
     if (!el || !cd) return;
     cd.isVisible = data.pressed;
     el.style.visibility = cd.isVisible ? 'visible' : 'hidden';
-
-    // const cursorElement = cursorElements.cursor2; // 右カーソル対象
-    // const cursorData = cursors.cursor2;
-
-    // // console.log("  -> Targeting Element:", cursorElement);
-    // // console.log("  -> Targeting Data Object:", cursorData);
-
-    // if (cursorElement && cursorData) {
-    //     const shouldBeVisible = data.pressed;
-    //     cursorData.isVisible = shouldBeVisible;
-    //     cursorElement.style.visibility = shouldBeVisible ? 'visible' : 'hidden';
-    //     if (!shouldBeVisible) {
-    //         // 非表示で速度リセット
-    //         cursorData.dx = 0;
-    //         cursorData.dy = 0;
-    //     }
-    // }
 });
 
 /** JoyCon L 下ボタン状態受信 (表示/非表示トグル) */
 window.electronAPI.onJoyConButtonDown((data) => {
     // console.log("Down Button state received:", data.pressed);
-    const el = cursorElements.cursor1; const cd = cursors.cursor1; if (!el || !cd) return;
+    const el = cursorElements.cursor1;
+    const cd = cursors.cursor1;
+    if (!el || !cd) return;
     cd.isVisible = data.pressed;
     el.style.visibility = cd.isVisible ? 'visible' : 'hidden';
-
-    // const cursorElement = cursorElements.cursor1; // 左カーソル対象
-    // const cursorData = cursors.cursor1;
-    // if (cursorElement && cursorData) {
-    //     const shouldBeVisible = data.pressed;
-    //     cursorData.isVisible = shouldBeVisible; // 状態を保存
-    //     cursorElement.style.visibility = shouldBeVisible ? 'visible' : 'hidden';
-    //     if (!shouldBeVisible) {
-    //         // 非表示で速度リセット
-    //         cursorData.dx = 0;
-    //         cursorData.dy = 0;
-    //     }
-    // }
 });
 
 /** JoyCon R Xボタンが押された瞬間のイベント (リセット) */
@@ -296,7 +208,6 @@ window.addEventListener('resize', () => {
     resetCursor('cursor2');
 });
 
-
 // --- 描画ループ (isVisible を考慮) ---
 function renderLoop() {
     // ウィンドウサイズが有効か確認
@@ -320,21 +231,10 @@ function renderLoop() {
             const smoothing = cursorData.smoothing || 0.1; // デフォルト値
             cursorData.x += (cursorData.targetX - cursorData.x) * smoothing;
             cursorData.y += (cursorData.targetY - cursorData.y) * smoothing;
-            // // 座標更新 (NaNガード済み速度を使用)
-            // const safeDx = Number.isNaN(cursorData.dx) ? 0 : cursorData.dx;
-            // const safeDy = Number.isNaN(cursorData.dy) ? 0 : cursorData.dy;
-            // cursorData.x += safeDx;
-            // cursorData.y += safeDy;
-
-            // 速度減衰
-            // const damping = (typeof cursorData.damping === 'number' && !Number.isNaN(cursorData.damping)) ? cursorData.damping : 1.0;
-            // cursorData.dx *= damping;
-            // cursorData.dy *= damping;
 
             // ウィンドウ境界での制限
             const halfWidth = element.offsetWidth / 2;
             const halfHeight = element.offsetHeight / 2;
-            console.log(cursorData);
             if (!Number.isNaN(halfWidth) && !Number.isNaN(halfHeight) && halfWidth >= 0 && halfHeight >= 0) {
                 if (!Number.isNaN(cursorData.x) && !Number.isNaN(cursorData.y)) {
                     cursorData.x = Math.max(halfWidth, Math.min(windowWidth - halfWidth, cursorData.x));
@@ -352,7 +252,7 @@ function renderLoop() {
 
 // --- 初期化 ---
 document.addEventListener('DOMContentLoaded', () => {
-    console.log("DOM fully loaded.");
+    console.log('DOM fully loaded.');
     // ウィンドウサイズの再取得と初期リセット
     windowWidth = window.innerWidth;
     windowHeight = window.innerHeight;
@@ -360,12 +260,17 @@ document.addEventListener('DOMContentLoaded', () => {
         resetCursor('cursor1');
         resetCursor('cursor2');
     } else {
-        console.warn("Initial window dimensions invalid. Retrying reset later.");
+        console.warn('Initial window dimensions invalid. Retrying reset later.');
         // 必要ならタイマーやリサイズイベントで再試行
     }
     // ★初期表示状態を設定 (CSSで設定されている場合、ここは不要な場合もある)★
-    if (cursorElements.cursor1) cursorElements.cursor1.style.visibility = 'hidden'; // 左は初期非表示
-    if (cursorElements.cursor2) cursorElements.cursor2.style.visibility = 'hidden'; // 右も初期非表示 (Xボタンで表示)
+    if (cursorElements.cursor1) {
+        cursorElements.cursor1.style.visibility = 'hidden'; // 左は初期非表示
+    }
+
+    if (cursorElements.cursor2) {
+        cursorElements.cursor2.style.visibility = 'hidden'; // 右も初期非表示 (Xボタンで表示)
+    }
 
     // 描画ループを開始
     requestAnimationFrame(renderLoop);
