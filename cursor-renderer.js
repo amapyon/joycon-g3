@@ -162,7 +162,7 @@ window.electronAPI.onJoyConAttitude((data) => {
     cursorData.targetY = targetY;
 
     // デバッグ用ログ
-    console.log(`[${cursorId}] Target Set: X=${targetX.toFixed(0)}, Y=${targetY.toFixed(0)} (Roll: ${roll.toFixed(1)}, Pitch: ${pitch.toFixed(1)})`);
+    // console.log(`[${cursorId}] Target Set: X=${targetX.toFixed(0)}, Y=${targetY.toFixed(0)} (Roll: ${roll.toFixed(1)}, Pitch: ${pitch.toFixed(1)})`);
 });
 
 /** JoyCon R Xボタン状態受信 (表示/非表示トグル) */

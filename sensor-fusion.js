@@ -87,7 +87,7 @@ class SensorFusionProcessor {
         let pitchAcc = Number.isNaN(state.pitch) ? 0 : state.pitch;
         let rollAcc = Number.isNaN(state.roll) ? 0 : state.roll;
         const accelMagnitude = Math.sqrt(ax * ax + ay * ay + az * az);
-        if (!Number.isNaN(accelMagnitude) && accelMagnitude > 0.8 && accelMagnitude < 1.2) {
+        if (!Number.isNaN(accelMagnitude) && accelMagnitude > 0.6 && accelMagnitude < 1.4) {
             // 約1Gの時だけ計算
             // 仮定: Roll(gz)はZ軸周り、Pitch(gy)はY軸周りの回転
             // Roll (Z軸周り): XY平面での傾き? atan2(ay, ax)
