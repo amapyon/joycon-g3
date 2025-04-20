@@ -7,7 +7,15 @@
     <link rel="stylesheet" href="style.css">
     <style>
         /* main-window 専用のスタイル */
-        body { padding: 20px; background-color: #f4f4f4; font-size: 14px; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Ubuntu, Cantarell, "Helvetica Neue", sans-serif;
+            padding: 20px; /* 上左右のパディング */
+            padding-bottom: 50px; /* ★ 固定フッター分のスペースを確保 (重要) ★ */
+            background-color: #f4f4f4;
+            font-size: 14px;
+            box-sizing: border-box; /* paddingを含めて計算 */
+            min-height: 100vh; /* ウィンドウが縦に短い場合でも高さを確保 */
+        }
         label { display: block; margin-bottom: 8px; font-weight: bold; color: #333; }
         select { width: 100%; padding: 10px; margin-bottom: 20px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
         button { padding: 12px 25px; cursor: pointer; border: none; border-radius: 4px; font-size: 14px; transition: background-color 0.2s ease; margin-right: 10px; vertical-align: middle; /* ボタンの縦位置揃え */ }
@@ -18,7 +26,19 @@
         button:disabled { background-color: #cccccc; cursor: not-allowed; }
         #error-message { color: #dc3545; margin-top: 15px; font-weight: bold; min-height: 1.2em; }
         hr { margin-top: 25px; margin-bottom: 15px; border: 0; border-top: 1px solid #ccc; }
-        #main-joycon-status { font-size: 0.9em; color: #555; }
+        #main-joycon-status {
+            position: fixed;   /* ★ 位置を固定 */
+            bottom: 0;         /* ★ 下端に配置 */
+            left: 0;          /* ★ 左端に配置 */
+            width: 100%;       /* ★ 幅を100%に */
+            background-color: #e9ecef; /* 背景色で見やすく */
+            border-top: 1px solid #ccc; /* 上の境界線 */
+            padding: 8px 20px; /* 内側の余白 */
+            box-sizing: border-box; /* paddingを含めて幅を計算 */
+            font-size: 0.9em;  /* 元のスタイル */
+            color: #555;      /* 元のスタイル */
+            z-index: 10;       /* 他の要素より手前に表示 (念のため) */
+        }
         .running-slideshow { font-weight: bold; color: green; }
         /* style.css の .connected, .disconnected を利用 */
     </style>
