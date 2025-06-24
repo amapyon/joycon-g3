@@ -34,7 +34,7 @@ class JoyConManager extends EventEmitter {
             rightPressed: false,
             xPressed: false,
             aPressed: false,
-            yPressed: false
+            yPressed: false,
         };
     }
 
@@ -42,23 +42,23 @@ class JoyConManager extends EventEmitter {
     findJoyCons() {
         try {
             if (!HID || typeof HID.devices !== 'function') {
-                throw new Error("node-hid not available");
+                throw new Error('node-hid not available');
             }
             const devices = HID.devices();
             let joyconLPath = null;
             let joyconRPath = null;
-            devices.forEach(device => {
+            devices.forEach((device) => {
                 if (device.vendorId === VENDOR_ID) {
                     if (device.productId === PRODUCT_ID_L) {
                         joyconLPath = device.path;
-                     } else if (device.productId === PRODUCT_ID_R) {
+                    } else if (device.productId === PRODUCT_ID_R) {
                         joyconRPath = device.path;
-                     }
-                } 
+                    }
+                }
             });
             return { joyconLPath, joyconRPath };
         } catch (error) {
-            console.error("Error finding HID devices:", error);
+            console.error('Error finding HID devices:', error);
             return { joyconLPath: null, joyconRPath: null };
         }
     }
@@ -83,14 +83,15 @@ class JoyConManager extends EventEmitter {
 
     /** Joy-Conを初期化 */
     async initializeJoyCon(hidDevice, isLeft) {
-        const packetNumber = () => isLeft ? this.globalPacketNumberL : this.globalPacketNumberR;
-        const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+        const packetNumber = () => (isLeft ? this.globalPacketNumberL : this.globalPacketNumberR);
+        const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
         console.log(`Initializing ${isLeft ? 'L' : 'R'} Joy-Con...`);
         try {
-            const commands = [ /* ... 初期化コマンド ... */
+            const commands = [
+                /* ... 初期化コマンド ... */
                 [0x01, 0, 0x00, 0x01, 0x40, 0x40, 0x00, 0x01, 0x40, 0x40, 0x03, 0x30],
                 [0x01, 0, 0x00, 0x01, 0x40, 0x40, 0x00, 0x01, 0x40, 0x40, 0x40, 0x01],
-                [0x01, 0, 0x00, 0x01, 0x40, 0x40, 0x00, 0x01, 0x40, 0x40, 0x30, isLeft ? 0x01 : 0x02]
+                [0x01, 0, 0x00, 0x01, 0x40, 0x40, 0x00, 0x01, 0x40, 0x40, 0x30, isLeft ? 0x01 : 0x02],
             ];
             for (const cmd of commands) {
                 const currentPacketNumber = packetNumber();
@@ -98,7 +99,7 @@ class JoyConManager extends EventEmitter {
                 if (!this.sendCommand(hidDevice, cmd, isLeft)) {
                     throw new Error(`Cmd failed: 0x${cmd[10].toString(16)}`);
                 }
-                 await delay(100);
+                await delay(100);
             }
             console.log(`Initialization ${isLeft ? 'L' : 'R'} OK.`);
             return true;
@@ -115,9 +116,9 @@ class JoyConManager extends EventEmitter {
                 hidDevice.removeAllListeners('data');
                 hidDevice.removeAllListeners('error');
                 hidDevice.close();
-                console.log("HID device closed.");
+                console.log('HID device closed.');
             } catch (e) {
-                console.error("Close HID Error:", e);
+                console.error('Close HID Error:', e);
             }
         }
     }
@@ -145,7 +146,7 @@ class JoyConManager extends EventEmitter {
         }
     }
 
-     /** 全てのJoy-Con接続を閉じ、スキャンも停止する */
+    /** 全てのJoy-Con接続を閉じ、スキャンも停止する */
     closeAll() {
         this.stopScanning();
         this.closeJoyCon(true);
@@ -155,50 +156,60 @@ class JoyConManager extends EventEmitter {
     /** Joy-Conに接続し初期化 */
     connectJoyCon(path, isLeft) {
         if (!path) return;
-        if ((isLeft && (this.hidL || this.connectingL)) || (!isLeft && (this.hidR || this.connectingR))) { return; }
+        if ((isLeft && (this.hidL || this.connectingL)) || (!isLeft && (this.hidR || this.connectingR))) {
+            return;
+        }
         let hidDevice = null;
         try {
             if (isLeft) {
                 this.connectingL = true;
-             } else {
+            } else {
                 this.connectingR = true;
-             }
+            }
             console.log(`Connecting to ${isLeft ? 'L' : 'R'} Joy-Con: ${path}`);
             hidDevice = new HID.HID(path);
             console.log(`Connected (${isLeft ? 'L' : 'R'}). Initializing...`);
 
             let isDeviceClosed = false;
-            const closedHandler = () => { isDeviceClosed = true; };
+            const closedHandler = () => {
+                isDeviceClosed = true;
+            };
             hidDevice.once('close', closedHandler);
-            this.initializeJoyCon(hidDevice, isLeft).then(success => {
-                hidDevice?.removeListener('close', closedHandler);
-                if (success && hidDevice && !isDeviceClosed) {
-                    hidDevice.on('data', (data) => { this.parseJoyConData(hidDevice, data, isLeft); });
-                    console.log(`Listener attached (${isLeft ? 'L' : 'R'}).`);
-                    if (isLeft) {
-                        this.hidL = hidDevice;
+            this.initializeJoyCon(hidDevice, isLeft)
+                .then((success) => {
+                    hidDevice?.removeListener('close', closedHandler);
+                    if (success && hidDevice && !isDeviceClosed) {
+                        hidDevice.on('data', (data) => {
+                            this.parseJoyConData(hidDevice, data, isLeft);
+                        });
+                        console.log(`Listener attached (${isLeft ? 'L' : 'R'}).`);
+                        if (isLeft) {
+                            this.hidL = hidDevice;
+                        } else {
+                            this.hidR = hidDevice;
+                        }
+                        this.emit('status-update', { leftConnected: !!this.hidL, rightConnected: !!this.hidR }); // ★イベント名: status-update★
+                        this.emit('battery-status-update', { leftConnected: !!this.hidL, rightConnected: !!this.hidR }); // ★イベント名: status-update★
                     } else {
-                        this.hidR = hidDevice;
+                        console.error(`Init failed or device closed during init (${isLeft ? 'L' : 'R'}).`);
+                        this.closeHidDevice(hidDevice);
+                        this.closeJoyCon(isLeft);
                     }
-                    this.emit('status-update', { leftConnected: !!this.hidL, rightConnected: !!this.hidR }); // ★イベント名: status-update★
-                } else {
-                    console.error(`Init failed or device closed during init (${isLeft ? 'L' : 'R'}).`);
+                })
+                .catch((initError) => {
+                    hidDevice?.removeListener('close', closedHandler);
+                    console.error(`Async Init Error (${isLeft ? 'L' : 'R'}):`, initError);
                     this.closeHidDevice(hidDevice);
                     this.closeJoyCon(isLeft);
-                }
-            }).catch(initError => {
-                 hidDevice?.removeListener('close', closedHandler);
-                 console.error(`Async Init Error (${isLeft ? 'L' : 'R'}):`, initError);
-                 this.closeHidDevice(hidDevice);
-                 this.closeJoyCon(isLeft);
-            }).finally(() => {
-                 console.log(`Connect attempt finished for ${isLeft ? 'L' : 'R'}.`);
-                 if (isLeft) {
-                    this.connectingL = false; 
-                 } else {
-                    this.connectingR = false;
-                 }
-            });
+                })
+                .finally(() => {
+                    console.log(`Connect attempt finished for ${isLeft ? 'L' : 'R'}.`);
+                    if (isLeft) {
+                        this.connectingL = false;
+                    } else {
+                        this.connectingR = false;
+                    }
+                });
             hidDevice.on('error', (err) => {
                 hidDevice?.removeListener('close', closedHandler);
                 console.error(`HID Error (${path}, ${isLeft ? 'L' : 'R'}):`, err.message);
@@ -225,7 +236,7 @@ class JoyConManager extends EventEmitter {
 
     /** 全てのJoy-Conに接続試行 */
     connectAll() {
-        console.log("Attempting to connect all available Joy-Cons...");
+        console.log('Attempting to connect all available Joy-Cons...');
         const { joyconLPath, joyconRPath } = this.findJoyCons();
         this.connectJoyCon(joyconLPath, true);
         this.connectJoyCon(joyconRPath, false);
@@ -241,18 +252,20 @@ class JoyConManager extends EventEmitter {
     /** デバイススキャンを開始 (初回接続含む) */
     startScanningAndConnect() {
         if (this.scanTimer) {
-            console.log("Device scanner already running.");
+            console.log('Device scanner already running.');
             return;
         }
         console.log(`Starting device scan and initial connection (Interval: ${this.scanIntervalMs}ms)`);
         this.connectAll();
-        this.scanTimer = setInterval(() => { this.scanDevices(); }, this.scanIntervalMs);
+        this.scanTimer = setInterval(() => {
+            this.scanDevices();
+        }, this.scanIntervalMs);
     }
 
     /** デバイススキャンを停止 */
     stopScanning() {
         if (this.scanTimer) {
-            console.log("Stopping device scan.");
+            console.log('Stopping device scan.');
             clearInterval(this.scanTimer);
             this.scanTimer = null;
         }
@@ -261,14 +274,19 @@ class JoyConManager extends EventEmitter {
     /** 受信データを解析し、★IMUデータ(加速度+ジャイロ)★とボタンイベントを発行 */
     parseJoyConData(hidDevice, data, isLeft) {
         const reportId = data[0];
-        if (reportId === 0x30 && data.length >= 25) { // 標準フルレポート想定
+        if (reportId === 0x30 && data.length >= 25) {
+            // 標準フルレポート想定
             try {
                 const cursorId = isLeft ? 'cursor1' : 'cursor2';
 
                 // --- ★IMUデータ (加速度 + ジャイロ) 読み取り★ ---
                 // オフセットは標準レポートの場合 (要検証)
-                const accelOffsetX = 13; const accelOffsetY = 15; const accelOffsetZ = 17;
-                const gyroOffsetX = 19; const gyroOffsetY = 21; const gyroOffsetZ = 23;
+                const accelOffsetX = 13;
+                const accelOffsetY = 15;
+                const accelOffsetZ = 17;
+                const gyroOffsetX = 19;
+                const gyroOffsetY = 21;
+                const gyroOffsetZ = 23;
 
                 const accelX = data.readInt16LE(accelOffsetX);
                 const accelY = data.readInt16LE(accelOffsetY);
@@ -281,7 +299,7 @@ class JoyConManager extends EventEmitter {
                 this.emit('imu-data', {
                     id: cursorId,
                     accel: { x: accelX, y: accelY, z: accelZ },
-                    gyro: { x: gyroX, y: gyroY, z: gyroZ }
+                    gyro: { x: gyroX, y: gyroY, z: gyroZ },
                 });
 
                 // ボタンデータ
@@ -291,7 +309,8 @@ class JoyConManager extends EventEmitter {
                 if (data.length > buttonByteIndex) {
                     const buttonByte = data[buttonByteIndex];
 
-                    if (isLeft) { // 左 Joy-Con
+                    if (isLeft) {
+                        // 左 Joy-Con
                         const DOWN_BUTTON_MASK = 0x01;
                         const LEFT_BUTTON_MASK = 0x08;
                         const RIGHT_BUTTON_MASK = 0x04;
@@ -313,7 +332,8 @@ class JoyConManager extends EventEmitter {
                         lastButtonState.downPressed = currentDownPressed;
                         lastButtonState.leftPressed = currentLeftPressed;
                         lastButtonState.rightPressed = currentRightPressed;
-                    } else { // 右 Joy-Con
+                    } else {
+                        // 右 Joy-Con
                         const X_BUTTON_MASK = 0x02;
                         const A_BUTTON_MASK = 0x08;
                         const Y_BUTTON_MASK = 0x01;
