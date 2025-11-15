@@ -14,8 +14,22 @@ let calibrationSamples: { x: number; y: number; z: number }[] = [];
 let biasX = 0, biasY = 0, biasZ = 0;
 let isPointerVisible = true; // 必要に応じて制御
 let currentPointerPosition = { x: 600, y: 300 };
-const screenWidth = 1200; // 必要に応じてWindowManager等から取得
-const screenHeight = 600;
+// 物理ピクセルでの画面サイズを取得する関数
+function getPhysicalScreenSize() {
+    const { screen } = require('electron');
+    const primaryDisplay = screen.getPrimaryDisplay();
+    if (primaryDisplay && primaryDisplay.size && primaryDisplay.scaleFactor) {
+        return {
+            width: primaryDisplay.size.width * primaryDisplay.scaleFactor,
+            height: primaryDisplay.size.height * primaryDisplay.scaleFactor,
+        };
+    }
+    // fallback
+    return { width: 1200, height: 600 };
+}
+
+let screenWidth = 1200;
+let screenHeight = 600;
 
 const joyconManager = new JoyConManager();
 
@@ -23,6 +37,10 @@ const joyconManager = new JoyConManager();
 let cursorMapConfig: { [key in 'cursorLeft' | 'cursorRight']?: { xSign: number, ySign: number } } = {};
 
 app.whenReady().then(() => {
+    // 物理ピクセルでの画面サイズを初期化
+    const { width, height } = getPhysicalScreenSize();
+    screenWidth = width;
+    screenHeight = height;
     console.log('App Ready. Initializing modules...');
     const connected = powerpointControl.connect();
     if (!connected) {

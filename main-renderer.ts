@@ -61,7 +61,10 @@ window.electronAPI.onAvailableDisplays((displays: any[]) => {
         displays.forEach((display) => {
             const option = document.createElement('option');
             option.value = display.id;
-            option.text = (display.label || 'Display') + ' [' + display.size.width + 'x' + display.size.height + ' - ' + display.id + ']';
+            // 物理ピクセルで表示
+            const physicalWidth = display.size.width * (display.scaleFactor || 1);
+            const physicalHeight = display.size.height * (display.scaleFactor || 1);
+            option.text = (display.label || 'Display') + ' [' + physicalWidth + 'x' + physicalHeight + ' - ' + display.id + ']';
             displaySelect.appendChild(option);
         });
         displaySelect.disabled = false;
