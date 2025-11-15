@@ -57,6 +57,14 @@ export default class JoyConManager extends EventEmitter {
         };
     }
 
+    /** 現在の接続状態を取得 */
+    getConnectionStatus() {
+        return {
+            leftConnected: !!this.hidL,
+            rightConnected: !!this.hidR,
+        };
+    }
+
     /** Joy-Conデバイスのパスを検索 */
     findJoyCons(): JoyConPaths {
         try {
@@ -207,7 +215,6 @@ export default class JoyConManager extends EventEmitter {
                             this.hidR = hidDevice;
                         }
                         this.emit('status-update', { leftConnected: !!this.hidL, rightConnected: !!this.hidR });
-                        this.emit('battery-status-update', { leftConnected: !!this.hidL, rightConnected: !!this.hidR });
                     } else {
                         console.error(`Init failed or device closed during init (${isLeft ? 'L' : 'R'}).`);
                         this.closeHidDevice(hidDevice);
@@ -260,23 +267,37 @@ export default class JoyConManager extends EventEmitter {
         this.connectJoyCon(joyconRPath, false);
     }
 
+    /** バッテリー状態のリクエスト */
+    requestBatteryStatus(isLeft: boolean) {
+        const hidDevice = isLeft ? this.hidL : this.hidR;
+        if (!hidDevice) return;
+        console.log(`[Debug] Requesting battery status for ${isLeft ? 'L' : 'R'} Joy-Con.`);
+        const packetNumber = isLeft ? this.globalPacketNumberL : this.globalPacketNumberR;
+        const command = [0x01, packetNumber, 0x00, 0x01, 0x40, 0x40, 0x00, 0x01, 0x40, 0x40, 0x50];
+        this.sendCommand(hidDevice, command, isLeft);
+    }
+
     /** 定期的にデバイスをスキャンして未接続のJoy-Conに接続試行 */
     scanDevices(): void {
-        console.log('scanDevices()');
+        console.log('[Debug] scanDevices() called.');
         const { joyconLPath, joyconRPath } = this.findJoyCons();
-        if (joyconLPath) {
+
+        // Handle Left Joy-Con
+        if (this.hidL) {
+            console.log('[Debug] Left Joy-Con is connected. Requesting battery status.');
+            this.requestBatteryStatus(true);
+        } else if (joyconLPath) {
+            console.log('[Debug] Found disconnected Left Joy-Con. Attempting to connect.');
             this.connectJoyCon(joyconLPath, true);
-            if (this.hidL) {
-                const level = this.getBatteryStatus(this.hidL, true);
-                console.log('Left Battery LEVEL:', level);
-            }
         }
-        if (joyconRPath) {
+
+        // Handle Right Joy-Con
+        if (this.hidR) {
+            console.log('[Debug] Right Joy-Con is connected. Requesting battery status.');
+            this.requestBatteryStatus(false);
+        } else if (joyconRPath) {
+            console.log('[Debug] Found disconnected Right Joy-Con. Attempting to connect.');
             this.connectJoyCon(joyconRPath, false);
-            if (this.hidR) {
-                const level = this.getBatteryStatus(this.hidR, false);
-                console.log('Right Battery LEVEL:', level);
-            }
         }
     }
 
@@ -305,9 +326,22 @@ export default class JoyConManager extends EventEmitter {
     /** 受信データを解析し、★IMUデータ(加速度+ジャイロ)★とボタンイベントを発行 */
     parseJoyConData(hidDevice: HID.HID, data: Buffer, isLeft: boolean): void {
         const reportId = data[0];
-        if (reportId === 0x30 && data.length >= 25) {
+
+        if (reportId === 0x21) {
+            console.log(`[Debug] Received 0x21 report from ${isLeft ? 'L' : 'R'}:`, data);
+            if (data.length > 14) {
+                const subcommandId = data.readUInt8(14);
+                if (subcommandId === 0x50) {
+                    console.log('[Debug] Battery status reply received!');
+                    const batteryByte = data.readUInt8(15);
+                    const level = (batteryByte & 0xe0) >> 4;
+                    console.log(`[Debug] Emitting battery-status-update: isLeft=${isLeft}, level=${level}`);
+                    this.emit('battery-status-update', { isLeft, level });
+                }
+            }
+        } else if (reportId === 0x30 && data.length >= 25) {
             try {
-                const cursorId = isLeft ? 'cursor1' : 'cursor2';
+                const cursorId = isLeft ? 'cursorLeft' : 'cursorRight';
                 const accelOffsetX = 13;
                 const accelOffsetY = 15;
                 const accelOffsetZ = 17;
@@ -383,41 +417,6 @@ export default class JoyConManager extends EventEmitter {
             } catch (e) {
                 console.error(`[${isLeft ? 'L' : 'R'}] Parse Error:`, e);
             }
-        }
-    }
-
-    getBatteryStatus(hidDevice: HID.HID, isLeft: boolean): number | null {
-        const reportId = 0x01;
-        const subCommand = 0x50;
-        const packetNum = isLeft ? this.globalPacketNumberL : this.globalPacketNumberR;
-
-        const command = [
-            reportId,
-            0x00,
-            0x00,
-            0x00,
-            0x00,
-            0x00,
-            0x00,
-            0x00,
-            0x00,
-            packetNum,
-            0x01,
-            subCommand,
-        ];
-
-        try {
-            hidDevice.write(command);
-            // @ts-ignore: node-hid patch may be needed for readTimeout
-            const response: Buffer = hidDevice.readTimeout(100);
-            console.log('response', response);
-            const batteryByte = response[12];
-            const level = (batteryByte & 0xe0) >> 4;
-            console.log('level:', level);
-            return level;
-        } catch (e) {
-            console.error('Failed to get battery status:', e);
-            return null;
         }
     }
 }

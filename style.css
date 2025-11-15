@@ -38,13 +38,13 @@ h1 {
     z-index: 5;
 }
 
-#cursor1 {
+#cursorLeft {
     background-color: #61afef;
     border-color: #4d8cc7;
     visibility: hidden;
 }
 
-#cursor2 {
+#cursorRight {
     background-color: #e06c75;
     border-color: #ba5a62;
     visibility: hidden;

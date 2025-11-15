@@ -33,11 +33,29 @@ class PowerPointControl {
         if (!this.connect()) return presentations;
         try {
             let runningSlideShowPaths = new Set<string>();
+            // 実行中のスライドショーウィンドウからパスを収集
             if (this.ppApp.SlideShowWindows && typeof this.ppApp.SlideShowWindows.Count === 'number') {
-                // ...省略...
+                for (let i = 1; i <= this.ppApp.SlideShowWindows.Count; i++) {
+                    const slideShowWindow = this.ppApp.SlideShowWindows.Item(i);
+                    if (slideShowWindow && slideShowWindow.Presentation) {
+                        runningSlideShowPaths.add(slideShowWindow.Presentation.FullName);
+                    }
+                }
             }
+
+            // 開いているすべてのプレゼンテーションを列挙
             if (this.ppApp.Presentations && typeof this.ppApp.Presentations.Count === 'number') {
-                // ...省略...
+                for (let i = 1; i <= this.ppApp.Presentations.Count; i++) {
+                    const presentation = this.ppApp.Presentations.Item(i);
+                    if (presentation) {
+                        const id = presentation.FullName || presentation.Name; // FullNameがなければNameを使用
+                        presentations.push({
+                            id: id,
+                            name: presentation.Name,
+                            isRunning: runningSlideShowPaths.has(presentation.FullName),
+                        });
+                    }
+                }
             }
         } catch (e: any) {
             console.error('[PPControl] Error getting presentations list:', e.message);

@@ -1,12 +1,8 @@
 // main-renderer.ts
 // TypeScript化: DOM型・window.electronAPI型を明示
 
-export {};
-
-declare global {
-    interface Window {
-        electronAPI: any;
-    }
+interface Window {
+    electronAPI: any;
 }
 
 const displaySelect = document.getElementById('display-select') as HTMLSelectElement;
@@ -21,13 +17,51 @@ const pptSelect = document.getElementById('ppt-select') as HTMLSelectElement;
 const calibrateButton = document.getElementById('calibrate-button') as HTMLButtonElement;
 const calibrationStatus = document.getElementById('calibration-status') as HTMLElement;
 
+// PowerPointプレゼンテーションをロードしてUIを更新する関数
+async function loadPowerPointPresentations() {
+    pptSelect.innerHTML = '<option value="">-- Loading Presentations --</option>';
+    pptSelect.disabled = true;
+    try {
+        const presentations = await window.electronAPI.getOpenPowerPointPresentations();
+        pptSelect.innerHTML = ''; // Clear loading message
+        if (presentations && presentations.length > 0) {
+            presentations.forEach((ppt: { id: string; name: string; isRunning: boolean }) => {
+                const option = document.createElement('option');
+                option.value = ppt.id;
+                option.text = ppt.name + (ppt.isRunning ? ' (Running)' : '');
+                pptSelect.appendChild(option);
+            });
+            pptSelect.disabled = false;
+            // 最初のプレゼンテーションを自動選択し、ターゲットとして設定
+            if (presentations.length > 0) {
+                pptSelect.value = presentations[0].id;
+                window.electronAPI.setTargetPresentation(presentations[0].id);
+            }
+        } else {
+            const option = document.createElement('option');
+            option.value = '';
+            option.text = '-- No Presentations Found --';
+            pptSelect.appendChild(option);
+            pptSelect.disabled = true;
+        }
+    } catch (error) {
+        console.error('Failed to load PowerPoint presentations:', error);
+        const option = document.createElement('option');
+        option.value = '';
+        option.text = '-- Error Loading Presentations --';
+        pptSelect.appendChild(option);
+        pptSelect.disabled = true;
+    }
+}
+
 window.electronAPI.onAvailableDisplays((displays: any[]) => {
+    console.log('Available displays:', displays);
     displaySelect.innerHTML = '';
     if (displays && displays.length > 0) {
         displays.forEach((display) => {
             const option = document.createElement('option');
             option.value = display.id;
-            option.text = display.id + ': ' + (display.name || 'Display');
+            option.text = (display.label || 'Display') + ' [' + display.size.width + 'x' + display.size.height + ' - ' + display.id + ']';
             displaySelect.appendChild(option);
         });
         displaySelect.disabled = false;
@@ -43,23 +77,11 @@ window.electronAPI.onAvailableDisplays((displays: any[]) => {
     closeButton.style.display = 'none';
 });
 
+// onAvailablePresentationsはメインプロセスからのプッシュ通知用として残しておく
 window.electronAPI.onAvailablePresentations((presentations: any[]) => {
-    pptSelect.innerHTML = '';
-    if (presentations && presentations.length > 0) {
-        presentations.forEach((ppt) => {
-            const option = document.createElement('option');
-            option.value = ppt.id;
-            option.text = ppt.name + (ppt.isRunning ? ' (Running)' : '');
-            pptSelect.appendChild(option);
-        });
-        pptSelect.disabled = false;
-    } else {
-        const option = document.createElement('option');
-        option.value = '';
-        option.text = '-- No Presentations --';
-        pptSelect.appendChild(option);
-        pptSelect.disabled = true;
-    }
+    console.log('Received updated available presentations:', presentations);
+    // ここではUIを直接更新せず、loadPowerPointPresentationsを呼び出すことで一貫性を保つ
+    loadPowerPointPresentations();
 });
 
 pptSelect.addEventListener('change', () => {
@@ -100,6 +122,7 @@ window.electronAPI.onLaunchError((message: string) => {
 });
 
 window.electronAPI.onJoyConStatusUpdate((status: { leftConnected: boolean; rightConnected: boolean }) => {
+    console.log('JoyCon status:', status);
     if (mainStatusLeft) {
         mainStatusLeft.textContent = status.leftConnected ? 'Left: Connected' : 'Left: Disconnected';
         mainStatusLeft.className = status.leftConnected ? 'connected' : 'disconnected';
@@ -141,3 +164,5 @@ closeButton.style.display = 'none';
 pptSelect.disabled = true;
 
 console.log('Main Renderer script loaded.');
+window.electronAPI.requestJoyConStatus();
+loadPowerPointPresentations(); // 初期ロード時にPowerPointプレゼンテーションを読み込む

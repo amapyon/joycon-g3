@@ -11,7 +11,7 @@ export function createWindow(): BrowserWindow {
         return mainWindow;
     }
     mainWindow = new BrowserWindow({
-        width: 500,
+        width: 1200,
         height: 600,
         webPreferences: {
             preload: path.join(__dirname, 'preload.js'),
@@ -20,6 +20,7 @@ export function createWindow(): BrowserWindow {
         },
     });
     mainWindow.loadFile(path.join(__dirname, 'main-window.html'));
+    mainWindow.webContents.openDevTools(); // 開発者ツールを開く
     mainWindow.webContents.on('did-finish-load', () => {
         sendAvailableDisplays();
     });
@@ -33,14 +34,17 @@ export function createWindow(): BrowserWindow {
 }
 
 export function createCursorWindow(targetDisplay: Display) {
+    console.log(`[WindowManager] createCursorWindow called for display ID: ${targetDisplay.id}`); // 追加ログ
     if (!targetDisplay || typeof targetDisplay.id !== 'number') return;
     if (cursorWindow && !cursorWindow.isDestroyed()) {
+        console.log('[WindowManager] Existing cursorWindow found, closing it before creating a new one.'); // 追加ログ
         cursorWindow.close();
     }
     createCursorWindowInternal(targetDisplay);
 }
 
 function createCursorWindowInternal(targetDisplay: Display) {
+    console.log(`[WindowManager] createCursorWindowInternal called for display ID: ${targetDisplay.id}`); // 追加ログ
     cursorWindow = new BrowserWindow({
         x: targetDisplay.bounds.x,
         y: targetDisplay.bounds.y,
@@ -63,8 +67,10 @@ function createCursorWindowInternal(targetDisplay: Display) {
     });
     cursorWindow.setIgnoreMouseEvents(true, { forward: true });
     cursorWindow.loadFile(path.join(__dirname, 'cursor-window.html'));
+    cursorWindow.webContents.openDevTools({ mode: 'detach' });
     cursorWindow.webContents.on('did-finish-load', () => {});
     cursorWindow.on('closed', () => {
+        console.log('[WindowManager] cursorWindow closed.'); // 追加ログ
         cursorWindow = null;
         sendCursorWindowClosedToMain();
     });

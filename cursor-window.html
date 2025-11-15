@@ -2,7 +2,7 @@
 <html>
 <head>
     <meta charset="UTF-8">
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'">
     <title>Cursor Window</title>
     <link rel="stylesheet" href="style.css">
     <style>
@@ -29,8 +29,9 @@
     </style>
 </head>
 <body>
-    <div id="cursor1" class="cursor"></div>
-    <div id="cursor2" class="cursor"></div>
-    <script src="cursor-renderer.js"></script>
+    <script>console.log(`[cursor-window.html] Loaded at: ${new Date().toLocaleTimeString()}`);</script>
+    <div id="cursorLeft" class="cursor"></div>
+    <div id="cursorRight" class="cursor"></div>
+    <script src="./cursor-renderer.js"></script>
 </body>
 </html>

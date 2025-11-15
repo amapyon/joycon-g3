@@ -1,10 +1,11 @@
 // ipc-handler.ts
-import { ipcMain, screen, BrowserWindow } from 'electron';
+import { ipcMain, screen } from 'electron';
 import WindowManager from './window-manager';
 import powerpointControl from './powerpoint-control';
 import imuProcessor from './imu-processor';
+import JoyConManager from './joycon';
 
-export function setupIpcHandlers(windowManagerInstance = WindowManager) {
+export function setupIpcHandlers(windowManagerInstance = WindowManager, joyconManager: JoyConManager) {
     console.log('Setting up IPC Handlers...');
 
     ipcMain.on('launch-cursor-window', (event, displayId) => {
@@ -51,8 +52,33 @@ export function setupIpcHandlers(windowManagerInstance = WindowManager) {
 
     ipcMain.on('start-calibration', () => {
         console.log("[IPC Handler] Received 'start-calibration' request.");
-        imuProcessor.startGyroCalibration('cursor1');
-        imuProcessor.startGyroCalibration('cursor2');
+        imuProcessor.startGyroCalibration('cursorLeft');
+        imuProcessor.startGyroCalibration('cursorRight');
+    });
+
+    ipcMain.on('request-joycon-status', () => {
+        console.log("IPC Handler: Received 'request-joycon-status'.");
+        const status = joyconManager.getConnectionStatus();
+        const mainWin = windowManagerInstance.getMainWindow();
+        if (mainWin && !mainWin.isDestroyed()) {
+            mainWin.webContents.send('joycon-status-update', status);
+        }
+    });
+
+    ipcMain.on('recenter-imu', (event, id: 'cursorLeft' | 'cursorRight') => {
+        console.log(`[IPC Handler] Received 'recenter-imu' request for ${id}.`);
+        imuProcessor.recenter(id);
+    });
+
+    ipcMain.handle('get-open-powerpoint-presentations', async () => {
+        console.log("[IPC Handler] Received 'get-open-powerpoint-presentations' request.");
+        try {
+            const presentations = powerpointControl.getOpenPresentations();
+            return presentations;
+        } catch (e: any) {
+            console.error('[IPC Handler] Error getting open PowerPoint presentations:', e.message);
+            return [];
+        }
     });
 
     console.log('IPC Handlers setup complete.');

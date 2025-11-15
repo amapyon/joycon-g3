@@ -1,14 +1,11 @@
-export {};
-
-declare global {
-    interface Window {
-        electronAPI: any;
-    }
+interface Window {
+    electronAPI: any;
 }
 
 // cursor-renderer.ts
-// Joy-Con姿勢データでカーソルを制御するレンダラースクリプト (TypeScript版)
+// Joy-Con姿勢データでカーソルを制御するレンダラースクリプト
 
+// カーソルのマッピング設定
 interface CursorMap {
     xFrom: 'roll' | 'pitch' | 'yaw';
     yFrom: 'roll' | 'pitch' | 'yaw';
@@ -16,6 +13,7 @@ interface CursorMap {
     ySign: number;
 }
 
+// カーソルの状態データ
 interface CursorData {
     x: number;
     y: number;
@@ -28,20 +26,28 @@ interface CursorData {
     isVisible: boolean;
 }
 
-const cursorElements: Record<'cursor1' | 'cursor2', HTMLElement | null> = {
-    cursor1: document.getElementById('cursor1'),
-    cursor2: document.getElementById('cursor2'),
+// カーソルDOM要素の参照
+const cursorElements: Record<'cursorLeft' | 'cursorRight', HTMLElement | null> = {
+    cursorLeft: document.getElementById('cursorLeft'), // 左JoyCon
+    cursorRight: document.getElementById('cursorRight'), // 右JoyCon
 };
 
+// ウィンドウサイズの管理
 let windowWidth: number = window.innerWidth;
 let windowHeight: number = window.innerHeight;
 
+// 感度・スムージングのデフォルト値
 const defaultSensitivityX = 36;
 const defaultSensitivityY = 36;
 const defaultSmoothingFactor = 0.7;
 
-const cursors: Record<'cursor1' | 'cursor2', CursorData> = {
-    cursor1: {
+// cursorRightの最後の位置を保存（再表示時に復元）
+let lastCursorRightPosition: { x: number; y: number } | null = null; // 追加
+// removed recenter-on-show behavior to avoid immediate centering
+
+// カーソルごとの状態管理
+const cursors: Record<'cursorLeft' | 'cursorRight', CursorData> = {
+    cursorLeft: {
         x: windowWidth / 2 || 100,
         y: windowHeight / 2 || 100,
         targetX: windowWidth / 2 || 100,
@@ -52,7 +58,7 @@ const cursors: Record<'cursor1' | 'cursor2', CursorData> = {
         map: { xFrom: 'roll', yFrom: 'pitch', xSign: -1, ySign: -1 },
         isVisible: false,
     },
-    cursor2: {
+    cursorRight: {
         x: windowWidth / 2 || 100,
         y: windowHeight / 2 || 100,
         targetX: windowWidth / 2 || 100,
@@ -65,7 +71,34 @@ const cursors: Record<'cursor1' | 'cursor2', CursorData> = {
     },
 };
 
-function resetCursor(cursorId: 'cursor1' | 'cursor2') {
+// --- main.tsから参照できるように符号情報をglobalThisにエクスポート ---
+type CursorMapConfig = { [key in 'cursorLeft' | 'cursorRight']: { xSign: number, ySign: number } };
+const cursorMapConfig: CursorMapConfig = {
+    cursorLeft: { xSign: cursors.cursorLeft.map.xSign, ySign: cursors.cursorLeft.map.ySign },
+    cursorRight: { xSign: cursors.cursorRight.map.xSign, ySign: cursors.cursorRight.map.ySign },
+};
+(globalThis as any).cursorMapConfig = cursorMapConfig;
+
+// --- update-pointerイベント受信: main.tsからの座標でidごとにポインターを動かす ---
+window.electronAPI.onUpdatePointer((pos: { id: 'cursorLeft' | 'cursorRight', x: number, y: number }) => {
+    const cursorId = pos.id;
+    const cursorData = cursors[cursorId];
+    if (!cursorData) return;
+    cursorData.x = pos.x;
+    cursorData.y = pos.y;
+    cursorData.targetX = pos.x;
+    cursorData.targetY = pos.y;
+    cursorData.isVisible = true;
+    const el = cursorElements[cursorId];
+    if (el) {
+        el.style.visibility = 'visible';
+        updateCursorElementPosition(cursorId);
+    }
+});
+
+// カーソルを画面中央にリセット
+function resetCursor(cursorId: 'cursorLeft' | 'cursorRight') {
+    console.log(`[cursor-renderer] resetCursor called for ${cursorId}`); // 追加ログ
     const cursorData = cursors[cursorId];
     if (!cursorData) {
         console.error(`[${cursorId}] Cannot reset cursor: cursorData is null.`);
@@ -100,7 +133,8 @@ function resetCursor(cursorId: 'cursor1' | 'cursor2') {
     updateCursorElementPosition(cursorId);
 }
 
-function updateCursorElementPosition(cursorId: 'cursor1' | 'cursor2') {
+// カーソルDOM要素の位置を更新
+function updateCursorElementPosition(cursorId: 'cursorLeft' | 'cursorRight') {
     const cursorData = cursors[cursorId];
     const element = cursorElements[cursorId];
     if (element && cursorData && !Number.isNaN(cursorData.x) && !Number.isNaN(cursorData.y)) {
@@ -117,10 +151,20 @@ function updateCursorElementPosition(cursorId: 'cursor1' | 'cursor2') {
     }
 }
 
-window.electronAPI.onJoyConAttitude((data: { id: 'cursor1' | 'cursor2'; roll: number; pitch: number; yaw?: number }) => {
+// --- ポインター表示状態管理 ---
+let isRightXPressed = false;
+let isLeftDownPressed = false;
+
+// Joy-Conの姿勢データ受信時の処理
+window.electronAPI.onJoyConAttitude((data: { id: 'cursorLeft' | 'cursorRight'; roll: number; pitch: number; yaw?: number }) => {
     const cursorId = data.id;
+    // 右はXボタン押下中、左はDownボタン押下中のみ反映
+    if ((cursorId === 'cursorRight' && !isRightXPressed) || (cursorId === 'cursorLeft' && !isLeftDownPressed)) {
+        return;
+    }
     const cursorData = cursors[cursorId];
     if (!cursorData) return;
+
     const roll = data.roll;
     const pitch = data.pitch;
     const centerX = windowWidth / 2;
@@ -144,40 +188,56 @@ window.electronAPI.onJoyConAttitude((data: { id: 'cursor1' | 'cursor2'; roll: nu
     cursorData.targetY = targetY;
 });
 
+// Joy-Con Xボタンの押下/離上イベント（右JoyCon）
 window.electronAPI.onJoyConButtonX((data: { pressed: boolean }) => {
-    const el = cursorElements.cursor2;
-    const cd = cursors.cursor2;
-    if (!el || !cd) return;
-    cd.isVisible = data.pressed;
-    el.style.visibility = cd.isVisible ? 'visible' : 'hidden';
+    isRightXPressed = data.pressed;
+    updatePointerVisibility();
 });
 
+// Joy-Con Downボタンの押下/離上イベント（左JoyCon）
 window.electronAPI.onJoyConButtonDown((data: { pressed: boolean }) => {
-    const el = cursorElements.cursor1;
-    const cd = cursors.cursor1;
-    if (!el || !cd) return;
-    cd.isVisible = data.pressed;
-    el.style.visibility = cd.isVisible ? 'visible' : 'hidden';
+    isLeftDownPressed = data.pressed;
+    updatePointerVisibility();
 });
 
-window.electronAPI.onJoyConButtonXPressed((data: { id: 'cursor1' | 'cursor2' }) => {
+// ポインター表示状態を一括制御
+function updatePointerVisibility() {
+    // 右JoyCon: Xボタン押下中のみ表示
+    const rightVisible = isRightXPressed;
+    cursors.cursorRight.isVisible = rightVisible;
+    if (cursorElements.cursorRight) {
+        cursorElements.cursorRight.style.visibility = rightVisible ? 'visible' : 'hidden';
+    }
+    // 左JoyCon: Downボタン押下中のみ表示
+    const leftVisible = isLeftDownPressed;
+    cursors.cursorLeft.isVisible = leftVisible;
+    if (cursorElements.cursorLeft) {
+        cursorElements.cursorLeft.style.visibility = leftVisible ? 'visible' : 'hidden';
+    }
+}
+
+// Joy-Con Xボタン押下時のカーソルリセット（右）
+window.electronAPI.onJoyConButtonXPressed((data: { id: 'cursorLeft' | 'cursorRight' }) => {
     console.log(`X Button press trigger for ${data.id}. Resetting.`);
     resetCursor(data.id);
 });
 
-window.electronAPI.onJoyConButtonDownPressed((data: { id: 'cursor1' | 'cursor2' }) => {
+// Joy-Con Downボタン押下時のカーソルリセット（左）
+window.electronAPI.onJoyConButtonDownPressed((data: { id: 'cursorLeft' | 'cursorRight' }) => {
     console.log(`Down Button press trigger for ${data.id}. Resetting.`);
     resetCursor(data.id);
 });
 
+// ウィンドウリサイズ時の処理
 window.addEventListener('resize', () => {
     windowWidth = window.innerWidth;
     windowHeight = window.innerHeight;
     console.log(`Cursor window resized to: ${windowWidth}x${windowHeight}`);
-    resetCursor('cursor1');
-    resetCursor('cursor2');
+    resetCursor('cursorLeft');
+    resetCursor('cursorRight');
 });
 
+// カーソルの描画ループ
 function renderLoop() {
     if (typeof windowWidth !== 'number' || typeof windowHeight !== 'number' || windowWidth <= 0 || windowHeight <= 0) {
         windowWidth = window.innerWidth;
@@ -186,8 +246,8 @@ function renderLoop() {
         return;
     }
     for (const id in cursors) {
-        const cursorData = cursors[id as 'cursor1' | 'cursor2'];
-        const element = cursorElements[id as 'cursor1' | 'cursor2'];
+        const cursorData = cursors[id as 'cursorLeft' | 'cursorRight'];
+        const element = cursorElements[id as 'cursorLeft' | 'cursorRight'];
         if (element && cursorData.isVisible) {
             const smoothing = cursorData.smoothing || 0.1;
             cursorData.x += (cursorData.targetX - cursorData.x) * smoothing;
@@ -198,7 +258,7 @@ function renderLoop() {
                 if (!Number.isNaN(cursorData.x) && !Number.isNaN(cursorData.y)) {
                     cursorData.x = Math.max(halfWidth, Math.min(windowWidth - halfWidth, cursorData.x));
                     cursorData.y = Math.max(halfHeight, Math.min(windowHeight - halfHeight, cursorData.y));
-                    updateCursorElementPosition(id as 'cursor1' | 'cursor2');
+                    updateCursorElementPosition(id as 'cursorLeft' | 'cursorRight');
                 } else {
                     console.error(`[${id}] Skipping pos update due to NaN coord.`);
                 }
@@ -208,22 +268,44 @@ function renderLoop() {
     requestAnimationFrame(renderLoop);
 }
 
+// DOMロード完了時の初期化処理
 document.addEventListener('DOMContentLoaded', () => {
-    console.log('DOM fully loaded.');
+    console.log('DOM fully loaded. [cursor-renderer] script initialized.');
     windowWidth = window.innerWidth;
     windowHeight = window.innerHeight;
     if (windowWidth > 0 && windowHeight > 0) {
-        resetCursor('cursor1');
-        resetCursor('cursor2');
+        resetCursor('cursorLeft');
+        resetCursor('cursorRight');
     } else {
         console.warn('Initial window dimensions invalid. Retrying reset later.');
     }
-    if (cursorElements.cursor1) {
-        cursorElements.cursor1.style.visibility = 'hidden';
+    if (cursorElements.cursorLeft) {
+        cursorElements.cursorLeft.style.visibility = 'hidden';
     }
-    if (cursorElements.cursor2) {
-        cursorElements.cursor2.style.visibility = 'hidden';
+    if (cursorElements.cursorRight) {
+        cursorElements.cursorRight.style.visibility = 'hidden';
     }
+    // --- IPCでcursorMapConfigをmainプロセスへ送信（確実に送るためリトライ付き） ---
+    function sendCursorMapConfigWithRetry(retry = 0) {
+        if (window.electronAPI && window.electronAPI.sendCursorMapConfig) {
+            window.electronAPI.sendCursorMapConfig(cursorMapConfig);
+            console.log('[cursor-renderer] Sent cursorMapConfig to main:', cursorMapConfig, `(retry=${retry})`);
+        } else if (window.electronAPI && window.electronAPI.send) {
+            window.electronAPI.send('cursor-map-config', cursorMapConfig);
+            console.log('[cursor-renderer] Sent cursorMapConfig to main (fallback):', cursorMapConfig, `(retry=${retry})`);
+        } else if ((window as any).ipcRenderer) {
+            (window as any).ipcRenderer.send('cursor-map-config', cursorMapConfig);
+            console.log('[cursor-renderer] Sent cursorMapConfig to main (ipcRenderer):', cursorMapConfig, `(retry=${retry})`);
+        } else {
+            if (retry < 10) {
+                setTimeout(() => sendCursorMapConfigWithRetry(retry + 1), 200);
+                console.warn(`[cursor-renderer] IPC bridge not ready, retrying... (${retry + 1})`);
+            } else {
+                console.warn('[cursor-renderer] Could not send cursorMapConfig to main: no IPC method found after retries.');
+            }
+        }
+    }
+    sendCursorMapConfigWithRetry();
     requestAnimationFrame(renderLoop);
     console.log('Cursor Renderer script initialized for attitude control.');
 });

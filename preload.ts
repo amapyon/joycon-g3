@@ -19,6 +19,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
     startCalibration: () => ipcRenderer.send('start-calibration'),
     onCalibrationStatusUpdate: (callback: (...args: any[]) => void) => ipcRenderer.on('calibration-status-update', (event, ...args) => callback(...args)),
     onJoyConBatteryStatusUpdate: (callback: (...args: any[]) => void) => ipcRenderer.on('joycon-battery-status-update', (event, ...args) => callback(...args)),
+    requestJoyConStatus: () => ipcRenderer.send('request-joycon-status'),
+    recenterImu: (id: 'cursorLeft' | 'cursorRight') => ipcRenderer.send('recenter-imu', id),
+    getOpenPowerPointPresentations: () => ipcRenderer.invoke('get-open-powerpoint-presentations'),
+    onUpdatePointer: (callback: (...args: any[]) => void) => ipcRenderer.on('update-pointer', (event, ...args) => callback(...args)),
+    // --- カーソルマップ設定をmainプロセスへ送信 ---
+    sendCursorMapConfig: (config: any) => ipcRenderer.send('cursor-map-config', config),
 });
 
 console.log('Preload script loaded.');

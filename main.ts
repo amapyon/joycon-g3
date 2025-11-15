@@ -7,7 +7,20 @@ import WindowManager from './window-manager';
 import * as IpcHandler from './ipc-handler';
 import imuProcessor from './imu-processor';
 
+// --- IMU Pointer Control Variables ---
+let isCalibrating = false;
+const CALIBRATION_SAMPLE_COUNT = 100;
+let calibrationSamples: { x: number; y: number; z: number }[] = [];
+let biasX = 0, biasY = 0, biasZ = 0;
+let isPointerVisible = true; // 必要に応じて制御
+let currentPointerPosition = { x: 600, y: 300 };
+const screenWidth = 1200; // 必要に応じてWindowManager等から取得
+const screenHeight = 600;
+
 const joyconManager = new JoyConManager();
+
+// --- カーソルマップ設定を保持する変数 ---
+let cursorMapConfig: { [key in 'cursorLeft' | 'cursorRight']?: { xSign: number, ySign: number } } = {};
 
 app.whenReady().then(() => {
     console.log('App Ready. Initializing modules...');
@@ -16,7 +29,16 @@ app.whenReady().then(() => {
         console.warn('Initial connection to PowerPoint failed. Ensure PowerPoint is running.');
     }
     WindowManager.createWindow();
-    IpcHandler.setupIpcHandlers(WindowManager);
+    IpcHandler.setupIpcHandlers(WindowManager, joyconManager);
+
+    // --- IPCでcursorMapConfigを受信 ---
+    const { ipcMain } = require('electron');
+    if (!ipcMain.listenerCount('cursor-map-config')) {
+        ipcMain.on('cursor-map-config', (event: any, config: any) => {
+            cursorMapConfig = config;
+            console.log('[main.ts] Received cursorMapConfig from renderer:', cursorMapConfig);
+        });
+    }
     const mainWin = WindowManager.getMainWindow();
     if (mainWin) {
         mainWin.webContents.on('did-finish-load', () => {
@@ -25,12 +47,85 @@ app.whenReady().then(() => {
             }
         });
     }
-    joyconManager.on('imu-data', (data: any) => {
-        imuProcessor.update(data);
-    });
+        // --- IMU Pointer Control ---
+        joyconManager.on('imu-data', handleImuData);
+
+        function handleImuData(data: { id: string, accel: { x: number, y: number, z: number }, gyro: { x: number, y: number, z: number } }) {
+            if (isCalibrating) {
+                calibrationSamples.push(data.gyro);
+                if (calibrationSamples.length >= CALIBRATION_SAMPLE_COUNT) {
+                    // Calculate average bias
+                    const sum = calibrationSamples.reduce((acc, gyro) => {
+                        acc.x += gyro.x;
+                        acc.y += gyro.y;
+                        acc.z += gyro.z;
+                        return acc;
+                    }, { x: 0, y: 0, z: 0 });
+
+                    biasX = sum.x / CALIBRATION_SAMPLE_COUNT;
+                    biasY = sum.y / CALIBRATION_SAMPLE_COUNT;
+                    biasZ = sum.z / CALIBRATION_SAMPLE_COUNT;
+
+                    isCalibrating = false;
+                    calibrationSamples.length = 0; // Clear samples
+                    console.log(`Calibration complete. Bias: X=${biasX.toFixed(2)}, Y=${biasY.toFixed(2)}, Z=${biasZ.toFixed(2)}`);
+                }
+                return; // Don't move pointer during calibration
+            }
+
+            if (!isPointerVisible) {
+                return; // Don't move pointer if not visible
+            }
+
+            const moveSpeed = 0.1; // Adjusted to a more reasonable default
+            const gyroDeadzone = 90; // Increased to account for higher noise/bias
+
+            // Apply bias correction
+            let effectiveGyroX = data.gyro.x - biasX;
+            let effectiveGyroY = data.gyro.y - biasY;
+            let effectiveGyroZ = data.gyro.z - biasZ;
+
+            // Apply deadzone
+            if (Math.abs(effectiveGyroX) < gyroDeadzone) effectiveGyroX = 0;
+            if (Math.abs(effectiveGyroY) < gyroDeadzone) effectiveGyroY = 0;
+            if (Math.abs(effectiveGyroZ) < gyroDeadzone) effectiveGyroZ = 0;
+
+            // console.log(`Effective Gyro: X=${effectiveGyroX.toFixed(2)}, Y=${effectiveGyroY.toFixed(2)}, Z=${effectiveGyroZ.toFixed(2)}`);
+
+            // --- JoyConごとにポインター座標を分離 ---
+            const id = data.id === 'R' || data.id === 'cursorRight' ? 'cursorRight' : 'cursorLeft';
+            // ポインターごとの座標を保持（型定義を追加して型エラー回避）
+            type PointerPositions = { cursorLeft: { x: number, y: number }, cursorRight: { x: number, y: number } };
+            type CursorMapConfig = { [key in 'cursorLeft' | 'cursorRight']: { xSign: number, ySign: number } };
+            const g = globalThis as typeof globalThis & { pointerPositions?: PointerPositions, cursorMapConfig?: CursorMapConfig };
+            if (!g.pointerPositions) g.pointerPositions = { cursorLeft: { x: 600, y: 300 }, cursorRight: { x: 600, y: 300 } };
+            const pointerPosition = g.pointerPositions[id];
+
+            // --- Use sign from cursor-renderer.ts mapping ---
+            // Default signs in case not received from renderer
+            let xSign = 1;
+            let ySign = 1;
+
+            if (cursorMapConfig && cursorMapConfig[id]) {
+                xSign = cursorMapConfig[id].xSign;
+                ySign = cursorMapConfig[id].ySign;
+            } else {
+                // console.warn(`[main.ts] cursorMapConfig for ${id} is undefined. Using default signs.`);
+            }
+
+            pointerPosition.x += effectiveGyroZ * moveSpeed * xSign; // Gyro Z for screen X
+            pointerPosition.y += effectiveGyroY * moveSpeed * ySign; // Gyro Y for screen Y, inverted
+            pointerPosition.x = Math.max(0, Math.min(screenWidth, pointerPosition.x));
+            pointerPosition.y = Math.max(0, Math.min(screenHeight, pointerPosition.y));
+            const pointerWindow = WindowManager.getCursorWindow();
+            if (pointerWindow && !pointerWindow.isDestroyed()) {
+                pointerWindow.webContents.send('update-pointer', { id, x: pointerPosition.x, y: pointerPosition.y });
+            }
+        }
     imuProcessor.on('attitude-update', (attitudeData: any) => {
         const targetWindow = WindowManager.getCursorWindow();
         if (targetWindow && !targetWindow.isDestroyed()) {
+            console.log('[Main] Sending attitude update to cursor window.', attitudeData);
             targetWindow.webContents.send('joycon-attitude', attitudeData);
         }
     });
@@ -42,6 +137,7 @@ app.whenReady().then(() => {
     });
     ['button-x', 'button-down'].forEach((eventName) => {
         joyconManager.on(eventName, (data: any) => {
+            // console.log(`[Main] Event forwarded from JoyCon: ${eventName}`, data);
             const targetWindow = WindowManager.getCursorWindow();
             if (targetWindow && !targetWindow.isDestroyed()) {
                 targetWindow.webContents.send(
@@ -52,6 +148,7 @@ app.whenReady().then(() => {
         });
     });
     joyconManager.on('button-x-pressed', (data: any) => {
+        console.log(`[Main] button-x-pressed received for ${data?.id}`);
         imuProcessor.recenter(data.id);
         const targetWindow = WindowManager.getCursorWindow();
         if (targetWindow && !targetWindow.isDestroyed()) {
@@ -59,6 +156,7 @@ app.whenReady().then(() => {
         }
     });
     joyconManager.on('button-down-pressed', (data: any) => {
+        console.log(`[Main] button-down-pressed received for ${data?.id} -> calling imuProcessor.recenter`);
         imuProcessor.recenter(data.id);
         const targetWindow = WindowManager.getCursorWindow();
         if (targetWindow && !targetWindow.isDestroyed()) {
