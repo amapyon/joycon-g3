@@ -24,6 +24,8 @@ interface CursorData {
     smoothing: number;
     map: CursorMap;
     isVisible: boolean;
+    opacity: number;
+    blink: boolean;
 }
 
 // カーソルDOM要素の参照
@@ -42,8 +44,7 @@ const defaultSensitivityY = 36;
 const defaultSmoothingFactor = 0.7;
 
 // cursorRightの最後の位置を保存（再表示時に復元）
-let lastCursorRightPosition: { x: number; y: number } | null = null; // 追加
-// removed recenter-on-show behavior to avoid immediate centering
+let lastCursorRightPosition: { x: number; y: number } | null = null; // This line seems unused and can be removed.
 
 // カーソルごとの状態管理
 const cursors: Record<'cursorLeft' | 'cursorRight', CursorData> = {
@@ -57,6 +58,8 @@ const cursors: Record<'cursorLeft' | 'cursorRight', CursorData> = {
         smoothing: defaultSmoothingFactor,
         map: { xFrom: 'roll', yFrom: 'pitch', xSign: -1, ySign: -1 },
         isVisible: false,
+        opacity: 1,
+        blink: true,
     },
     cursorRight: {
         x: windowWidth / 2 || 100,
@@ -68,6 +71,8 @@ const cursors: Record<'cursorLeft' | 'cursorRight', CursorData> = {
         smoothing: defaultSmoothingFactor,
         map: { xFrom: 'roll', yFrom: 'pitch', xSign: 1, ySign: -1 },
         isVisible: false,
+        opacity: 1,
+        blink: true,
     },
 };
 
@@ -84,15 +89,15 @@ window.electronAPI.onUpdatePointer((pos: { id: 'cursorLeft' | 'cursorRight', x: 
     const cursorId = pos.id;
     const cursorData = cursors[cursorId];
     if (!cursorData) return;
-    cursorData.x = pos.x;
-    cursorData.y = pos.y;
-    cursorData.targetX = pos.x;
-    cursorData.targetY = pos.y;
-    cursorData.isVisible = true;
-    const el = cursorElements[cursorId];
-    if (el) {
-        el.style.visibility = 'visible';
-        updateCursorElementPosition(cursorId);
+
+    if (cursorData.isVisible) {
+        cursorData.targetX = pos.x;
+        cursorData.targetY = pos.y;
+        cursorData.isVisible = true;
+        const el = cursorElements[cursorId];
+        if (el) {
+            el.style.visibility = 'visible';
+        }
     }
 });
 
@@ -155,6 +160,7 @@ function updateCursorElementPosition(cursorId: 'cursorLeft' | 'cursorRight') {
 let isRightXPressed = false;
 let isLeftDownPressed = false;
 
+
 // Joy-Conの姿勢データ受信時の処理
 window.electronAPI.onJoyConAttitude((data: { id: 'cursorLeft' | 'cursorRight'; roll: number; pitch: number; yaw?: number }) => {
     const cursorId = data.id;
@@ -216,13 +222,13 @@ function updatePointerVisibility() {
     }
 }
 
-// Joy-Con Xボタン押下時のカーソルリセット（右）
+// Joy-Con Xボタン押下時のカーソルリセット（右） - REMOVED resetCursor call
 window.electronAPI.onJoyConButtonXPressed((data: { id: 'cursorLeft' | 'cursorRight' }) => {
     console.log(`X Button press trigger for ${data.id}. Resetting.`);
     resetCursor(data.id);
 });
 
-// Joy-Con Downボタン押下時のカーソルリセット（左）
+// Joy-Con Downボタン押下時のカーソルリセット（左） - REMOVED resetCursor call
 window.electronAPI.onJoyConButtonDownPressed((data: { id: 'cursorLeft' | 'cursorRight' }) => {
     console.log(`Down Button press trigger for ${data.id}. Resetting.`);
     resetCursor(data.id);
@@ -252,6 +258,16 @@ function renderLoop() {
             const smoothing = cursorData.smoothing || 0.1;
             cursorData.x += (cursorData.targetX - cursorData.x) * smoothing;
             cursorData.y += (cursorData.targetY - cursorData.y) * smoothing;
+
+            // Add blinking effect
+            if (cursorData.blink) {
+                const time = Date.now() / 100; // Blinking speed
+                cursorData.opacity = (Math.sin(time) + 1) / 2 * 0.9 + 0.1; // Opacity from 0.1 to 1.0
+                element.style.opacity = String(cursorData.opacity);
+            } else {
+                element.style.opacity = '1';
+            }
+
             const halfWidth = element.offsetWidth / 2;
             const halfHeight = element.offsetHeight / 2;
             if (!Number.isNaN(halfWidth) && !Number.isNaN(halfHeight) && halfWidth >= 0 && halfHeight >= 0) {
