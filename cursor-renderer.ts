@@ -26,6 +26,8 @@ interface CursorData {
     isVisible: boolean;
     opacity: number;
     blink: boolean;
+    pendingX: number | null;
+    pendingY: number | null;
 }
 
 // カーソルDOM要素の参照
@@ -60,6 +62,8 @@ const cursors: Record<'cursorLeft' | 'cursorRight', CursorData> = {
         isVisible: false,
         opacity: 1,
         blink: true,
+        pendingX: null,
+        pendingY: null,
     },
     cursorRight: {
         x: windowWidth / 2 || 100,
@@ -73,6 +77,8 @@ const cursors: Record<'cursorLeft' | 'cursorRight', CursorData> = {
         isVisible: false,
         opacity: 1,
         blink: true,
+        pendingX: null,
+        pendingY: null,
     },
 };
 
@@ -208,30 +214,73 @@ window.electronAPI.onJoyConButtonDown((data: { pressed: boolean }) => {
 
 // ポインター表示状態を一括制御
 function updatePointerVisibility() {
-    // 右JoyCon: Xボタン押下中のみ表示
+    // Right cursor: Visible only when X button is pressed
     const rightVisible = isRightXPressed;
-    cursors.cursorRight.isVisible = rightVisible;
-    if (cursorElements.cursorRight) {
-        cursorElements.cursorRight.style.visibility = rightVisible ? 'visible' : 'hidden';
+    const cursorRightData = cursors.cursorRight;
+    const cursorRightElement = cursorElements.cursorRight;
+
+    if (rightVisible && !cursorRightData.isVisible) { // Becoming visible
+        if (cursorRightElement) cursorRightElement.style.visibility = 'visible';
+        cursorRightData.isVisible = true;
+        if (cursorRightData.pendingX !== null && cursorRightData.pendingY !== null) {
+            // Resume from last pending position
+            cursorRightData.targetX = cursorRightData.pendingX;
+            cursorRightData.targetY = cursorRightData.pendingY;
+            cursorRightData.x = cursorRightData.pendingX; // Snap to position immediately
+            cursorRightData.y = cursorRightData.pendingY;
+            cursorRightData.pendingX = null; // Clear pending position
+            cursorRightData.pendingY = null;
+            updateCursorElementPosition('cursorRight'); // Update element position immediately
+        }
+    } else if (!rightVisible && cursorRightData.isVisible) { // Becoming hidden
+        if (cursorRightElement) cursorRightElement.style.visibility = 'hidden';
+        cursorRightData.isVisible = false;
+        // Store current position as last known if not already pending
+        if (cursorRightData.pendingX === null) {
+            cursorRightData.pendingX = Math.round(cursorRightData.x); // Round x
+            cursorRightData.pendingY = Math.round(cursorRightData.y); // Round y
+        }
     }
-    // 左JoyCon: Downボタン押下中のみ表示
+
+    // Left cursor: Visible only when Down button is pressed
     const leftVisible = isLeftDownPressed;
-    cursors.cursorLeft.isVisible = leftVisible;
-    if (cursorElements.cursorLeft) {
-        cursorElements.cursorLeft.style.visibility = leftVisible ? 'visible' : 'hidden';
+    const cursorLeftData = cursors.cursorLeft;
+    const cursorLeftElement = cursorElements.cursorLeft;
+
+    if (leftVisible && !cursorLeftData.isVisible) { // Becoming visible
+        if (cursorLeftElement) cursorLeftElement.style.visibility = 'visible';
+        cursorLeftData.isVisible = true;
+        if (cursorLeftData.pendingX !== null && cursorLeftData.pendingY !== null) {
+            // Resume from last pending position
+            cursorLeftData.targetX = cursorLeftData.pendingX;
+            cursorLeftData.targetY = cursorLeftData.pendingY;
+            cursorLeftData.x = cursorLeftData.pendingX; // Snap to position immediately
+            cursorLeftData.y = cursorLeftData.pendingY;
+            cursorLeftData.pendingX = null; // Clear pending position
+            cursorLeftData.pendingY = null;
+            updateCursorElementPosition('cursorLeft'); // Update element position immediately
+        }
+    } else if (!leftVisible && cursorLeftData.isVisible) { // Becoming hidden
+        if (cursorLeftElement) cursorLeftElement.style.visibility = 'hidden';
+        cursorLeftData.isVisible = false;
+        // Store current position as last known if not already pending
+        if (cursorLeftData.pendingX === null) { // Only store if no pending position exists
+            cursorLeftData.pendingX = Math.round(cursorLeftData.x); // Round x
+            cursorLeftData.pendingY = Math.round(cursorLeftData.y); // Round y
+        }
     }
 }
 
-// Joy-Con Xボタン押下時のカーソルリセット（右） - REMOVED resetCursor call
+// Joy-Con Xボタン押下時のカーソルリセット（右）
 window.electronAPI.onJoyConButtonXPressed((data: { id: 'cursorLeft' | 'cursorRight' }) => {
     console.log(`X Button press trigger for ${data.id}. Resetting.`);
-    resetCursor(data.id);
+    // resetCursor(data.id); // Removed resetCursor call
 });
 
-// Joy-Con Downボタン押下時のカーソルリセット（左） - REMOVED resetCursor call
+// Joy-Con Downボタン押下時のカーソルリセット（左）
 window.electronAPI.onJoyConButtonDownPressed((data: { id: 'cursorLeft' | 'cursorRight' }) => {
     console.log(`Down Button press trigger for ${data.id}. Resetting.`);
-    resetCursor(data.id);
+    // resetCursor(data.id); // Removed resetCursor call
 });
 
 // ウィンドウリサイズ時の処理
