@@ -232,6 +232,7 @@ function updatePointerVisibility() {
             cursorRightData.pendingY = null;
             updateCursorElementPosition('cursorRight'); // Update element position immediately
         }
+        window.electronAPI.sendCursorVisibilityUpdate('cursorRight', true); // Send update
     } else if (!rightVisible && cursorRightData.isVisible) { // Becoming hidden
         if (cursorRightElement) cursorRightElement.style.visibility = 'hidden';
         cursorRightData.isVisible = false;
@@ -240,6 +241,7 @@ function updatePointerVisibility() {
             cursorRightData.pendingX = Math.round(cursorRightData.x); // Round x
             cursorRightData.pendingY = Math.round(cursorRightData.y); // Round y
         }
+        window.electronAPI.sendCursorVisibilityUpdate('cursorRight', false); // Send update
     }
 
     // Left cursor: Visible only when Down button is pressed
@@ -260,6 +262,7 @@ function updatePointerVisibility() {
             cursorLeftData.pendingY = null;
             updateCursorElementPosition('cursorLeft'); // Update element position immediately
         }
+        window.electronAPI.sendCursorVisibilityUpdate('cursorLeft', true); // Send update
     } else if (!leftVisible && cursorLeftData.isVisible) { // Becoming hidden
         if (cursorLeftElement) cursorLeftElement.style.visibility = 'hidden';
         cursorLeftData.isVisible = false;
@@ -268,6 +271,7 @@ function updatePointerVisibility() {
             cursorLeftData.pendingX = Math.round(cursorLeftData.x); // Round x
             cursorLeftData.pendingY = Math.round(cursorLeftData.y); // Round y
         }
+        window.electronAPI.sendCursorVisibilityUpdate('cursorLeft', false); // Send update
     }
 }
 

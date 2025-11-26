@@ -25,6 +25,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
     onUpdatePointer: (callback: (...args: any[]) => void) => ipcRenderer.on('update-pointer', (event, ...args) => callback(...args)),
     // --- カーソルマップ設定をmainプロセスへ送信 ---
     sendCursorMapConfig: (config: any) => ipcRenderer.send('cursor-map-config', config),
+    // --- カーソル表示状態をmainプロセスへ送信 ---
+    sendCursorVisibilityUpdate: (id: 'cursorLeft' | 'cursorRight', isVisible: boolean) => ipcRenderer.send('cursor-visibility-update', { id, isVisible }),
 });
 
 console.log('Preload script loaded.');

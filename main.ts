@@ -12,8 +12,8 @@ let isCalibrating = false;
 const CALIBRATION_SAMPLE_COUNT = 100;
 let calibrationSamples: { x: number; y: number; z: number }[] = [];
 let biasX = 0, biasY = 0, biasZ = 0;
-let isPointerVisible = true; // 必要に応じて制御
-let currentPointerPosition = { x: 600, y: 300 };
+let isCursorVisible: { cursorLeft: boolean, cursorRight: boolean } = { cursorLeft: false, cursorRight: false }; // Track visibility per cursor
+let currentPointerPosition = { x: 600, y: 300 }; // Keep this, it's still used for initial position
 // 物理ピクセルでの画面サイズを取得する関数
 function getPhysicalScreenSize() {
     const { screen } = require('electron');
@@ -57,6 +57,13 @@ app.whenReady().then(() => {
             console.log('[main.ts] Received cursorMapConfig from renderer:', cursorMapConfig);
         });
     }
+    // Add IPC listener for cursor visibility updates
+    if (!ipcMain.listenerCount('cursor-visibility-update')) {
+        ipcMain.on('cursor-visibility-update', (event: any, data: { id: 'cursorLeft' | 'cursorRight', isVisible: boolean }) => {
+            isCursorVisible[data.id] = data.isVisible;
+            // console.log(`[main.ts] Cursor ${data.id} visibility updated to ${data.isVisible}`);
+        });
+    }
     const mainWin = WindowManager.getMainWindow();
     if (mainWin) {
         mainWin.webContents.on('did-finish-load', () => {
@@ -91,7 +98,8 @@ app.whenReady().then(() => {
                 return; // Don't move pointer during calibration
             }
 
-            if (!isPointerVisible) {
+            const cursorId = data.id === 'R' || data.id === 'cursorRight' ? 'cursorRight' : 'cursorLeft';
+            if (!isCursorVisible[cursorId]) { // Check visibility for the specific cursor
                 return; // Don't move pointer if not visible
             }
 
