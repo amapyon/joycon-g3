@@ -16,6 +16,7 @@ const mainBatteryStatusRight = document.getElementById('main-battery-status-righ
 const pptSelect = document.getElementById('ppt-select') as HTMLSelectElement;
 const calibrateButton = document.getElementById('calibrate-button') as HTMLButtonElement;
 const calibrationStatus = document.getElementById('calibration-status') as HTMLElement;
+const countdownInitialValueInput = document.getElementById('countdown-initial-value') as HTMLInputElement; // New
 
 // PowerPointプレゼンテーションをロードしてUIを更新する関数
 async function loadPowerPointPresentations() {
@@ -160,6 +161,18 @@ window.electronAPI.onCalibrationStatusUpdate((statusInfo: { id: string; status: 
         calibrateButton.disabled = false;
     }
     calibrationStatus.textContent = message;
+});
+
+// Add event listener for countdown initial value input
+countdownInitialValueInput.addEventListener('change', () => {
+    const value = parseInt(countdownInitialValueInput.value, 10);
+    if (!isNaN(value) && value >= 1 && value <= 60) {
+        window.electronAPI.sendCountdownInitialValue(value);
+    } else {
+        // Optionally, reset to a default or show an error
+        countdownInitialValueInput.value = '10';
+        window.electronAPI.sendCountdownInitialValue(10);
+    }
 });
 
 launchButton.disabled = true;

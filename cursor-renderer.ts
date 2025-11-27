@@ -38,7 +38,8 @@ const cursorElements: Record<'cursorLeft' | 'cursorRight', HTMLElement | null> =
 const countdownTimerElement: HTMLElement | null = document.getElementById('countdownTimer'); // Renamed
 
 let countdownInterval: NodeJS.Timeout | null = null;
-let countdownValue: number = 10; // Initial countdown value
+let countdownValue: number = 10; // Initial countdown value (will be updated by IPC)
+let currentCountdownInitialValue: number = 10; // Store the initial value from main process
 
 // ウィンドウサイズの管理
 let windowWidth: number = window.innerWidth;
@@ -358,6 +359,14 @@ document.addEventListener('DOMContentLoaded', () => {
     if (cursorElements.cursorRight) {
         cursorElements.cursorRight.style.visibility = 'hidden';
     }
+    // Listen for updates to the countdown initial value
+    window.electronAPI.onUpdateCountdownInitialValue((value: number) => {
+        currentCountdownInitialValue = value; // Update the stored initial value
+        if (countdownTimerElement && !countdownInterval) { // Only update text if timer is not running
+            countdownTimerElement.textContent = String(currentCountdownInitialValue);
+        }
+        console.log(`[CursorRenderer] Updated countdown initial value to: ${currentCountdownInitialValue}`);
+    });
     // Listen for '+' button pressed event
     window.electronAPI.onJoyConButtonPlusPressed(() => {
         console.log('[CursorRenderer] Received button-plus-pressed IPC event.');
@@ -367,13 +376,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 clearInterval(countdownInterval);
                 countdownInterval = null;
                 countdownTimerElement.style.visibility = 'hidden';
-                countdownValue = 10; // Reset value
+                countdownValue = currentCountdownInitialValue; // Reset value using the current initial value
                 countdownTimerElement.textContent = String(countdownValue); // Reset text
                 console.log('[CursorRenderer] Countdown stopped and hidden.');
             } else {
                 // If timer is not running, start it
                 countdownTimerElement.style.visibility = 'visible';
-                countdownValue = 10;
+                countdownValue = currentCountdownInitialValue; // Start with the current initial value
                 countdownTimerElement.textContent = String(countdownValue);
                 console.log('[CursorRenderer] Countdown started.');
 
@@ -386,7 +395,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         clearInterval(countdownInterval!);
                         countdownInterval = null;
                         countdownTimerElement.style.visibility = 'hidden';
-                        countdownValue = 10; // Reset for next time
+                        countdownValue = currentCountdownInitialValue; // Reset for next time
                         countdownTimerElement.textContent = String(countdownValue); // Reset text
                         console.log('[CursorRenderer] Countdown finished and hidden.');
                     }

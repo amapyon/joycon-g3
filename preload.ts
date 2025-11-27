@@ -29,6 +29,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
     sendCursorMapConfig: (config: any) => ipcRenderer.send('cursor-map-config', config),
     // --- カーソル表示状態をmainプロセスへ送信 ---
     sendCursorVisibilityUpdate: (id: 'cursorLeft' | 'cursorRight', isVisible: boolean) => ipcRenderer.send('cursor-visibility-update', { id, isVisible }),
+    sendCountdownInitialValue: (value: number) => ipcRenderer.send('countdown-initial-value', value), // New
+    onUpdateCountdownInitialValue: (callback: (...args: any[]) => void) => ipcRenderer.on('update-countdown-initial-value', (event, ...args) => callback(...args)), // New
 });
 
 console.log('Preload script loaded.');

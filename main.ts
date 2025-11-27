@@ -14,6 +14,8 @@ let calibrationSamples: { x: number; y: number; z: number }[] = [];
 let biasX = 0, biasY = 0, biasZ = 0;
 let isCursorVisible: { cursorLeft: boolean, cursorRight: boolean } = { cursorLeft: false, cursorRight: false }; // Track visibility per cursor
 let currentPointerPosition = { x: 600, y: 300 }; // Keep this, it's still used for initial position
+let countdownInitialValue: number = 10; // Default value
+
 // 物理ピクセルでの画面サイズを取得する関数
 function getPhysicalScreenSize() {
     const { screen } = require('electron');
@@ -62,6 +64,18 @@ app.whenReady().then(() => {
         ipcMain.on('cursor-visibility-update', (event: any, data: { id: 'cursorLeft' | 'cursorRight', isVisible: boolean }) => {
             isCursorVisible[data.id] = data.isVisible;
             // console.log(`[main.ts] Cursor ${data.id} visibility updated to ${data.isVisible}`);
+        });
+    }
+    // --- IPCでcountdown-initial-valueを受信 ---
+    if (!ipcMain.listenerCount('countdown-initial-value')) {
+        ipcMain.on('countdown-initial-value', (event: any, value: number) => {
+            countdownInitialValue = value;
+            console.log(`[main.ts] Received countdown initial value: ${countdownInitialValue}`);
+            // Optionally, send to cursor window immediately if it's open
+            const cursorWindow = WindowManager.getCursorWindow();
+            if (cursorWindow && !cursorWindow.isDestroyed()) {
+                cursorWindow.webContents.send('update-countdown-initial-value', countdownInitialValue);
+            }
         });
     }
     const mainWin = WindowManager.getMainWindow();
