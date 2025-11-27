@@ -9,6 +9,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
     onJoyConButtonDown: (callback: (...args: any[]) => void) => ipcRenderer.on('joycon-button-down', (event, ...args) => callback(...args)),
     onJoyConButtonXPressed: (callback: (...args: any[]) => void) => ipcRenderer.on('button-x-pressed', (event, ...args) => callback(...args)),
     onJoyConButtonDownPressed: (callback: (...args: any[]) => void) => ipcRenderer.on('button-down-pressed', (event, ...args) => callback(...args)),
+    onJoyConButtonPlus: (callback: (...args: any[]) => void) => ipcRenderer.on('joycon-button-plus', (event, ...args) => callback(...args)),
+    onJoyConButtonPlusPressed: (callback: (...args: any[]) => void) => ipcRenderer.on('button-plus-pressed', (event, ...args) => callback(...args)),
     onAvailableDisplays: (callback: (...args: any[]) => void) => ipcRenderer.on('available-displays', (event, ...args) => callback(...args)),
     launchCursorWindow: (displayId: any) => ipcRenderer.send('launch-cursor-window', displayId),
     onLaunchError: (callback: (...args: any[]) => void) => ipcRenderer.on('launch-error', (event, ...args) => callback(...args)),

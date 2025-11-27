@@ -161,13 +161,15 @@ app.whenReady().then(() => {
             targetWindow.webContents.send('joycon-status-update', status);
         }
     });
-    ['button-x', 'button-down'].forEach((eventName) => {
+    ['button-x', 'button-down', 'button-plus'].forEach((eventName) => {
         joyconManager.on(eventName, (data: any) => {
             // console.log(`[Main] Event forwarded from JoyCon: ${eventName}`, data);
             const targetWindow = WindowManager.getCursorWindow();
             if (targetWindow && !targetWindow.isDestroyed()) {
                 targetWindow.webContents.send(
-                    eventName === 'button-x' ? 'joycon-button-x' : 'joycon-button-down',
+                    eventName === 'button-x' ? 'joycon-button-x' :
+                    eventName === 'button-down' ? 'joycon-button-down' :
+                    'joycon-button-plus', // New event name
                     data
                 );
             }
@@ -179,6 +181,15 @@ app.whenReady().then(() => {
         const targetWindow = WindowManager.getCursorWindow();
         if (targetWindow && !targetWindow.isDestroyed()) {
             targetWindow.webContents.send('button-x-pressed', data);
+        }
+    });
+    // Add listener for button-plus-pressed
+    joyconManager.on('button-plus-pressed', (data: any) => {
+        console.log(`[Main] button-plus-pressed received from JoyConManager for ${data?.id}`); // ADD THIS LOG
+        const targetWindow = WindowManager.getCursorWindow();
+        if (targetWindow && !targetWindow.isDestroyed()) {
+            console.log(`[Main] Sending button-plus-pressed IPC to renderer for ${data?.id}`); // ADD THIS LOG
+            targetWindow.webContents.send('button-plus-pressed', data);
         }
     });
     joyconManager.on('button-down-pressed', (data: any) => {

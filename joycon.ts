@@ -18,6 +18,7 @@ interface ButtonState {
     xPressed: boolean;
     aPressed: boolean;
     yPressed: boolean;
+    plusPressed: boolean; // Added for '+' button
 }
 
 interface JoyConPaths {
@@ -54,6 +55,7 @@ export default class JoyConManager extends EventEmitter {
             xPressed: false,
             aPressed: false,
             yPressed: false,
+            plusPressed: false, // Added for '+' button
         };
     }
 
@@ -367,6 +369,7 @@ export default class JoyConManager extends EventEmitter {
 
                 if (data.length > buttonByteIndex) {
                     const buttonByte = data[buttonByteIndex];
+                    const sharedButtonByte = data[4]; // Read data[4] for shared buttons
 
                     if (isLeft) {
                         const DOWN_BUTTON_MASK = 0x01;
@@ -394,9 +397,12 @@ export default class JoyConManager extends EventEmitter {
                         const X_BUTTON_MASK = 0x02;
                         const A_BUTTON_MASK = 0x08;
                         const Y_BUTTON_MASK = 0x01;
+                        const PLUS_BUTTON_MASK = 0x02; // Changed to 0x02 for sharedButtonByte
+
                         const currentXPressed = (buttonByte & X_BUTTON_MASK) !== 0;
                         const currentAPressed = (buttonByte & A_BUTTON_MASK) !== 0;
                         const currentYPressed = (buttonByte & Y_BUTTON_MASK) !== 0;
+                        const currentPlusPressed = (sharedButtonByte & PLUS_BUTTON_MASK) !== 0; // Use sharedButtonByte
 
                         this.emit('button-x', { pressed: currentXPressed });
                         if (currentXPressed && !lastButtonState.xPressed) {
@@ -408,10 +414,17 @@ export default class JoyConManager extends EventEmitter {
                         if (currentYPressed && !lastButtonState.yPressed) {
                             this.emit('ppt-prev');
                         }
+                        // Emit events for '+' button
+                        this.emit('button-plus', { pressed: currentPlusPressed });
+                        if (currentPlusPressed && !lastButtonState.plusPressed) {
+                            console.log(`[JoyConManager] Emitting button-plus-pressed for ${cursorId}`); // ADDED LOG
+                            this.emit('button-plus-pressed', { id: cursorId });
+                        }
 
                         lastButtonState.xPressed = currentXPressed;
                         lastButtonState.aPressed = currentAPressed;
                         lastButtonState.yPressed = currentYPressed;
+                        lastButtonState.plusPressed = currentPlusPressed; // Update last state
                     }
                 }
             } catch (e) {

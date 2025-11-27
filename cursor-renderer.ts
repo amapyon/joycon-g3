@@ -35,6 +35,10 @@ const cursorElements: Record<'cursorLeft' | 'cursorRight', HTMLElement | null> =
     cursorLeft: document.getElementById('cursorLeft'), // 左JoyCon
     cursorRight: document.getElementById('cursorRight'), // 右JoyCon
 };
+const countdownTimerElement: HTMLElement | null = document.getElementById('countdownTimer'); // Renamed
+
+let countdownInterval: NodeJS.Timeout | null = null;
+let countdownValue: number = 10; // Initial countdown value
 
 // ウィンドウサイズの管理
 let windowWidth: number = window.innerWidth;
@@ -354,6 +358,44 @@ document.addEventListener('DOMContentLoaded', () => {
     if (cursorElements.cursorRight) {
         cursorElements.cursorRight.style.visibility = 'hidden';
     }
+    // Listen for '+' button pressed event
+    window.electronAPI.onJoyConButtonPlusPressed(() => {
+        console.log('[CursorRenderer] Received button-plus-pressed IPC event.');
+        if (countdownTimerElement) {
+            if (countdownInterval) {
+                // If timer is running, stop it and hide
+                clearInterval(countdownInterval);
+                countdownInterval = null;
+                countdownTimerElement.style.visibility = 'hidden';
+                countdownValue = 10; // Reset value
+                countdownTimerElement.textContent = String(countdownValue); // Reset text
+                console.log('[CursorRenderer] Countdown stopped and hidden.');
+            } else {
+                // If timer is not running, start it
+                countdownTimerElement.style.visibility = 'visible';
+                countdownValue = 10;
+                countdownTimerElement.textContent = String(countdownValue);
+                console.log('[CursorRenderer] Countdown started.');
+
+                countdownInterval = setInterval(() => {
+                    countdownValue--;
+                    if (countdownValue > 0) {
+                        countdownTimerElement.textContent = String(countdownValue);
+                        console.log(`[CursorRenderer] Countdown: ${countdownValue}`);
+                    } else {
+                        clearInterval(countdownInterval!);
+                        countdownInterval = null;
+                        countdownTimerElement.style.visibility = 'hidden';
+                        countdownValue = 10; // Reset for next time
+                        countdownTimerElement.textContent = String(countdownValue); // Reset text
+                        console.log('[CursorRenderer] Countdown finished and hidden.');
+                    }
+                }, 1000);
+            }
+        } else {
+            console.error('[CursorRenderer] countdownTimerElement not found!');
+        }
+    });
     // --- IPCでcursorMapConfigをmainプロセスへ送信（確実に送るためリトライ付き） ---
     function sendCursorMapConfigWithRetry(retry = 0) {
         if (window.electronAPI && window.electronAPI.sendCursorMapConfig) {
