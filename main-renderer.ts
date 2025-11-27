@@ -166,11 +166,13 @@ window.electronAPI.onCalibrationStatusUpdate((statusInfo: { id: string; status: 
 // Add event listener for countdown initial value input
 countdownInitialValueInput.addEventListener('change', () => {
     const value = parseInt(countdownInitialValueInput.value, 10);
-    if (!isNaN(value) && value >= 1 && value <= 60) {
+    if (!isNaN(value) && value >= 1 && value <= 3600) {
+        console.log(`[main-renderer] Sending countdown initial value: ${value}`); // ADDED LOG
         window.electronAPI.sendCountdownInitialValue(value);
     } else {
         // Optionally, reset to a default or show an error
         countdownInitialValueInput.value = '10';
+        console.log(`[main-renderer] Invalid countdown value, sending default: 10`); // ADDED LOG
         window.electronAPI.sendCountdownInitialValue(10);
     }
 });
