@@ -163,6 +163,12 @@ window.electronAPI.onCalibrationStatusUpdate((statusInfo: { id: string; status: 
     calibrationStatus.textContent = message;
 });
 
+window.electronAPI.onUpdateCountdownInitialValue((value: number) => {
+    if (!Number.isNaN(value)) {
+        countdownInitialValueInput.value = String(value);
+    }
+});
+
 // Add event listener for countdown initial value input
 countdownInitialValueInput.addEventListener('change', () => {
     const value = parseInt(countdownInitialValueInput.value, 10);

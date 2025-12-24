@@ -12,6 +12,7 @@ const DEFAULT_SCAN_INTERVAL = 5000; // デバイススキャン間隔 (ミリ秒
 
 interface ButtonState {
     slPressed: boolean;
+    srPressed: boolean;
     downPressed: boolean;
     leftPressed: boolean;
     rightPressed: boolean;
@@ -19,6 +20,8 @@ interface ButtonState {
     aPressed: boolean;
     yPressed: boolean;
     plusPressed: boolean; // Added for '+' button
+    minusPressed: boolean; // Added for '-' button
+    rStickPressed: boolean; // Added for Right Joy-Con Stick Press
 }
 
 interface JoyConPaths {
@@ -49,6 +52,7 @@ export default class JoyConManager extends EventEmitter {
     resetButtonState(): ButtonState {
         return {
             slPressed: false,
+            srPressed: false,
             downPressed: false,
             leftPressed: false,
             rightPressed: false,
@@ -56,6 +60,8 @@ export default class JoyConManager extends EventEmitter {
             aPressed: false,
             yPressed: false,
             plusPressed: false, // Added for '+' button
+            minusPressed: false, // Added for '-' button
+            rStickPressed: false, // Added for Right Joy-Con Stick Press
         };
     }
 
@@ -375,9 +381,13 @@ export default class JoyConManager extends EventEmitter {
                         const DOWN_BUTTON_MASK = 0x01;
                         const LEFT_BUTTON_MASK = 0x08;
                         const RIGHT_BUTTON_MASK = 0x04;
+                        const SR_BUTTON_MASK = 0x10;
+                        const MINUS_BUTTON_MASK = 0x01;
                         const currentDownPressed = (buttonByte & DOWN_BUTTON_MASK) !== 0;
                         const currentLeftPressed = (buttonByte & LEFT_BUTTON_MASK) !== 0;
                         const currentRightPressed = (buttonByte & RIGHT_BUTTON_MASK) !== 0;
+                        const currentSrPressed = (buttonByte & SR_BUTTON_MASK) !== 0;
+                        const currentMinusPressed = (sharedButtonByte & MINUS_BUTTON_MASK) !== 0;
 
                         this.emit('button-down', { pressed: currentDownPressed });
                         if (currentDownPressed && !lastButtonState.downPressed) {
@@ -389,20 +399,36 @@ export default class JoyConManager extends EventEmitter {
                         if (currentRightPressed && !lastButtonState.rightPressed) {
                             this.emit('ppt-prev');
                         }
+                        this.emit('button-sr', { pressed: currentSrPressed });
+                        if (currentSrPressed && !lastButtonState.srPressed) {
+                            this.emit('button-sr-pressed', { id: cursorId });
+                        }
+                        this.emit('button-minus', { pressed: currentMinusPressed });
+                        if (currentMinusPressed && !lastButtonState.minusPressed) {
+                            this.emit('button-minus-pressed', { id: cursorId });
+                        }
 
                         lastButtonState.downPressed = currentDownPressed;
                         lastButtonState.leftPressed = currentLeftPressed;
                         lastButtonState.rightPressed = currentRightPressed;
+                        lastButtonState.srPressed = currentSrPressed;
+                        lastButtonState.minusPressed = currentMinusPressed;
                     } else {
                         const X_BUTTON_MASK = 0x02;
                         const A_BUTTON_MASK = 0x08;
                         const Y_BUTTON_MASK = 0x01;
-                        const PLUS_BUTTON_MASK = 0x02; // Changed to 0x02 for sharedButtonByte
+                        const PLUS_BUTTON_MASK = 0x02; // From input_report.ts, StandardButtonType, second byte
+                        const MINUS_BUTTON_MASK = 0x01; // From input_report.ts, StandardButtonType, second byte
+                        const R_STICK_BUTTON_MASK = 0x04; // From input_report.ts, StandardButtonType, second byte
+                        const SR_BUTTON_MASK = 0x10;
 
                         const currentXPressed = (buttonByte & X_BUTTON_MASK) !== 0;
                         const currentAPressed = (buttonByte & A_BUTTON_MASK) !== 0;
                         const currentYPressed = (buttonByte & Y_BUTTON_MASK) !== 0;
-                        const currentPlusPressed = (sharedButtonByte & PLUS_BUTTON_MASK) !== 0; // Use sharedButtonByte
+                        const currentPlusPressed = (sharedButtonByte & PLUS_BUTTON_MASK) !== 0; // Use sharedButtonByte (data[4])
+                        const currentMinusPressed = (sharedButtonByte & MINUS_BUTTON_MASK) !== 0; // Use sharedButtonByte (data[4])
+                        const currentRStickPressed = (sharedButtonByte & R_STICK_BUTTON_MASK) !== 0; // Use sharedButtonByte (data[4])
+                        const currentSrPressed = (buttonByte & SR_BUTTON_MASK) !== 0;
 
                         this.emit('button-x', { pressed: currentXPressed });
                         if (currentXPressed && !lastButtonState.xPressed) {
@@ -417,15 +443,41 @@ export default class JoyConManager extends EventEmitter {
                         // Emit events for '+' button
                         this.emit('button-plus', { pressed: currentPlusPressed });
                         if (currentPlusPressed && !lastButtonState.plusPressed) {
-                            console.log(`[JoyConManager] Emitting button-plus-pressed for ${cursorId}`); // ADDED LOG
                             this.emit('button-plus-pressed', { id: cursorId });
+                        }
+                        // Emit events for '-' button
+                        this.emit('button-minus', { pressed: currentMinusPressed });
+                        if (currentMinusPressed && !lastButtonState.minusPressed) {
+                            this.emit('button-minus-pressed', { id: cursorId });
+                        }
+                        // Emit events for SR button
+                        this.emit('button-sr', { pressed: currentSrPressed });
+                        if (currentSrPressed && !lastButtonState.srPressed) {
+                            this.emit('button-sr-pressed', { id: cursorId });
+                        }
+                        // Emit events for R-stick press
+                        this.emit('r-stick', { pressed: currentRStickPressed });
+                        if (currentRStickPressed && !lastButtonState.rStickPressed) {
+                            console.log(`[JoyConManager] Emitting r-stick-pressed for ${cursorId}`);
+                            this.emit('r-stick-pressed', { id: cursorId });
                         }
 
                         lastButtonState.xPressed = currentXPressed;
                         lastButtonState.aPressed = currentAPressed;
                         lastButtonState.yPressed = currentYPressed;
                         lastButtonState.plusPressed = currentPlusPressed; // Update last state
+                        lastButtonState.minusPressed = currentMinusPressed; // Update last state
+                        lastButtonState.srPressed = currentSrPressed; // Update last state
+                        lastButtonState.rStickPressed = currentRStickPressed; // Update last state
                     }
+                }
+                // --- Joystick Analog Data ---
+                // Right Joy-Con stick data is typically at data[8], data[9], data[10]
+                // Left Joy-Con stick data is typically at data[6], data[7], data[8]
+                if (!isLeft && data.length >= 11) { // Check for Right Joy-Con and sufficient data length
+                    const stickX = data.readUInt8(8) | ((data.readUInt8(9) & 0x0f) << 8);
+                    const stickY = (data.readUInt8(9) >> 4) | (data.readUInt8(10) << 4);
+                    this.emit('r-stick-analog', { x: stickX, y: stickY });
                 }
             } catch (e) {
                 console.error(`[${isLeft ? 'L' : 'R'}] Parse Error:`, e);

@@ -49,3 +49,31 @@ h1 {
     border-color: #ba5a62;
     visibility: hidden;
 }
+
+.countdown-menu {
+    position: fixed;
+    top: 20px;
+    left: 20px;
+    background: rgba(0, 0, 0, 0.75);
+    color: #c8ccd4;
+    padding: 12px 16px;
+    border-radius: 8px;
+    font-size: 16px;
+    z-index: 20;
+    pointer-events: none;
+}
+
+.countdown-menu__title {
+    font-weight: bold;
+    margin-bottom: 6px;
+}
+
+.countdown-menu__value {
+    font-size: 24px;
+    margin-bottom: 6px;
+}
+
+.countdown-menu__hint {
+    font-size: 12px;
+    opacity: 0.85;
+}

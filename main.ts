@@ -15,6 +15,11 @@ let biasX = 0, biasY = 0, biasZ = 0;
 let isCursorVisible: { cursorLeft: boolean, cursorRight: boolean } = { cursorLeft: false, cursorRight: false }; // Track visibility per cursor
 let currentPointerPosition = { x: 600, y: 300 }; // Keep this, it's still used for initial position
 let countdownInitialValue: number = 10; // Default value
+let isRStickPressed: boolean = false; // Track R-stick press state
+let lastAnalogData: { x: number, y: number } | null = null; // Store last analog stick data
+const FONT_SIZE_CHANGE_AMOUNT = 2; // Pixels to change font size
+const FONT_SIZE_CHANGE_INTERVAL = 100; // Milliseconds between font size changes
+let lastFontSizeChangeTime = 0; // Timestamp of the last font size change
 
 // 物理ピクセルでの画面サイズを取得する関数
 function getPhysicalScreenSize() {
@@ -71,10 +76,14 @@ app.whenReady().then(() => {
         ipcMain.on('countdown-initial-value', (event: any, value: number) => {
             countdownInitialValue = value;
             console.log(`[main.ts] Received countdown initial value: ${countdownInitialValue}`);
-            // Optionally, send to cursor window immediately if it's open
+            // Optionally, send to windows immediately if they're open
             const cursorWindow = WindowManager.getCursorWindow();
             if (cursorWindow && !cursorWindow.isDestroyed()) {
                 cursorWindow.webContents.send('update-countdown-initial-value', countdownInitialValue);
+            }
+            const mainWindow = WindowManager.getMainWindow();
+            if (mainWindow && !mainWindow.isDestroyed()) {
+                mainWindow.webContents.send('update-countdown-initial-value', countdownInitialValue);
             }
         });
     }
@@ -206,12 +215,93 @@ app.whenReady().then(() => {
             targetWindow.webContents.send('button-plus-pressed', data);
         }
     });
+    joyconManager.on('button-minus-pressed', (data: any) => {
+        console.log(`[Main] button-minus-pressed received from JoyConManager for ${data?.id}`);
+        const targetWindow = WindowManager.getCursorWindow();
+        if (targetWindow && !targetWindow.isDestroyed()) {
+            targetWindow.webContents.send('button-minus-pressed', data);
+        }
+    });
+    joyconManager.on('button-sr-pressed', (data: any) => {
+        console.log(`[Main] button-sr-pressed received from JoyConManager for ${data?.id}`);
+        const targetWindow = WindowManager.getCursorWindow();
+        if (targetWindow && !targetWindow.isDestroyed()) {
+            targetWindow.webContents.send('button-sr-pressed', data);
+        }
+    });
     joyconManager.on('button-down-pressed', (data: any) => {
         console.log(`[Main] button-down-pressed received for ${data?.id} -> calling imuProcessor.recenter`);
         imuProcessor.recenter(data.id);
         const targetWindow = WindowManager.getCursorWindow();
         if (targetWindow && !targetWindow.isDestroyed()) {
             targetWindow.webContents.send('button-down-pressed', data);
+        }
+    });
+    // Listen for R-stick press/release
+    joyconManager.on('r-stick', (data: { pressed: boolean }) => {
+        isRStickPressed = data.pressed;
+        console.log(`[Main] R-stick pressed: ${isRStickPressed}`);
+
+        // If stick is pressed and we have previous analog data, immediately process it
+        if (isRStickPressed && lastAnalogData) {
+            const now = Date.now();
+            if (now - lastFontSizeChangeTime < FONT_SIZE_CHANGE_INTERVAL) {
+                return; // Rate limit
+            }
+
+            const joystickY = lastAnalogData.y;
+            const center = 2048;
+            const deadzone = 200;
+
+            if (joystickY < center - deadzone) { // Tilted upwards
+                console.log(`[Main] R-stick pressed and tilted Upwards (Y: ${joystickY})`);
+                const cursorWindow = WindowManager.getCursorWindow();
+                if (cursorWindow && !cursorWindow.isDestroyed()) {
+                    cursorWindow.webContents.send('change-font-size', FONT_SIZE_CHANGE_AMOUNT);
+                    lastFontSizeChangeTime = now;
+                }
+            } else if (joystickY > center + deadzone) { // Tilted downwards
+                console.log(`[Main] R-stick pressed and tilted Downwards (Y: ${joystickY})`);
+                const cursorWindow = WindowManager.getCursorWindow();
+                if (cursorWindow && !cursorWindow.isDestroyed()) {
+                    cursorWindow.webContents.send('change-font-size', -FONT_SIZE_CHANGE_AMOUNT);
+                    lastFontSizeChangeTime = now;
+                }
+            }
+        }
+    });
+
+    // Listen for R-stick analog data
+    joyconManager.on('r-stick-analog', (data: { x: number, y: number }) => {
+        lastAnalogData = data; // Always update last analog data
+
+        if (isRStickPressed) { // Only process analog if stick is pressed
+            const now = Date.now();
+            if (now - lastFontSizeChangeTime < FONT_SIZE_CHANGE_INTERVAL) {
+                return; // Rate limit the font size changes
+            }
+
+            // Assuming joystick Y-axis is roughly 0-4095, with center around 2048
+            // Upwards tilt: Y < 2048, Downwards tilt: Y > 2048
+            const joystickY = data.y;
+            const center = 2048; // Approximate center for 12-bit analog stick
+            const deadzone = 200; // To prevent accidental changes
+
+            if (joystickY < center - deadzone) { // Tilted upwards
+                console.log(`[Main] R-stick analog: Upwards tilt (Y: ${joystickY})`);
+                const cursorWindow = WindowManager.getCursorWindow();
+                if (cursorWindow && !cursorWindow.isDestroyed()) {
+                    cursorWindow.webContents.send('change-font-size', FONT_SIZE_CHANGE_AMOUNT);
+                    lastFontSizeChangeTime = now; // Update timestamp after sending event
+                }
+            } else if (joystickY > center + deadzone) { // Tilted downwards
+                console.log(`[Main] R-stick analog: Downwards tilt (Y: ${joystickY})`);
+                const cursorWindow = WindowManager.getCursorWindow();
+                if (cursorWindow && !cursorWindow.isDestroyed()) {
+                    cursorWindow.webContents.send('change-font-size', -FONT_SIZE_CHANGE_AMOUNT);
+                    lastFontSizeChangeTime = now; // Update timestamp after sending event
+                }
+            }
         }
     });
     joyconManager.on('ppt-next', () => {

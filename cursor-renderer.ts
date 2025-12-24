@@ -36,10 +36,14 @@ const cursorElements: Record<'cursorLeft' | 'cursorRight', HTMLElement | null> =
     cursorRight: document.getElementById('cursorRight'), // 右JoyCon
 };
 const countdownTimerElement: HTMLElement | null = document.getElementById('countdownTimer'); // Renamed
+const countdownMenuElement: HTMLElement | null = document.getElementById('countdownMenu');
+const countdownMenuValueElement: HTMLElement | null = document.getElementById('countdownMenuValue');
 
 let countdownInterval: NodeJS.Timeout | null = null;
 let countdownValue: number = 10; // Initial countdown value (will be updated by IPC)
 let currentCountdownInitialValue: number = 10; // Store the initial value from main process
+let currentFontSize: number = 48; // Initial font size in pixels, adjust as needed
+let isCountdownMenuVisible = false;
 
 // ウィンドウサイズの管理
 let windowWidth: number = window.innerWidth;
@@ -165,6 +169,43 @@ function updateCursorElementPosition(cursorId: 'cursorLeft' | 'cursorRight') {
     } else {
         console.warn(`[${cursorId}] Skipping pos update.`);
     }
+}
+
+function clampCountdownValue(value: number) {
+    return Math.max(1, Math.min(3600, value));
+}
+
+function updateCountdownMenuDisplay() {
+    if (countdownMenuValueElement) {
+        countdownMenuValueElement.textContent = String(currentCountdownInitialValue);
+    }
+}
+
+function setCountdownMenuVisible(visible: boolean) {
+    isCountdownMenuVisible = visible;
+    if (countdownMenuElement) {
+        countdownMenuElement.style.visibility = visible ? 'visible' : 'hidden';
+    }
+    if (visible) {
+        updateCountdownMenuDisplay();
+        if (countdownInterval) {
+            clearInterval(countdownInterval);
+            countdownInterval = null;
+            if (countdownTimerElement) {
+                countdownTimerElement.style.visibility = 'hidden';
+                countdownTimerElement.textContent = String(currentCountdownInitialValue);
+            }
+        }
+    }
+}
+
+function applyCountdownValue(delta: number) {
+    currentCountdownInitialValue = clampCountdownValue(currentCountdownInitialValue + delta);
+    updateCountdownMenuDisplay();
+    if (countdownTimerElement && !countdownInterval) {
+        countdownTimerElement.textContent = String(currentCountdownInitialValue);
+    }
+    window.electronAPI.sendCountdownInitialValue(currentCountdownInitialValue);
 }
 
 // --- ポインター表示状態管理 ---
@@ -365,23 +406,41 @@ document.addEventListener('DOMContentLoaded', () => {
         if (countdownTimerElement && !countdownInterval) { // Only update text if timer is not running
             countdownTimerElement.textContent = String(currentCountdownInitialValue);
         }
+        if (isCountdownMenuVisible) {
+            updateCountdownMenuDisplay();
+        }
         console.log(`[CursorRenderer] Updated countdown initial value to: ${currentCountdownInitialValue}`);
     });
-    // Listen for '+' button pressed event
-    window.electronAPI.onJoyConButtonPlusPressed(() => {
-        console.log('[CursorRenderer] Received button-plus-pressed IPC event.');
+    // Listen for font size change instructions
+    window.electronAPI.onChangeFontSize((changeAmount: number) => {
         if (countdownTimerElement) {
-            if (countdownInterval) {
-                // If timer is running, stop it and hide
-                clearInterval(countdownInterval);
-                countdownInterval = null;
-                countdownTimerElement.style.visibility = 'hidden';
+            currentFontSize += changeAmount;
+            // Clamp font size to reasonable limits
+            currentFontSize = Math.max(12, Math.min(200, currentFontSize));
+            countdownTimerElement.style.fontSize = `${currentFontSize}px`;
+            console.log(`[CursorRenderer] Font size changed to: ${currentFontSize}px`);
+        }
+    });
+    // Listen for '+' button pressed event
+window.electronAPI.onJoyConButtonPlusPressed(() => {
+    console.log('[CursorRenderer] Received button-plus-pressed IPC event.');
+    if (countdownTimerElement) {
+        if (isCountdownMenuVisible) {
+            applyCountdownValue(1);
+            return;
+        }
+        if (countdownInterval) {
+            // If timer is running, stop it and hide
+            clearInterval(countdownInterval);
+            countdownInterval = null;
+            countdownTimerElement.style.visibility = 'hidden';
                 countdownValue = currentCountdownInitialValue; // Reset value using the current initial value
                 countdownTimerElement.textContent = String(countdownValue); // Reset text
                 console.log('[CursorRenderer] Countdown stopped and hidden.');
             } else {
                 // If timer is not running, start it
                 countdownTimerElement.style.visibility = 'visible';
+                countdownTimerElement.style.fontSize = `${currentFontSize}px`; // Apply current font size
                 countdownValue = currentCountdownInitialValue; // Start with the current initial value
                 countdownTimerElement.textContent = String(countdownValue);
                 console.log('[CursorRenderer] Countdown started.');
@@ -400,11 +459,18 @@ document.addEventListener('DOMContentLoaded', () => {
                         console.log('[CursorRenderer] Countdown finished and hidden.');
                     }
                 }, 1000);
-            }
-        } else {
-            console.error('[CursorRenderer] countdownTimerElement not found!');
         }
-    });
+    } else {
+        console.error('[CursorRenderer] countdownTimerElement not found!');
+    }
+});
+window.electronAPI.onJoyConButtonMinusPressed(() => {
+    if (!isCountdownMenuVisible) return;
+    applyCountdownValue(-1);
+});
+window.electronAPI.onJoyConButtonSrPressed(() => {
+    setCountdownMenuVisible(!isCountdownMenuVisible);
+});
     // --- IPCでcursorMapConfigをmainプロセスへ送信（確実に送るためリトライ付き） ---
     function sendCursorMapConfigWithRetry(retry = 0) {
         if (window.electronAPI && window.electronAPI.sendCursorMapConfig) {

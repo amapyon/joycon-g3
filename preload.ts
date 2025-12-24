@@ -11,6 +11,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
     onJoyConButtonDownPressed: (callback: (...args: any[]) => void) => ipcRenderer.on('button-down-pressed', (event, ...args) => callback(...args)),
     onJoyConButtonPlus: (callback: (...args: any[]) => void) => ipcRenderer.on('joycon-button-plus', (event, ...args) => callback(...args)),
     onJoyConButtonPlusPressed: (callback: (...args: any[]) => void) => ipcRenderer.on('button-plus-pressed', (event, ...args) => callback(...args)),
+    onJoyConButtonMinusPressed: (callback: (...args: any[]) => void) => ipcRenderer.on('button-minus-pressed', (event, ...args) => callback(...args)),
+    onJoyConButtonSrPressed: (callback: (...args: any[]) => void) => ipcRenderer.on('button-sr-pressed', (event, ...args) => callback(...args)),
     onAvailableDisplays: (callback: (...args: any[]) => void) => ipcRenderer.on('available-displays', (event, ...args) => callback(...args)),
     launchCursorWindow: (displayId: any) => ipcRenderer.send('launch-cursor-window', displayId),
     onLaunchError: (callback: (...args: any[]) => void) => ipcRenderer.on('launch-error', (event, ...args) => callback(...args)),
@@ -31,6 +33,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     sendCursorVisibilityUpdate: (id: 'cursorLeft' | 'cursorRight', isVisible: boolean) => ipcRenderer.send('cursor-visibility-update', { id, isVisible }),
     sendCountdownInitialValue: (value: number) => ipcRenderer.send('countdown-initial-value', value), // New
     onUpdateCountdownInitialValue: (callback: (...args: any[]) => void) => ipcRenderer.on('update-countdown-initial-value', (event, ...args) => callback(...args)), // New
+    onChangeFontSize: (callback: (...args: any[]) => void) => ipcRenderer.on('change-font-size', (event, ...args) => callback(...args)), // New
 });
 
 console.log('Preload script loaded.');
