@@ -120,6 +120,13 @@ export function closeAllWindows() {
     if (mainWin) mainWin.close();
 }
 
+export function closeCursorWindow() {
+    if (cursorWindow && !cursorWindow.isDestroyed()) {
+        console.log('[WindowManager] Closing cursor window due to external request.');
+        cursorWindow.close();
+    }
+}
+
 export default {
     createWindow,
     createCursorWindow,
@@ -128,4 +135,5 @@ export default {
     getMainWindow,
     getCursorWindow,
     closeAllWindows,
+    closeCursorWindow,
 };

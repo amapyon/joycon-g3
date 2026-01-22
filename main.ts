@@ -240,7 +240,6 @@ app.whenReady().then(() => {
     // Listen for R-stick press/release
     joyconManager.on('r-stick', (data: { pressed: boolean }) => {
         isRStickPressed = data.pressed;
-        console.log(`[Main] R-stick pressed: ${isRStickPressed}`);
 
         // If stick is pressed and we have previous analog data, immediately process it
         if (isRStickPressed && lastAnalogData) {
@@ -328,6 +327,14 @@ app.whenReady().then(() => {
             targetWindow.webContents.send('joycon-battery-status-update', status);
         }
     });
+
+    joyconManager.on('button-home-pressed', (data: { id: 'cursorLeft' | 'cursorRight' }) => {
+        if (data.id === 'cursorRight') {
+            console.log('[Main] R Joy-Con Home button pressed. Closing cursor window.');
+            WindowManager.closeCursorWindow();
+        }
+    });
+
     joyconManager.startScanningAndConnect();
     app.on('activate', () => {
         if (BrowserWindow.getAllWindows().length === 0) {

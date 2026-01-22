@@ -22,6 +22,7 @@ interface ButtonState {
     plusPressed: boolean; // Added for '+' button
     minusPressed: boolean; // Added for '-' button
     rStickPressed: boolean; // Added for Right Joy-Con Stick Press
+    homePressed: boolean;
 }
 
 interface JoyConPaths {
@@ -62,6 +63,7 @@ export default class JoyConManager extends EventEmitter {
             plusPressed: false, // Added for '+' button
             minusPressed: false, // Added for '-' button
             rStickPressed: false, // Added for Right Joy-Con Stick Press
+            homePressed: false,
         };
     }
 
@@ -421,6 +423,7 @@ export default class JoyConManager extends EventEmitter {
                         const MINUS_BUTTON_MASK = 0x01; // From input_report.ts, StandardButtonType, second byte
                         const R_STICK_BUTTON_MASK = 0x04; // From input_report.ts, StandardButtonType, second byte
                         const SR_BUTTON_MASK = 0x10;
+                        const HOME_BUTTON_MASK = 0x10;
 
                         const currentXPressed = (buttonByte & X_BUTTON_MASK) !== 0;
                         const currentAPressed = (buttonByte & A_BUTTON_MASK) !== 0;
@@ -429,6 +432,7 @@ export default class JoyConManager extends EventEmitter {
                         const currentMinusPressed = (sharedButtonByte & MINUS_BUTTON_MASK) !== 0; // Use sharedButtonByte (data[4])
                         const currentRStickPressed = (sharedButtonByte & R_STICK_BUTTON_MASK) !== 0; // Use sharedButtonByte (data[4])
                         const currentSrPressed = (buttonByte & SR_BUTTON_MASK) !== 0;
+                        const currentHomePressed = (sharedButtonByte & HOME_BUTTON_MASK) !== 0;
 
                         this.emit('button-x', { pressed: currentXPressed });
                         if (currentXPressed && !lastButtonState.xPressed) {
@@ -461,6 +465,11 @@ export default class JoyConManager extends EventEmitter {
                             console.log(`[JoyConManager] Emitting r-stick-pressed for ${cursorId}`);
                             this.emit('r-stick-pressed', { id: cursorId });
                         }
+                        // Emit events for Home button
+                        this.emit('button-home', { pressed: currentHomePressed });
+                        if (currentHomePressed && !lastButtonState.homePressed) {
+                            this.emit('button-home-pressed', { id: cursorId });
+                        }
 
                         lastButtonState.xPressed = currentXPressed;
                         lastButtonState.aPressed = currentAPressed;
@@ -469,6 +478,7 @@ export default class JoyConManager extends EventEmitter {
                         lastButtonState.minusPressed = currentMinusPressed; // Update last state
                         lastButtonState.srPressed = currentSrPressed; // Update last state
                         lastButtonState.rStickPressed = currentRStickPressed; // Update last state
+                        lastButtonState.homePressed = currentHomePressed; // Update last state
                     }
                 }
                 // --- Joystick Analog Data ---
