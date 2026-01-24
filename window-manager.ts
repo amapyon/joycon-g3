@@ -28,8 +28,12 @@ export function createWindow(): BrowserWindow {
     });
     mainWindow.on('closed', () => {
         mainWindow = null;
+        // Close other windows to ensure app.quit() is triggered via window-all-closed
         if (cursorWindow && !cursorWindow.isDestroyed()) {
             cursorWindow.close();
+        }
+        if (timerWindow && !timerWindow.isDestroyed()) {
+            timerWindow.close();
         }
     });
     return mainWindow;
