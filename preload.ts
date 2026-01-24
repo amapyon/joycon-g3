@@ -40,6 +40,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
     // --- Countdown Timer Control ---
     startCountdownTimer: (duration: number) => ipcRenderer.send('start-countdown-timer', duration),
     onStartCountdown: (callback: (...args: any[]) => void) => ipcRenderer.on('start-countdown', (event, ...args) => callback(...args)),
+    onTimerMenuNavigate: (callback: (...args: any[]) => void) => ipcRenderer.on('timer-menu-navigate', (event, ...args) => callback(...args)),
+    onTimerMenuSelect: (callback: (...args: any[]) => void) => ipcRenderer.on('timer-menu-select', (event, ...args) => callback(...args)),
 });
 
 console.log('Preload script loaded.');

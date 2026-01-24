@@ -14,6 +14,9 @@ let countdownValue: number = 10;
 let currentCountdownInitialValue: number = 10;
 let currentFontSize: number = 48; // Default, style controls this mostly but logic might override
 let isCountdownMenuVisible = false;
+let selectedPresetIndex: number = -1; // -1 means none selected or custom input focus (future) for now just presets
+const presetValues = [10, 60, 120, 180, 300]; // Matching the HTML data-time attributes
+const timerPresetButtons: NodeListOf<HTMLElement> = document.querySelectorAll('.menu-preset-btn');
 
 
 // Helper to format text as M:SS
@@ -146,6 +149,66 @@ window.electronAPI.onJoyConButtonMinusPressed(() => {
 
 window.electronAPI.onJoyConButtonSrPressed(() => {
     setCountdownMenuVisible(!isCountdownMenuVisible);
+});
+
+// Setup Preset Interaction
+if (timerPresetButtons.length > 0) {
+    timerPresetButtons.forEach((btn, index) => {
+        btn.addEventListener('click', () => {
+             const time = parseInt(btn.getAttribute('data-time') || '10', 10);
+             if (isCountdownMenuVisible) {
+                 setCountdownMenuVisible(false);
+             }
+             startCountdown(time);
+        });
+        // Optional: Mouse hover could update focus index, but stick navigation is priority.
+    });
+}
+
+function updatePresetFocus() {
+    timerPresetButtons.forEach((btn, index) => {
+        if (index === selectedPresetIndex) {
+            btn.classList.add('focused');
+            // Update the display value to show what's currently focused?
+            const time = parseInt(btn.getAttribute('data-time') || '10', 10);
+            currentCountdownInitialValue = time; // Optional: changing initial value as we scroll?
+            // "Press stick ... start with focused value" implies we are selecting a value.
+            // Let's just update the visual selection. Actual value set on select.
+            // BUT, user might want to see the value in the "X sec" display.
+            // Let's NOT update currentCountdownInitialValue permanently until selected to avoid mess,
+            // OR update it temporarily.
+            // For simplicity and "preview", let's update currentCountdownInitialValue so "10 sec" display updates.
+            currentCountdownInitialValue = time;
+            updateCountdownMenuDisplay();
+        } else {
+            btn.classList.remove('focused');
+        }
+    });
+}
+
+window.electronAPI.onTimerMenuNavigate((direction: number) => {
+    if (!isCountdownMenuVisible) return;
+    
+    if (selectedPresetIndex === -1) {
+        selectedPresetIndex = 0;
+    } else {
+        selectedPresetIndex += direction;
+        // Clamp
+        if (selectedPresetIndex < 0) selectedPresetIndex = 0;
+        if (selectedPresetIndex >= timerPresetButtons.length) selectedPresetIndex = timerPresetButtons.length - 1;
+    }
+    updatePresetFocus();
+});
+
+window.electronAPI.onTimerMenuSelect(() => {
+    if (!isCountdownMenuVisible) return;
+    console.log('[TimerRenderer] Stick clicked (Select)');
+    
+    // If a preset is focused, start timer
+    if (selectedPresetIndex !== -1) {
+         setCountdownMenuVisible(false); // Close menu
+         startCountdown(currentCountdownInitialValue); // This value was updated in updatePresetFocus
+    }
 });
 
 console.log('[TimerRenderer] Initialized.');

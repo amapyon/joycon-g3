@@ -482,11 +482,15 @@ export default class JoyConManager extends EventEmitter {
                     }
                 }
                 // --- Joystick Analog Data ---
-                // Right Joy-Con stick data is typically at data[8], data[9], data[10]
-                // Left Joy-Con stick data is typically at data[6], data[7], data[8]
-                if (!isLeft && data.length >= 11) { // Check for Right Joy-Con and sufficient data length
-                    const stickX = data.readUInt8(8) | ((data.readUInt8(9) & 0x0f) << 8);
-                    const stickY = (data.readUInt8(9) >> 4) | (data.readUInt8(10) << 4);
+                // Right Joy-Con stick data
+                if (!isLeft && data.length >= 12) {
+                    const b9 = data.readUInt8(9);
+                    const b10 = data.readUInt8(10);
+                    const b11 = data.readUInt8(11);
+                    
+                    const stickX = b9 | ((b10 & 0x0f) << 8);
+                    const stickY = (b10 >> 4) | (b11 << 4);
+                    
                     this.emit('r-stick-analog', { x: stickX, y: stickY });
                 }
             } catch (e) {

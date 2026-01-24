@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'">
     <title>Timer Window</title>
+    <link rel="stylesheet" href="style.css">
     <style>
         body {
             background-color: transparent;
@@ -44,11 +45,16 @@
 <body>
     <div id="countdownTimer">10</div>
     <div id="countdownMenu" class="countdown-menu" style="visibility: hidden;">
-        <div class="countdown-menu__title">Countdown Setup</div>
         <div class="countdown-menu__value">
             <span id="countdownMenuValue">10</span> sec
         </div>
-        <div class="countdown-menu__hint">SR: close  PLUS: +1  MINUS: -1</div>
+        <div class="preset-container">
+            <div class="menu-preset-btn" data-time="10">10s</div>
+            <div class="menu-preset-btn" data-time="60">1m</div>
+            <div class="menu-preset-btn" data-time="120">2m</div>
+            <div class="menu-preset-btn" data-time="180">3m</div>
+            <div class="menu-preset-btn" data-time="300">5m</div>
+        </div>
     </div>
     <script src="./timer-renderer.js"></script>
 </body>

@@ -19,7 +19,9 @@ let isRStickPressed: boolean = false; // Track R-stick press state
 let lastAnalogData: { x: number, y: number } | null = null; // Store last analog stick data
 const FONT_SIZE_CHANGE_AMOUNT = 2; // Pixels to change font size
 const FONT_SIZE_CHANGE_INTERVAL = 100; // Milliseconds between font size changes
+const MENU_NAV_INTERVAL = 250; // Milliseconds between menu navigation steps (ignored in flick mode)
 let lastFontSizeChangeTime = 0; // Timestamp of the last font size change
+let isTimerMenuNavActive = false; // Track if stick is currently tilted for menu navigation
 
 // 物理ピクセルでの画面サイズを取得する関数
 function getPhysicalScreenSize() {
@@ -223,11 +225,13 @@ app.whenReady().then(() => {
         if (targetWindow && !targetWindow.isDestroyed()) {
             console.log(`[Main] Sending button-plus-pressed IPC to renderer for ${data?.id}`);
             targetWindow.show();
-            if (isNew || targetWindow.webContents.isLoading()) {
+            if (targetWindow.webContents.isLoading()) {
                 console.log('[Main] Timer window is loading, waiting for did-finish-load...');
                 targetWindow.webContents.once('did-finish-load', () => {
                     console.log('[Main] Timer window loaded, sending button-plus-pressed now.');
-                    targetWindow!.webContents.send('button-plus-pressed', data);
+                    if (targetWindow && !targetWindow.isDestroyed()) {
+                        targetWindow.webContents.send('button-plus-pressed', data);
+                    }
                 });
             } else {
                 targetWindow.webContents.send('button-plus-pressed', data);
@@ -244,9 +248,11 @@ app.whenReady().then(() => {
         }
         if (targetWindow && !targetWindow.isDestroyed()) {
             targetWindow.show();
-            if (isNew || targetWindow.webContents.isLoading()) {
+            if (targetWindow.webContents.isLoading()) {
                 targetWindow.webContents.once('did-finish-load', () => {
-                   targetWindow!.webContents.send('button-minus-pressed', data);
+                   if (targetWindow && !targetWindow.isDestroyed()) {
+                        targetWindow.webContents.send('button-minus-pressed', data);
+                   }
                 });
             } else {
                targetWindow.webContents.send('button-minus-pressed', data);
@@ -263,9 +269,11 @@ app.whenReady().then(() => {
         }
         if (targetWindow && !targetWindow.isDestroyed()) {
             targetWindow.show();
-            if (isNew || targetWindow.webContents.isLoading()) {
+            if (targetWindow.webContents.isLoading()) {
                 targetWindow.webContents.once('did-finish-load', () => {
-                   targetWindow!.webContents.send('button-sr-pressed', data);
+                   if (targetWindow && !targetWindow.isDestroyed()) {
+                        targetWindow.webContents.send('button-sr-pressed', data);
+                   }
                 });
             } else {
                targetWindow.webContents.send('button-sr-pressed', data);
@@ -284,7 +292,16 @@ app.whenReady().then(() => {
     joyconManager.on('r-stick', (data: { pressed: boolean }) => {
         isRStickPressed = data.pressed;
 
-        // If stick is pressed and we have previous analog data, immediately process it
+        if (isRStickPressed) {
+             console.log('[Main] R-stick pressed (Click)');
+             // Send select event to Timer Window
+             const timerWindow = WindowManager.getTimerWindow();
+             if (timerWindow && !timerWindow.isDestroyed()) {
+                 timerWindow.webContents.send('timer-menu-select');
+             }
+        }
+
+        // If stick is pressed and we have previous analog data, immediately process it (existing logic for font size)
         if (isRStickPressed && lastAnalogData) {
             const now = Date.now();
             if (now - lastFontSizeChangeTime < FONT_SIZE_CHANGE_INTERVAL) {
@@ -316,9 +333,35 @@ app.whenReady().then(() => {
     // Listen for R-stick analog data
     joyconManager.on('r-stick-analog', (data: { x: number, y: number }) => {
         lastAnalogData = data; // Always update last analog data
+        const now = Date.now();
+
+        // X-Axis Navigation for Timer Menu (Left/Right) - Flick Style
+        const joystickX = data.x;
+        const center = 2048;
+        const navDeadzone = 600; // Normal deadzone is fine for flick mode
+        
+        const timerWindow = WindowManager.getTimerWindow();
+        if (timerWindow && !timerWindow.isDestroyed()) {
+            const diffX = joystickX - center;
+            
+            if (Math.abs(diffX) < navDeadzone) {
+                // Returned to center
+                isTimerMenuNavActive = false;
+            } else if (!isTimerMenuNavActive) {
+                // Tilted outwards, process single move
+                if (joystickX < center - navDeadzone) {
+                    // Left
+                    timerWindow.webContents.send('timer-menu-navigate', -1);
+                    isTimerMenuNavActive = true;
+                } else if (joystickX > center + navDeadzone) {
+                    // Right
+                    timerWindow.webContents.send('timer-menu-navigate', 1);
+                    isTimerMenuNavActive = true;
+                }
+            }
+        }
 
         if (isRStickPressed) { // Only process analog if stick is pressed
-            const now = Date.now();
             if (now - lastFontSizeChangeTime < FONT_SIZE_CHANGE_INTERVAL) {
                 return; // Rate limit the font size changes
             }

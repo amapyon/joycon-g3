@@ -47,6 +47,9 @@ h1 {
 #cursorRight {
     background-color: #e06c75;
     border-color: #ba5a62;
+    visibility: hidden;
+}
+
 /* Make the body draggable */
 body {
     /* -webkit-app-region: drag; Removed */
@@ -59,9 +62,13 @@ body {
 }
 
 .countdown-menu {
-    position: absolute; /* Changed to absolute to avoid taking layout space */
-    top: 0;
-    right: 0;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    text-align: center;
+    user-select: none;
+    -webkit-user-select: none; /* Ensure no text selection */
     background: rgba(0, 0, 0, 0.75);
     color: #c8ccd4;
     padding: 12px 16px;
@@ -86,6 +93,31 @@ body {
 .countdown-menu__hint {
     font-size: 12px;
     opacity: 0.85;
+}
+
+.preset-container {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 10px;
+    justify-content: center;
+}
+
+.menu-preset-btn {
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    border-radius: 4px;
+    padding: 4px 8px;
+    font-size: 14px;
+    color: #eee;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.menu-preset-btn.focused {
+    background: rgba(255, 255, 255, 0.3);
+    border-color: #fff;
+    transform: scale(1.05);
+    box-shadow: 0 0 5px rgba(255, 255, 255, 0.5);
 }
 
 /* Preset Buttons in Main Window */
