@@ -189,7 +189,7 @@ app.whenReady().then(() => {
     imuProcessor.on('attitude-update', (attitudeData: any) => {
         const targetWindow = WindowManager.getCursorWindow();
         if (targetWindow && !targetWindow.isDestroyed()) {
-            console.log('[Main] Sending attitude update to cursor window.', attitudeData);
+            // console.log('[Main] Sending attitude update to cursor window.', attitudeData);
             targetWindow.webContents.send('joycon-attitude', attitudeData);
         }
     });

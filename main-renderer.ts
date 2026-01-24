@@ -197,10 +197,43 @@ joyconRightActionBtn.addEventListener('click', () => {
 });
 
 window.electronAPI.onJoyConBatteryStatusUpdate(({ isLeft, level }: { isLeft: boolean; level: number }) => {
+    // Convert level (0-4) to battery icon
+    // 0 = Empty, 1 = 25%, 2 = 50%, 3 = 75%, 4 = 100%
+    let icon = '';
+    let percentage = 0;
+    
+    switch(level) {
+        case 0:
+            icon = '🪫'; // Empty battery
+            percentage = 0;
+            break;
+        case 1:
+            icon = '🔋'; // Low battery (25%)
+            percentage = 25;
+            break;
+        case 2:
+            icon = '🔋'; // Medium-low battery (50%)
+            percentage = 50;
+            break;
+        case 3:
+            icon = '🔋'; // Medium-high battery (75%)
+            percentage = 75;
+            break;
+        case 4:
+            icon = '🔋'; // Full battery (100%)
+            percentage = 100;
+            break;
+        default:
+            icon = '❓';
+            percentage = 0;
+    }
+    
+    const displayText = `${icon} ${percentage}%`;
+    
     if (isLeft) {
-        mainBatteryStatusLeft.textContent = `🔋${level}/8`;
+        mainBatteryStatusLeft.textContent = displayText;
     } else {
-        mainBatteryStatusRight.textContent = `🔋${level}/8`;
+        mainBatteryStatusRight.textContent = displayText;
     }
 });
 

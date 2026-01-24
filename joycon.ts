@@ -279,14 +279,17 @@ export default class JoyConManager extends EventEmitter {
         this.connectJoyCon(joyconRPath, false);
     }
 
-    /** バッテリー状態のリクエスト */
-    requestBatteryStatus(isLeft: boolean) {
+
+    /** Joy-Conのバッテリー状態を要求 */
+    requestBatteryStatus(isLeft: boolean): void {
         const hidDevice = isLeft ? this.hidL : this.hidR;
-        if (!hidDevice) return;
-        console.log(`[Debug] Requesting battery status for ${isLeft ? 'L' : 'R'} Joy-Con.`);
-        const packetNumber = isLeft ? this.globalPacketNumberL : this.globalPacketNumberR;
-        const command = [0x01, packetNumber, 0x00, 0x01, 0x40, 0x40, 0x00, 0x01, 0x40, 0x40, 0x50];
-        this.sendCommand(hidDevice, command, isLeft);
+        if (hidDevice) {
+            console.log(`[JoyConManager] Requesting battery status for ${isLeft ? 'L' : 'R'} Joy-Con...`);
+            const packetNumber = isLeft ? this.globalPacketNumberL : this.globalPacketNumberR;
+            // Subcommand 0x50: Request Device Info, which includes battery data in its response (0x21 report type)
+            const command = [0x01, packetNumber, 0x00, 0x01, 0x40, 0x40, 0x00, 0x01, 0x40, 0x40, 0x50];
+            this.sendCommand(hidDevice, command, isLeft);
+        }
     }
 
     /** 定期的にデバイスをスキャンして未接続のJoy-Conに接続試行 */
@@ -362,18 +365,16 @@ export default class JoyConManager extends EventEmitter {
 
         if (reportId === 0x21) {
             console.log(`[Debug] Received 0x21 report from ${isLeft ? 'L' : 'R'}:`, data);
-            if (data.length > 14) {
-                const subcommandId = data.readUInt8(14);
-                if (subcommandId === 0x50) {
-                    console.log('[Debug] Battery status reply received!');
-                    const batteryByte = data.readUInt8(15);
-                    const level = (batteryByte & 0xe0) >> 4;
-                    console.log(`[Debug] Emitting battery-status-update: isLeft=${isLeft}, level=${level}`);
-                    this.emit('battery-status-update', { isLeft, level });
-                }
-            }
+            // 0x21 reports are subcommand replies, currently not used for battery
         } else if (reportId === 0x30 && data.length >= 25) {
             try {
+                // Extract battery status from byte 2
+                const batteryByte = data.readUInt8(2);
+                const level = (batteryByte & 0xe0) >> 5; // Bits 7-5: battery level (0-4)
+                
+                // Emit battery status update
+                this.emit('battery-status-update', { isLeft, level });
+                
                 const cursorId = isLeft ? 'cursorLeft' : 'cursorRight';
                 const accelOffsetX = 13;
                 const accelOffsetY = 15;
