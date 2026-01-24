@@ -72,7 +72,22 @@ class PowerPointControl {
         if (!this.connect()) return null;
         try {
             if (this.ppApp.SlideShowWindows && typeof this.ppApp.SlideShowWindows.Count === 'number') {
-                // ...省略...
+                const count = this.ppApp.SlideShowWindows.Count;
+                for (let i = 1; i <= count; i++) {
+                    try {
+                        const ssw = this.ppApp.SlideShowWindows.Item(i);
+                        if (ssw && ssw.Presentation && (ssw.Presentation.FullName === this.targetPresentationIdentifier || ssw.Presentation.Name === this.targetPresentationIdentifier)) {
+                            if (ssw.View) {
+                                return ssw.View;
+                            }
+                        }
+                    } catch (e: any) {
+                        console.warn(`[PPControl] Error checking SlideShowWindow at index ${i}:`, e.message);
+                    }
+                }
+                console.warn(`[PPControl] No running SlideShowWindow found matching target: ${this.targetPresentationIdentifier}`);
+            } else {
+                console.warn('[PPControl] SlideShowWindows collection not available or empty.');
             }
         } catch (e: any) {
             console.error('[PPControl] Error accessing SlideShowWindows collection:', e.message);
