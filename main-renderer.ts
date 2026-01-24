@@ -175,43 +175,112 @@ window.electronAPI.onCalibrationStatusUpdate((statusInfo: { id: string; status: 
     calibrationStatus.textContent = message;
 });
 
-window.electronAPI.onUpdateCountdownInitialValue((value: number) => {
-    if (!Number.isNaN(value)) {
-        countdownInitialValueInput.value = String(value);
-    }
+// --- Timer Presets Management ---
+const presetButtonsContainer = document.getElementById('preset-buttons-container') as HTMLElement;
+const presetInputsList = document.getElementById('preset-inputs-list') as HTMLElement;
+const addPresetConfigBtn = document.getElementById('add-preset-config-btn') as HTMLButtonElement;
+const applyPresetsBtn = document.getElementById('apply-presets-btn') as HTMLButtonElement;
+const togglePresetEditBtn = document.getElementById('toggle-preset-edit-btn') as HTMLButtonElement;
+const presetEditContainer = document.getElementById('preset-edit-container') as HTMLElement;
+
+togglePresetEditBtn.addEventListener('click', () => {
+    const isHidden = presetEditContainer.style.display === 'none';
+    presetEditContainer.style.display = isHidden ? 'block' : 'none';
+    togglePresetEditBtn.textContent = isHidden ? '✕ Close Edit' : '⚙ Edit Presets';
+    togglePresetEditBtn.style.background = isHidden ? '#dc3545' : '#6c757d';
 });
 
-// Add event listener for countdown initial value input
-countdownInitialValueInput.addEventListener('change', () => {
-    const value = parseInt(countdownInitialValueInput.value, 10);
-    if (!isNaN(value) && value >= 1 && value <= 3600) {
-        console.log(`[main-renderer] Sending countdown initial value: ${value}`); // ADDED LOG
-        window.electronAPI.sendCountdownInitialValue(value);
-    } else {
-        // Optionally, reset to a default or show an error
-        countdownInitialValueInput.value = '10';
-        console.log(`[main-renderer] Invalid countdown value, sending default: 10`); // ADDED LOG
-        window.electronAPI.sendCountdownInitialValue(10);
-    }
-});
+// Load presets from localStorage or use defaults
+let currentPresets: number[] = JSON.parse(localStorage.getItem('timerPresets') || '[10, 60, 120, 180, 300]');
 
-// Preset Buttons Logic
-const presetButtons = document.querySelectorAll('.preset-btn');
-presetButtons.forEach(btn => {
-    btn.addEventListener('click', () => {
-        const time = parseInt((btn as HTMLElement).dataset.time || '10', 10);
-        
-        // Update input
-        countdownInitialValueInput.value = String(time);
-        
-        // Send value update
-        window.electronAPI.sendCountdownInitialValue(time);
-        
-        // Start timer immediately
-        console.log(`[main-renderer] Preset clicked: ${time}s. Starting timer now.`);
-        window.electronAPI.startCountdownTimer(time);
+function formatMainPresetLabel(seconds: number): string {
+    if (seconds < 60) return `${seconds}s`;
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return secs === 0 ? `${mins}m` : `${mins}m${secs}s`;
+}
+
+function renderPresets() {
+    presetButtonsContainer.innerHTML = '';
+    currentPresets.forEach(time => {
+        const btn = document.createElement('button');
+        btn.className = 'preset-btn';
+        btn.dataset.time = String(time);
+        btn.textContent = formatMainPresetLabel(time);
+        btn.addEventListener('click', () => {
+             countdownInitialValueInput.value = String(time);
+             window.electronAPI.sendCountdownInitialValue(time);
+             window.electronAPI.startCountdownTimer(time);
+        });
+        presetButtonsContainer.appendChild(btn);
     });
+}
+
+function renderPresetConfig() {
+    presetInputsList.innerHTML = '';
+    currentPresets.forEach((time, index) => {
+        const item = document.createElement('div');
+        item.style.display = 'flex';
+        item.style.alignItems = 'center';
+        item.style.marginBottom = '5px';
+
+        const input = document.createElement('input');
+        input.type = 'number';
+        input.value = String(time);
+        input.min = '1';
+        input.max = '3600';
+        input.style.width = '60px';
+        input.style.marginRight = '5px';
+        input.addEventListener('change', () => {
+            currentPresets[index] = parseInt(input.value, 10) || 10;
+        });
+
+        const removeBtn = document.createElement('button');
+        removeBtn.textContent = '×';
+        removeBtn.style.padding = '2px 8px';
+        removeBtn.style.background = '#dc3545';
+        removeBtn.style.color = 'white';
+        removeBtn.addEventListener('click', () => {
+            currentPresets.splice(index, 1);
+            renderPresetConfig();
+        });
+
+        item.appendChild(input);
+        item.appendChild(removeBtn);
+        presetInputsList.appendChild(item);
+    });
+}
+
+addPresetConfigBtn.addEventListener('click', () => {
+    currentPresets.push(60);
+    renderPresetConfig();
 });
+
+applyPresetsBtn.addEventListener('click', () => {
+    // Sort and save
+    currentPresets.sort((a, b) => a - b);
+    localStorage.setItem('timerPresets', JSON.stringify(currentPresets));
+    renderPresets();
+    renderPresetConfig();
+    
+    // Broadcast to other windows
+    window.electronAPI.updateTimerPresets(currentPresets);
+});
+
+// Initial render
+renderPresets();
+renderPresetConfig();
+
+// Listen for updates from other windows if needed (for sync)
+window.electronAPI.onUpdateTimerPresets((presets: number[]) => {
+    currentPresets = presets;
+    localStorage.setItem('timerPresets', JSON.stringify(currentPresets));
+    renderPresets();
+    renderPresetConfig();
+});
+
+// Initial load broadcasts to others
+window.electronAPI.updateTimerPresets(currentPresets);
 
 launchButton.disabled = true;
 closeButton.style.display = 'none';
@@ -219,4 +288,15 @@ pptSelect.disabled = true;
 
 console.log('Main Renderer script loaded.');
 window.electronAPI.requestJoyConStatus();
-loadPowerPointPresentations(); // 初期ロード時にPowerPointプレゼンテーションを読み込む
+loadPowerPointPresentations(); 
+window.electronAPI.onUpdateCountdownInitialValue((value: number) => {
+    if (!Number.isNaN(value)) {
+        countdownInitialValueInput.value = String(value);
+    }
+});
+countdownInitialValueInput.addEventListener('change', () => {
+    const value = parseInt(countdownInitialValueInput.value, 10);
+    if (!isNaN(value) && value >= 1 && value <= 3600) {
+        window.electronAPI.sendCountdownInitialValue(value);
+    }
+});

@@ -70,14 +70,23 @@
     
     <hr style="margin: 15px 0;">
     <div>
-        <label for="countdown-initial-value">Countdown Timer Initial Value (seconds):</label>
-        <div style="margin-bottom: 10px;">
-            <button class="preset-btn" data-time="10">10s</button>
-            <button class="preset-btn" data-time="60">1m</button>
-            <button class="preset-btn" data-time="120">2m</button>
-            <button class="preset-btn" data-time="180">3m</button>
-            <button class="preset-btn" data-time="300">5m</button>
+        <label for="countdown-initial-value">Countdown Timer Presets (seconds): 
+            <button id="toggle-preset-edit-btn" style="padding: 2px 8px; font-size: 12px; background: #6c757d; color: white; border-radius: 4px; vertical-align: middle; margin-left: 10px;">⚙ Edit Presets</button>
+        </label>
+        <div id="preset-buttons-container" style="margin-bottom: 10px;">
+            <!-- Generated dynamically -->
         </div>
+        
+        <div id="preset-edit-container" style="background: #e9ecef; padding: 10px; border-radius: 4px; margin-bottom: 15px; display: none;">
+            <label style="font-size: 0.8em; color: #666;">Edit Presets:</label>
+            <div id="preset-inputs-list">
+                 <!-- Generated dynamically -->
+            </div>
+            <button id="add-preset-config-btn" style="padding: 5px 10px; font-size: 12px; margin-top: 5px; background: #007bff; color: white;">+ Add Preset</button>
+            <button id="apply-presets-btn" style="padding: 5px 10px; font-size: 12px; margin-top: 5px; background: #28a745; color: white;">Apply All</button>
+        </div>
+
+        <label for="countdown-initial-value">Manual Value (seconds):</label>
         <input type="number" id="countdown-initial-value" value="10" min="1" max="3600" style="width: 100px; padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
         <span style="font-size: 0.9em; color: #666; margin-left: 10px;">(Click preset to start immediately)</span>
     </div>

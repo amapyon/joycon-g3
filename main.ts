@@ -78,19 +78,21 @@ app.whenReady().then(() => {
         ipcMain.on('countdown-initial-value', (event: any, value: number) => {
             countdownInitialValue = value;
             console.log(`[main.ts] Received countdown initial value: ${countdownInitialValue}`);
-            // Optionally, send to windows immediately if they're open
-            const cursorWindow = WindowManager.getCursorWindow();
-            if (cursorWindow && !cursorWindow.isDestroyed()) {
-                cursorWindow.webContents.send('update-countdown-initial-value', countdownInitialValue);
-            }
-            const timerWindow = WindowManager.getTimerWindow();
-            if (timerWindow && !timerWindow.isDestroyed()) {
-                timerWindow.webContents.send('update-countdown-initial-value', countdownInitialValue);
-            }
-            const mainWindow = WindowManager.getMainWindow();
-            if (mainWindow && !mainWindow.isDestroyed()) {
-                mainWindow.webContents.send('update-countdown-initial-value', countdownInitialValue);
-            }
+            // Broadcast to all windows
+            [WindowManager.getCursorWindow(), WindowManager.getTimerWindow(), WindowManager.getMainWindow()].forEach(win => {
+                if (win && !win.isDestroyed()) win.webContents.send('update-countdown-initial-value', countdownInitialValue);
+            });
+        });
+    }
+
+    // --- IPCでtimer presetsを受信 ---
+    if (!ipcMain.listenerCount('update-timer-presets')) {
+        ipcMain.on('update-timer-presets', (event: any, presets: number[]) => {
+            console.log(`[main.ts] Received timer presets: ${presets}`);
+            // Broadcast to all windows
+            [WindowManager.getCursorWindow(), WindowManager.getTimerWindow(), WindowManager.getMainWindow()].forEach(win => {
+                if (win && !win.isDestroyed()) win.webContents.send('update-timer-presets', presets);
+            });
         });
     }
     const mainWin = WindowManager.getMainWindow();
