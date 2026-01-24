@@ -52,7 +52,7 @@ function createCursorWindowInternal(targetDisplay: Display) {
         y: targetDisplay.bounds.y,
         width: targetDisplay.bounds.width,
         height: targetDisplay.bounds.height,
-        fullscreen: true,
+        fullscreen: false, // Changed to false to prevent display capture issues
         frame: false,
         resizable: false,
         movable: false,
@@ -96,24 +96,46 @@ export function setTargetDisplay(displayId: number) {
     }
 }
 
+let storedTimerBounds: { x: number, y: number, width: number, height: number } | null = null;
+
 export function createTimerWindow(targetDisplay?: Display) {
     console.log('[WindowManager] Creating Timer Window...');
     // Use valid targetDisplay arg, OR storedTargetDisplay, OR primary display
+    // (Note: storedTargetDisplay is separate from bounds, we might want to prioritize bounds' display if available, but keeping it simple)
     const displayToUse = targetDisplay || storedTargetDisplay || screen.getPrimaryDisplay();
     
     if (timerWindow && !timerWindow.isDestroyed()) {
         return timerWindow;
     }
 
+    let initialX: number;
+    let initialY: number;
+    let initialWidth = 300;
+    let initialHeight = 200;
+
+    if (storedTimerBounds) {
+        initialX = storedTimerBounds.x;
+        initialY = storedTimerBounds.y;
+        initialWidth = storedTimerBounds.width;
+        initialHeight = storedTimerBounds.height;
+    } else {
+        // Calculate top-right position
+        const padding = 20;
+        initialX = displayToUse.bounds.x + displayToUse.bounds.width - initialWidth - padding;
+        initialY = displayToUse.bounds.y + padding;
+    }
+
     timerWindow = new BrowserWindow({
-        x: displayToUse.bounds.x,
-        y: displayToUse.bounds.y,
-        width: displayToUse.bounds.width,
-        height: displayToUse.bounds.height,
-        fullscreen: true,
+        x: initialX,
+        y: initialY,
+        width: initialWidth,
+        height: initialHeight,
+        minWidth: 150,
+        minHeight: 100,
+        fullscreen: false,
         frame: false,
-        resizable: false,
-        movable: false,
+        resizable: true, // Enabled resizing
+        movable: true,
         alwaysOnTop: true,
         skipTaskbar: true,
         transparent: true,
@@ -126,11 +148,22 @@ export function createTimerWindow(targetDisplay?: Display) {
         },
     });
 
-    timerWindow.setIgnoreMouseEvents(true, { forward: true });
+    // timerWindow.setIgnoreMouseEvents(true, { forward: true }); // Removed to allow interaction
+
     timerWindow.loadFile(path.join(__dirname, 'timer-window.html'));
     
     // Uncomment for debugging
     // timerWindow.webContents.openDevTools({ mode: 'detach' });
+
+    const updateBounds = () => {
+        if (timerWindow && !timerWindow.isDestroyed()) {
+            const bounds = timerWindow.getBounds();
+            storedTimerBounds = bounds;
+        }
+    };
+
+    timerWindow.on('move', updateBounds);
+    timerWindow.on('resize', updateBounds);
 
     timerWindow.on('closed', () => {
         timerWindow = null;

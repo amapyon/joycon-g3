@@ -4,27 +4,40 @@
     <meta charset="UTF-8">
     <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'">
     <title>Timer Window</title>
-    <link rel="stylesheet" href="style.css">
     <style>
         body {
             background-color: transparent;
             margin: 0;
             height: 100vh;
             overflow: hidden;
+            /* -webkit-app-region: drag; Removed */
+            user-select: none;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
         }
         #countdownTimer {
-            position: fixed;
-            top: 20px;
-            right: 20px;
+            position: absolute;
+            top: 0;
+            left: 0;
             background: rgba(100, 100, 100, 0.9);
-            padding: 10px 20px;
-            border-radius: 8px;
+            width: 100vw;
+            height: 100vh;
+            margin: 0;
+            padding: 0;
+            border-radius: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
             font-size: 3em;
-            z-index: 100;
             color: #ffffff;
             visibility: hidden;
             font-family: monospace;
             font-weight: bold;
+            -webkit-app-region: drag; /* Make content draggable */
+            cursor: move;
+            box-sizing: border-box; /* Include padding/border in width */
         }
     </style>
 </head>

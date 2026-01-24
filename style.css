@@ -47,20 +47,30 @@ h1 {
 #cursorRight {
     background-color: #e06c75;
     border-color: #ba5a62;
-    visibility: hidden;
+/* Make the body draggable */
+body {
+    /* -webkit-app-region: drag; Removed */
+    user-select: none;
+    background-color: transparent;
+    overflow: hidden;
+    margin: 0;
+    width: 100vw;
+    height: 100vh;
 }
 
 .countdown-menu {
-    position: fixed;
-    top: 20px;
-    right: 20px;
+    position: absolute; /* Changed to absolute to avoid taking layout space */
+    top: 0;
+    right: 0;
     background: rgba(0, 0, 0, 0.75);
     color: #c8ccd4;
     padding: 12px 16px;
     border-radius: 8px;
     font-size: 16px;
     z-index: 20;
-    pointer-events: none;
+    pointer-events: auto; /* Allow clicking buttons */
+    -webkit-app-region: drag; /* Allow dragging the menu */
+    cursor: move;
 }
 
 .countdown-menu__title {

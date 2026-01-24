@@ -63,6 +63,7 @@ function startCountdown(duration: number) {
     countdownValue = duration;
     
     countdownTimerElement.style.visibility = 'visible';
+    countdownTimerElement.style.color = '#ffffff'; // active color
     // countdownTimerElement.style.fontSize = `${currentFontSize}px`; // Let CSS handle base size for now or sync if needed
     countdownTimerElement.textContent = formatTime(countdownValue);
     
@@ -74,8 +75,11 @@ function startCountdown(duration: number) {
             countdownTimerElement!.textContent = formatTime(countdownValue);
         } else {
             stopCountdown();
-            countdownTimerElement!.style.visibility = 'hidden';
-            countdownTimerElement!.textContent = formatTime(currentCountdownInitialValue);
+            // Do NOT hide, keep visible but inactive styling
+            countdownTimerElement!.style.visibility = 'visible';
+            countdownTimerElement!.style.color = '#888888'; // inactive color
+            countdownTimerElement!.textContent = formatTime(currentCountdownInitialValue); // Show reset value? Or 0:00? "Timer itself" usually implies ready state.
+             // Let's show the reset value so they know what happens if they press + again.
             console.log('[TimerRenderer] Countdown finished.');
         }
     }, 1000);
@@ -85,8 +89,12 @@ function applyCountdownValue(delta: number) {
     currentCountdownInitialValue = clampCountdownValue(currentCountdownInitialValue + delta);
     updateCountdownMenuDisplay();
     // If timer is NOT running and NOT in menu, update text of hidden timer so it shows correct value when started
+    // Start: Logic update for "Always visible"
+    // If timer is visible (which is mostly always now unless closed via menu?), update text.
     if (countdownTimerElement && !countdownInterval && !isCountdownMenuVisible) {
         countdownTimerElement.textContent = formatTime(currentCountdownInitialValue);
+        countdownTimerElement.style.visibility = 'visible'; // Ensure it's visible if we are adjusting it
+        countdownTimerElement.style.color = '#ffffff'; // Make it look active/ready if we are changing it
     }
     window.electronAPI.sendCountdownInitialValue(currentCountdownInitialValue);
 }
