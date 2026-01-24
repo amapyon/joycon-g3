@@ -83,11 +83,29 @@ export function setupIpcHandlers(windowManagerInstance = WindowManager, joyconMa
 
     ipcMain.on('start-countdown-timer', (event, duration: number) => {
         console.log(`[IPC Handler] Received 'start-countdown-timer': ${duration}s`);
-        const cursorWin = windowManagerInstance.getCursorWindow();
-        if (cursorWin && !cursorWin.isDestroyed()) {
-            cursorWin.webContents.send('start-countdown', duration);
+        // Route to Timer Window
+        const timerWin = windowManagerInstance.getTimerWindow();
+        if (timerWin && !timerWin.isDestroyed()) {
+             // Timer Window should be visible when starting via button
+             timerWin.show();
+             timerWin.webContents.send('start-countdown', duration);
         } else {
-            console.warn('[IPC Handler] Cursor window not found, cannot start countdown.');
+             // Try to create it if missing (should exist from startup, but for safety)
+             const newTimerWin = windowManagerInstance.createTimerWindow();
+             if (newTimerWin) {
+                 newTimerWin.show();
+                 newTimerWin.webContents.send('start-countdown', duration);
+             } else {
+                 console.warn('[IPC Handler] Failed to find or create Timer window.');
+             }
+        }
+    });
+
+    ipcMain.on('set-target-display', (event, displayId: number | string) => {
+        console.log(`[IPC Handler] Received 'set-target-display': ${displayId}`);
+        const id = typeof displayId === 'string' ? parseInt(displayId, 10) : displayId;
+        if (!process.platform || !Number.isNaN(id)) { // Basic check
+            windowManagerInstance.setTargetDisplay(id);
         }
     });
 

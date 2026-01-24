@@ -3,7 +3,9 @@ import { BrowserWindow, screen, Display } from 'electron';
 import path from 'path';
 
 let mainWindow: BrowserWindow | null = null;
+
 let cursorWindow: BrowserWindow | null = null;
+let timerWindow: BrowserWindow | null = null;
 
 export function createWindow(): BrowserWindow {
     if (mainWindow && !mainWindow.isDestroyed()) {
@@ -72,13 +74,74 @@ function createCursorWindowInternal(targetDisplay: Display) {
     cursorWindow.on('closed', () => {
         console.log('[WindowManager] cursorWindow closed.'); // 追加ログ
         cursorWindow = null;
+        // Do not close timerWindow here to allow independent operation
         sendCursorWindowClosedToMain();
     });
     cursorWindow.on('leave-full-screen', () => {
-        if (cursorWindow && !cursorWindow.isDestroyed()) {
-            cursorWindow.close();
-        }
     });
+    // Create timer window on the same display
+    createTimerWindow(targetDisplay);
+}
+
+let storedTargetDisplay: Display | null = null;
+
+export function setTargetDisplay(displayId: number) {
+    const displays = screen.getAllDisplays();
+    const target = displays.find(d => d.id === displayId);
+    if (target) {
+        storedTargetDisplay = target;
+        console.log(`[WindowManager] Target display set to: ${target.id}`);
+    } else {
+        console.warn(`[WindowManager] Target display ID ${displayId} not found.`);
+    }
+}
+
+export function createTimerWindow(targetDisplay?: Display) {
+    console.log('[WindowManager] Creating Timer Window...');
+    // Use valid targetDisplay arg, OR storedTargetDisplay, OR primary display
+    const displayToUse = targetDisplay || storedTargetDisplay || screen.getPrimaryDisplay();
+    
+    if (timerWindow && !timerWindow.isDestroyed()) {
+        return timerWindow;
+    }
+
+    timerWindow = new BrowserWindow({
+        x: displayToUse.bounds.x,
+        y: displayToUse.bounds.y,
+        width: displayToUse.bounds.width,
+        height: displayToUse.bounds.height,
+        fullscreen: true,
+        frame: false,
+        resizable: false,
+        movable: false,
+        alwaysOnTop: true,
+        skipTaskbar: true,
+        transparent: true,
+        hasShadow: false,
+        webPreferences: {
+            preload: path.join(__dirname, 'preload.js'),
+            contextIsolation: true,
+            nodeIntegration: false,
+            backgroundThrottling: false,
+        },
+    });
+
+    timerWindow.setIgnoreMouseEvents(true, { forward: true });
+    timerWindow.loadFile(path.join(__dirname, 'timer-window.html'));
+    
+    // Uncomment for debugging
+    // timerWindow.webContents.openDevTools({ mode: 'detach' });
+
+    timerWindow.on('closed', () => {
+        timerWindow = null;
+    });
+
+    return timerWindow;
+}
+
+export function getTimerWindow() {
+    if (timerWindow && !timerWindow.isDestroyed()) return timerWindow;
+    return null;
 }
 
 export function sendAvailableDisplays() {
@@ -116,6 +179,8 @@ export function getCursorWindow() {
 export function closeAllWindows() {
     const mainWin = getMainWindow();
     const cursorWin = getCursorWindow();
+    const timerWin = getTimerWindow();
+    if (timerWin) timerWin.close();
     if (cursorWin) cursorWin.close();
     if (mainWin) mainWin.close();
 }
@@ -136,4 +201,7 @@ export default {
     getCursorWindow,
     closeAllWindows,
     closeCursorWindow,
+    createTimerWindow,
+    getTimerWindow,
+    setTargetDisplay,
 };

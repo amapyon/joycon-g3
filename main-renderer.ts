@@ -70,6 +70,10 @@ window.electronAPI.onAvailableDisplays((displays: any[]) => {
         });
         displaySelect.disabled = false;
         launchButton.disabled = false;
+        // Set default target to first display
+        if (displays.length > 0) {
+            window.electronAPI.setTargetDisplay(displays[0].id);
+        }
     } else {
         const option = document.createElement('option');
         option.value = '';
@@ -92,6 +96,14 @@ pptSelect.addEventListener('change', () => {
     const selectedId = pptSelect.value;
     if (selectedId) {
         window.electronAPI.setTargetPresentation(selectedId);
+    }
+});
+
+displaySelect.addEventListener('change', () => {
+    const selectedDisplayId = parseInt(displaySelect.value, 10);
+    if (!isNaN(selectedDisplayId)) {
+        console.log(`[main-renderer] Display selected: ${selectedDisplayId}`);
+        window.electronAPI.setTargetDisplay(selectedDisplayId);
     }
 });
 

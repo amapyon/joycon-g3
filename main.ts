@@ -81,6 +81,10 @@ app.whenReady().then(() => {
             if (cursorWindow && !cursorWindow.isDestroyed()) {
                 cursorWindow.webContents.send('update-countdown-initial-value', countdownInitialValue);
             }
+            const timerWindow = WindowManager.getTimerWindow();
+            if (timerWindow && !timerWindow.isDestroyed()) {
+                timerWindow.webContents.send('update-countdown-initial-value', countdownInitialValue);
+            }
             const mainWindow = WindowManager.getMainWindow();
             if (mainWindow && !mainWindow.isDestroyed()) {
                 mainWindow.webContents.send('update-countdown-initial-value', countdownInitialValue);
@@ -208,25 +212,64 @@ app.whenReady().then(() => {
     });
     // Add listener for button-plus-pressed
     joyconManager.on('button-plus-pressed', (data: any) => {
-        console.log(`[Main] button-plus-pressed received from JoyConManager for ${data?.id}`); // ADD THIS LOG
-        const targetWindow = WindowManager.getCursorWindow();
+        console.log(`[Main] button-plus-pressed received from JoyConManager for ${data?.id}`);
+        let targetWindow = WindowManager.getTimerWindow();
+        let isNew = false;
+        if (!targetWindow || targetWindow.isDestroyed()) {
+             console.log('[Main] Timer window not found, creating new one on primary display.');
+             targetWindow = WindowManager.createTimerWindow();
+             isNew = true;
+        }
         if (targetWindow && !targetWindow.isDestroyed()) {
-            console.log(`[Main] Sending button-plus-pressed IPC to renderer for ${data?.id}`); // ADD THIS LOG
-            targetWindow.webContents.send('button-plus-pressed', data);
+            console.log(`[Main] Sending button-plus-pressed IPC to renderer for ${data?.id}`);
+            targetWindow.show();
+            if (isNew || targetWindow.webContents.isLoading()) {
+                console.log('[Main] Timer window is loading, waiting for did-finish-load...');
+                targetWindow.webContents.once('did-finish-load', () => {
+                    console.log('[Main] Timer window loaded, sending button-plus-pressed now.');
+                    targetWindow!.webContents.send('button-plus-pressed', data);
+                });
+            } else {
+                targetWindow.webContents.send('button-plus-pressed', data);
+            }
         }
     });
     joyconManager.on('button-minus-pressed', (data: any) => {
         console.log(`[Main] button-minus-pressed received from JoyConManager for ${data?.id}`);
-        const targetWindow = WindowManager.getCursorWindow();
+        let targetWindow = WindowManager.getTimerWindow();
+        let isNew = false;
+        if (!targetWindow || targetWindow.isDestroyed()) {
+             targetWindow = WindowManager.createTimerWindow();
+             isNew = true;
+        }
         if (targetWindow && !targetWindow.isDestroyed()) {
-            targetWindow.webContents.send('button-minus-pressed', data);
+            targetWindow.show();
+            if (isNew || targetWindow.webContents.isLoading()) {
+                targetWindow.webContents.once('did-finish-load', () => {
+                   targetWindow!.webContents.send('button-minus-pressed', data);
+                });
+            } else {
+               targetWindow.webContents.send('button-minus-pressed', data);
+            }
         }
     });
     joyconManager.on('button-sr-pressed', (data: any) => {
         console.log(`[Main] button-sr-pressed received from JoyConManager for ${data?.id}`);
-        const targetWindow = WindowManager.getCursorWindow();
+        let targetWindow = WindowManager.getTimerWindow();
+        let isNew = false;
+        if (!targetWindow || targetWindow.isDestroyed()) {
+             targetWindow = WindowManager.createTimerWindow();
+             isNew = true;
+        }
         if (targetWindow && !targetWindow.isDestroyed()) {
-            targetWindow.webContents.send('button-sr-pressed', data);
+            targetWindow.show();
+            if (isNew || targetWindow.webContents.isLoading()) {
+                targetWindow.webContents.once('did-finish-load', () => {
+                   targetWindow!.webContents.send('button-sr-pressed', data);
+                });
+            } else {
+               targetWindow.webContents.send('button-sr-pressed', data);
+            }
         }
     });
     joyconManager.on('button-down-pressed', (data: any) => {

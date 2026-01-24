@@ -14,6 +14,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     onJoyConButtonMinusPressed: (callback: (...args: any[]) => void) => ipcRenderer.on('button-minus-pressed', (event, ...args) => callback(...args)),
     onJoyConButtonSrPressed: (callback: (...args: any[]) => void) => ipcRenderer.on('button-sr-pressed', (event, ...args) => callback(...args)),
     onAvailableDisplays: (callback: (...args: any[]) => void) => ipcRenderer.on('available-displays', (event, ...args) => callback(...args)),
+    setTargetDisplay: (displayId: number) => ipcRenderer.send('set-target-display', displayId),
     launchCursorWindow: (displayId: any) => ipcRenderer.send('launch-cursor-window', displayId),
     onLaunchError: (callback: (...args: any[]) => void) => ipcRenderer.on('launch-error', (event, ...args) => callback(...args)),
     closeCursorWindow: () => ipcRenderer.send('close-cursor-window'),

@@ -4,7 +4,7 @@
   "description": "Select display, control cursors with Joy-Cons (Gyro, Button Toggles/Resets), PowerPoint control via COM",
   "main": "dist/main.js",
   "scripts": {
-    "build": "tsc && powershell -Command \"Copy-Item -Path main-window.html, style.css, cursor-window.html -Destination dist\"",
+    "build": "tsc && powershell -Command \"Copy-Item -Path main-window.html, style.css, cursor-window.html, timer-window.html -Destination dist\"",
     "watch": "tsc -w",
     "start": "electron .",
     "rebuild": "electron-rebuild -f -w node-hid,winax",

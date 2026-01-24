@@ -35,16 +35,6 @@ const cursorElements: Record<'cursorLeft' | 'cursorRight', HTMLElement | null> =
     cursorLeft: document.getElementById('cursorLeft'), // 左JoyCon
     cursorRight: document.getElementById('cursorRight'), // 右JoyCon
 };
-const countdownTimerElement: HTMLElement | null = document.getElementById('countdownTimer'); // Renamed
-const countdownMenuElement: HTMLElement | null = document.getElementById('countdownMenu');
-const countdownMenuValueElement: HTMLElement | null = document.getElementById('countdownMenuValue');
-
-let countdownInterval: NodeJS.Timeout | null = null;
-let countdownValue: number = 10; // Initial countdown value (will be updated by IPC)
-let currentCountdownInitialValue: number = 10; // Store the initial value from main process
-let currentFontSize: number = 48; // Initial font size in pixels, adjust as needed
-let isCountdownMenuVisible = false;
-
 // ウィンドウサイズの管理
 let windowWidth: number = window.innerWidth;
 let windowHeight: number = window.innerHeight;
@@ -169,90 +159,6 @@ function updateCursorElementPosition(cursorId: 'cursorLeft' | 'cursorRight') {
     } else {
         console.warn(`[${cursorId}] Skipping pos update.`);
     }
-}
-
-function clampCountdownValue(value: number) {
-    return Math.max(1, Math.min(3600, value));
-}
-
-// Helper to format text as M:SS (e.g. 5:00)
-function formatTime(seconds: number): string {
-    const m = Math.floor(seconds / 60);
-    const s = seconds % 60;
-    return `${m}:${String(s).padStart(2, '0')}`;
-}
-
-function updateCountdownMenuDisplay() {
-    if (countdownMenuValueElement) {
-        countdownMenuValueElement.textContent = formatTime(currentCountdownInitialValue);
-    }
-}
-
-function setCountdownMenuVisible(visible: boolean) {
-    isCountdownMenuVisible = visible;
-    if (countdownMenuElement) {
-        countdownMenuElement.style.visibility = visible ? 'visible' : 'hidden';
-    }
-    if (visible) {
-        updateCountdownMenuDisplay();
-        if (countdownInterval) {
-            stopCountdown();
-            if (countdownTimerElement) {
-                countdownTimerElement.style.visibility = 'hidden';
-                countdownTimerElement.textContent = formatTime(currentCountdownInitialValue);
-            }
-        }
-    }
-}
-
-function stopCountdown() {
-    if (countdownInterval) {
-        clearInterval(countdownInterval);
-        countdownInterval = null;
-    }
-}
-
-function startCountdown(duration: number) {
-    if (!countdownTimerElement) return;
-
-    // Clear existing interval if any
-    stopCountdown();
-
-    currentCountdownInitialValue = duration;
-    countdownValue = duration;
-    
-    countdownTimerElement.style.visibility = 'visible';
-    countdownTimerElement.style.fontSize = `${currentFontSize}px`;
-    countdownTimerElement.textContent = formatTime(countdownValue);
-    
-    console.log(`[CursorRenderer] Starting countdown: ${duration}s`);
-
-    countdownInterval = setInterval(() => {
-        countdownValue--;
-        if (countdownValue >= 0) {
-            countdownTimerElement!.textContent = formatTime(countdownValue);
-            // console.log(`[CursorRenderer] Countdown: ${countdownValue}`);
-        }
-        
-        if (countdownValue <= 0) {
-            stopCountdown();
-            // Keep showing 00:00 or hide? 
-            // Original behavior: hide and reset to initial
-            countdownTimerElement!.style.visibility = 'hidden';
-            countdownTimerElement!.textContent = formatTime(currentCountdownInitialValue);
-            console.log('[CursorRenderer] Countdown finished.');
-        }
-    }, 1000);
-}
-
-function applyCountdownValue(delta: number) {
-    currentCountdownInitialValue = clampCountdownValue(currentCountdownInitialValue + delta);
-    updateCountdownMenuDisplay();
-    // If timer is NOT running and NOT in menu, update text of hidden timer so it shows correct value when started
-    if (countdownTimerElement && !countdownInterval && !isCountdownMenuVisible) {
-        countdownTimerElement.textContent = formatTime(currentCountdownInitialValue);
-    }
-    window.electronAPI.sendCountdownInitialValue(currentCountdownInitialValue);
 }
 
 // --- ポインター表示状態管理 ---
@@ -447,58 +353,6 @@ document.addEventListener('DOMContentLoaded', () => {
     if (cursorElements.cursorRight) {
         cursorElements.cursorRight.style.visibility = 'hidden';
     }
-    // Listen for updates to the countdown initial value
-    window.electronAPI.onUpdateCountdownInitialValue((value: number) => {
-        currentCountdownInitialValue = value; // Update the stored initial value
-        if (countdownTimerElement && !countdownInterval) { // Only update text if timer is not running
-            countdownTimerElement.textContent = formatTime(currentCountdownInitialValue);
-        }
-        if (isCountdownMenuVisible) {
-            updateCountdownMenuDisplay();
-        }
-        console.log(`[CursorRenderer] Updated countdown initial value to: ${currentCountdownInitialValue}`);
-    });
-    // Listen for font size change instructions
-    window.electronAPI.onChangeFontSize((changeAmount: number) => {
-        if (countdownTimerElement) {
-            currentFontSize += changeAmount;
-            // Clamp font size to reasonable limits
-            currentFontSize = Math.max(12, Math.min(200, currentFontSize));
-            countdownTimerElement.style.fontSize = `${currentFontSize}px`;
-            console.log(`[CursorRenderer] Font size changed to: ${currentFontSize}px`);
-        }
-    });
-    // Listen for '+' button pressed event
-    window.electronAPI.onJoyConButtonPlusPressed(() => {
-        console.log('[CursorRenderer] Received button-plus-pressed IPC event.');
-        if (countdownTimerElement) {
-            if (isCountdownMenuVisible) {
-                applyCountdownValue(1);
-                return;
-            }
-            if (countdownInterval) {
-                // If timer is running, stop it and hide
-                stopCountdown();
-                countdownTimerElement.style.visibility = 'hidden';
-                countdownTimerElement.textContent = formatTime(currentCountdownInitialValue);
-                console.log('[CursorRenderer] Countdown stopped and hidden.');
-            } else {
-                // If timer is not running, start it
-                startCountdown(currentCountdownInitialValue);
-            }
-        } else {
-            console.error('[CursorRenderer] countdownTimerElement not found!');
-        }
-    });
-
-    window.electronAPI.onJoyConButtonMinusPressed(() => {
-        if (!isCountdownMenuVisible) return;
-        applyCountdownValue(-1);
-    });
-
-    window.electronAPI.onJoyConButtonSrPressed(() => {
-        setCountdownMenuVisible(!isCountdownMenuVisible);
-    });
     // --- IPCでcursorMapConfigをmainプロセスへ送信（確実に送るためリトライ付き） ---
     function sendCursorMapConfigWithRetry(retry = 0) {
         if (window.electronAPI && window.electronAPI.sendCursorMapConfig) {
