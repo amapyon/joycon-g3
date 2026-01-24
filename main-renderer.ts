@@ -477,7 +477,7 @@ if (savedInitialValue) {
 }
 
 // --- Message Window Logic ---
-const messageInput = document.getElementById('message-input') as HTMLInputElement;
+const messageInput = document.getElementById('message-input') as HTMLTextAreaElement;
 const toggleMessageButton = document.getElementById('toggle-message-button') as HTMLButtonElement;
 const messagePreview = document.getElementById('message-preview') as HTMLElement;
 
