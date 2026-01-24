@@ -125,10 +125,10 @@ body {
     background-color: #fff;
     border: 1px solid #ced4da;
     border-radius: 4px;
-    padding: 6px 12px;
-    margin-right: 5px;
+    padding: 3px 8px;
+    margin-right: 0;
     cursor: pointer;
-    font-size: 14px;
+    font-size: 12px;
     transition: all 0.2s ease;
     color: #495057;
 }

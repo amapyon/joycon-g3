@@ -18,6 +18,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     launchCursorWindow: (displayId: any) => ipcRenderer.send('launch-cursor-window', displayId),
     onLaunchError: (callback: (...args: any[]) => void) => ipcRenderer.on('launch-error', (event, ...args) => callback(...args)),
     closeCursorWindow: () => ipcRenderer.send('close-cursor-window'),
+    onCursorWindowOpened: (callback: (...args: any[]) => void) => ipcRenderer.on('cursor-window-opened', (event, ...args) => callback(...args)),
     onCursorWindowClosed: (callback: (...args: any[]) => void) => ipcRenderer.on('cursor-window-closed', (event, ...args) => callback(...args)),
     onAvailablePresentations: (callback: (...args: any[]) => void) => ipcRenderer.on('available-presentations', (event, ...args) => callback(...args)),
     setTargetPresentation: (identifier: any) => ipcRenderer.send('set-target-presentation', identifier),

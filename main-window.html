@@ -57,100 +57,91 @@
     </style>
 </head>
 <body>
-    <h1>Select Display for Cursor Window</h1>
+    <div style="padding: 8px; background: #f8f9fa; border-radius: 4px; border: 1px solid #dee2e6; margin-bottom: 10px;">
+        <!-- Cursor Section -->
+        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px; height: 26px;">
+            <label for="display-select" style="font-weight: bold; font-size: 11px; flex-shrink: 0; width: 85px; margin: 0;">Cursor Screen:</label>
+            <select id="display-select" disabled style="flex: 1; height: 24px; font-size: 11px; padding: 0 4px; border: 1px solid #ccc; border-radius: 3px; box-sizing: border-box; margin: 0; line-height: 22px; min-width: 0;">
+                <option value="">-- Loading Displays --</option>
+            </select>
+            <button id="cursor-toggle-btn" disabled style="width: 40px; height: 24px; font-size: 11px; background: #28a745; color: white; border: none; border-radius: 3px; cursor: pointer; flex-shrink: 0; display: flex; align-items: center; justify-content: center; margin: 0;">ON</button>
+        </div>
 
-    <label for="display-select">Target Display:</label>
-    <select id="display-select" disabled>
-        <option value="">-- Loading Displays --</option>
-    </select>
-
-    <div> <button id="launch-button" disabled>Launch Cursor Window</button>
-        <button id="close-button" style="display: none;">Close Cursor Window</button>
+        <!-- PPT Section -->
+        <div style="display: flex; align-items: center; gap: 8px; height: 26px;">
+            <label for="ppt-select" style="font-weight: bold; font-size: 11px; flex-shrink: 0; width: 85px; margin: 0;">PPT Target:</label>
+            <select id="ppt-select" disabled style="flex: 1; height: 24px; font-size: 11px; padding: 0 4px; border: 1px solid #ccc; border-radius: 3px; box-sizing: border-box; margin: 0; line-height: 22px; min-width: 0;">
+                <option value="">-- Loading Presentations --</option>
+            </select>
+            <div style="width: 40px; flex-shrink: 0;"></div> <!-- Alignment Spacer -->
+        </div>
     </div>
-
-    <hr style="margin: 15px 0;">
-    <label for="ppt-select">Target PowerPoint Presentation:</label>
-    <select id="ppt-select" disabled>
-        <option value="">-- Loading Presentations --</option>
-    </select>
 
 
     
-    <hr style="margin: 15px 0;">
-    <div>
-        <label for="countdown-initial-value">Countdown Timer Presets (seconds): 
-            <button id="toggle-preset-edit-btn" style="padding: 2px 8px; font-size: 12px; background: #6c757d; color: white; border-radius: 4px; vertical-align: middle; margin-left: 10px;">⚙ Edit Presets</button>
-        </label>
-        <div id="preset-buttons-container" style="margin-bottom: 10px;">
-            <!-- Generated dynamically -->
+    <div style="padding: 8px; background: #fff3cd; border-radius: 4px; border: 1px solid #ffeeba; margin-bottom: 10px;">
+        <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 5px;">
+            <label style="font-weight: bold; font-size: 0.9em; white-space: nowrap;">Timer (s):</label>
+            <input type="number" id="countdown-initial-value" value="10" min="1" max="3600" style="width: 60px; padding: 4px; border: 1px solid #ccc; border-radius: 4px; font-size: 0.9em;">
+            <div id="preset-buttons-container" style="display: flex; gap: 5px; flex-wrap: wrap;">
+                <!-- Generated dynamically -->
+            </div>
+            <button id="toggle-preset-edit-btn" style="padding: 2px 8px; font-size: 11px; background: #6c757d; color: white; border: none; border-radius: 4px; cursor: pointer; margin-left: auto;">⚙</button>
         </div>
+
+        <div id="preset-edit-container" style="background: #fff; padding: 8px; border: 1px solid #ddd; border-radius: 4px; margin-top: 5px; display: none;">
+            <div id="preset-inputs-list" style="margin-bottom: 5px;"></div>
+            <div style="display: flex; gap: 5px;">
+                <button id="add-preset-config-btn" style="flex: 1; padding: 3px; font-size: 11px; background: #007bff; color: white; border: none; border-radius: 3px;">+ Add</button>
+                <button id="apply-presets-btn" style="flex: 1; padding: 3px; font-size: 11px; background: #28a745; color: white; border: none; border-radius: 3px;">Apply All</button>
+            </div>
+        </div>
+
+        <div style="display: flex; flex-direction: column; gap: 4px; margin-top: 8px; padding-top: 8px; border-top: 1px dashed #ffeeba;">
+            <div style="display: flex; align-items: center; gap: 5px; height: 26px;">
+                <span style="font-size: 11px; color: #856404; font-weight: bold; width: 32px; flex-shrink: 0; margin: 0;">🔔1:</span>
+                <input type="number" id="sound1-time" value="30" min="0" max="3600" style="width: 45px; height: 24px; font-size: 11px; padding: 0 4px; border: 1px solid #ccc; border-radius: 3px; box-sizing: border-box; margin: 0;">
+                <span style="font-size: 11px; color: #666; width: 10px; flex-shrink: 0; margin: 0;">s</span>
+                <select id="sound1-select" style="flex: 1; height: 24px; font-size: 11px; padding: 0 2px; border: 1px solid #ccc; border-radius: 3px; box-sizing: border-box; min-width: 0; margin: 0; line-height: 22px; vertical-align: middle;">
+                    <option value="">-- No Audio --</option>
+                </select>
+                <button id="sound1-play-btn" style="width: 28px; height: 24px; padding: 0; font-size: 11px; background: #17a2b8; color: white; border: none; border-radius: 3px; flex-shrink: 0; cursor: pointer; margin: 0; display: flex; align-items: center; justify-content: center;">▶</button>
+            </div>
+            <div style="display: flex; align-items: center; gap: 5px; height: 26px;">
+                <span style="font-size: 11px; color: #856404; font-weight: bold; width: 32px; flex-shrink: 0; margin: 0;">🔔2:</span>
+                <input type="number" id="sound2-time" value="0" min="0" max="3600" style="width: 45px; height: 24px; font-size: 11px; padding: 0 4px; border: 1px solid #ccc; border-radius: 3px; box-sizing: border-box; margin: 0;">
+                <span style="font-size: 11px; color: #666; width: 10px; flex-shrink: 0; margin: 0;">s</span>
+                <select id="sound2-select" style="flex: 1; height: 24px; font-size: 11px; padding: 0 2px; border: 1px solid #ccc; border-radius: 3px; box-sizing: border-box; min-width: 0; margin: 0; line-height: 22px; vertical-align: middle;">
+                    <option value="">-- No Audio --</option>
+                </select>
+                <button id="sound2-play-btn" style="width: 28px; height: 24px; padding: 0; font-size: 11px; background: #17a2b8; color: white; border: none; border-radius: 3px; flex-shrink: 0; cursor: pointer; margin: 0; display: flex; align-items: center; justify-content: center;">▶</button>
+            </div>
+        </div>
+    </div>
+    
+    <div style="display: flex; align-items: center; gap: 10px; padding: 8px; background: #e2f3f5; border-radius: 4px; border: 1px solid #bee5eb;">
+        <label style="font-weight: bold; font-size: 0.9em; white-space: nowrap;">Message:</label>
+        <div id="message-input" contenteditable="true" 
+             style="flex: 1; min-height: 24px; max-height: 100px; padding: 6px; border: 1px solid #ccc; border-radius: 4px; background: white; font-family: inherit; font-size: 13px; overflow-y: auto; white-space: pre-wrap; resize: vertical;"></div>
+        <button id="toggle-message-button" style="background-color: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; white-space: nowrap; height: 36px; padding: 0 12px; font-size: 0.9em;">Show/Hide</button>
         
-        <div id="preset-edit-container" style="background: #e9ecef; padding: 10px; border-radius: 4px; margin-bottom: 15px; display: none;">
-            <label style="font-size: 0.8em; color: #666;">Edit Presets:</label>
-            <div id="preset-inputs-list">
-                 <!-- Generated dynamically -->
+        <div id="color-context-menu" style="display: none; position: fixed; background: white; border: 1px solid #ccc; box-shadow: 2px 2px 5px rgba(0,0,0,0.2); z-index: 1000; padding: 5px; border-radius: 4px; min-width: 120px;">
+            <div style="font-size: 11px; color: #666; margin-bottom: 5px; padding: 0 5px;">Format</div>
+            <div id="style-options" style="display: flex; gap: 5px; margin-bottom: 8px; padding: 0 5px;">
+                <button class="style-btn" data-cmd="bold" style="flex: 1; padding: 2px; font-weight: bold; background: #eee; border: 1px solid #ccc; cursor: pointer;">B</button>
+                <button class="style-btn" data-cmd="italic" style="flex: 1; padding: 2px; font-style: italic; background: #eee; border: 1px solid #ccc; cursor: pointer;">I</button>
+                <button class="style-btn" data-cmd="strikeThrough" style="flex: 1; padding: 2px; text-decoration: line-through; background: #eee; border: 1px solid #ccc; cursor: pointer;">S</button>
             </div>
-            <button id="add-preset-config-btn" style="padding: 5px 10px; font-size: 12px; margin-top: 5px; background: #007bff; color: white;">+ Add Preset</button>
-            <button id="apply-presets-btn" style="padding: 5px 10px; font-size: 12px; margin-top: 5px; background: #28a745; color: white;">Apply All</button>
-        </div>
-
-        <label for="countdown-initial-value">Manual Value (seconds):</label>
-        <input type="number" id="countdown-initial-value" value="10" min="1" max="3600" style="width: 100px; padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
-        <span style="font-size: 0.9em; color: #666; margin-left: 10px;">(Click preset to start immediately)</span>
-
-        <div style="margin-top: 10px;">
-            <label style="margin-bottom: 4px; font-size: 0.85em;">Notifications (media/):</label>
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
-                <!-- Sound 1 -->
-                <div style="background: #fff; padding: 5px; border-radius: 4px; border: 1px solid #ddd;">
-                    <div style="font-size: 0.8em; margin-bottom: 2px;">🔔1: <input type="number" id="sound1-time" value="30" min="0" max="3600" style="width: 40px; padding: 1px;">s</div>
-                    <div style="display: flex; gap: 3px;">
-                        <select id="sound1-select" style="flex: 1; padding: 2px; font-size: 11px; height: 24px;">
-                            <option value="">-- No --</option>
-                        </select>
-                        <button id="sound1-play-btn" style="padding: 0 6px; background: #17a2b8; color: white; margin: 0; height: 24px; font-size: 10px;">▶</button>
-                    </div>
-                </div>
-                <!-- Sound 2 -->
-                <div style="background: #fff; padding: 5px; border-radius: 4px; border: 1px solid #ddd;">
-                    <div style="font-size: 0.8em; margin-bottom: 2px;">🔔2: <input type="number" id="sound2-time" value="0" min="0" max="3600" style="width: 40px; padding: 1px;">s</div>
-                    <div style="display: flex; gap: 3px;">
-                        <select id="sound2-select" style="flex: 1; padding: 2px; font-size: 11px; height: 24px;">
-                            <option value="">-- No --</option>
-                        </select>
-                        <button id="sound2-play-btn" style="padding: 0 6px; background: #17a2b8; color: white; margin: 0; height: 24px; font-size: 10px;">▶</button>
-                    </div>
-                </div>
-            </div>
-    </div>
-    
-    <hr style="margin: 15px 0;">
-    <div>
-        <label>On-Screen Message:</label>
-        <div style="display: flex; gap: 10px; position: relative; align-items: flex-start;">
-            <div id="message-input" contenteditable="true" 
-                 style="flex: 1; min-height: 42px; padding: 10px; border: 1px solid #ccc; border-radius: 4px; background: white; font-family: inherit; font-size: 14px; overflow-y: auto; white-space: pre-wrap; resize: vertical;"></div>
-            <button id="toggle-message-button" style="background-color: #007bff; color: white; margin-right: 0; white-space: nowrap; height: 42px; padding: 0 15px;">Show/Hide</button>
-            
-            <!-- Custom Context Menu for Colors & Style -->
-            <div id="color-context-menu" style="display: none; position: fixed; background: white; border: 1px solid #ccc; box-shadow: 2px 2px 5px rgba(0,0,0,0.2); z-index: 1000; padding: 5px; border-radius: 4px; min-width: 120px;">
-                <div style="font-size: 11px; color: #666; margin-bottom: 5px; padding: 0 5px;">Format</div>
-                <div id="style-options" style="display: flex; gap: 5px; margin-bottom: 8px; padding: 0 5px;">
-                    <button class="style-btn" data-cmd="bold" style="flex: 1; padding: 2px; font-weight: bold; background: #eee; border: 1px solid #ccc; cursor: pointer;">B</button>
-                    <button class="style-btn" data-cmd="italic" style="flex: 1; padding: 2px; font-style: italic; background: #eee; border: 1px solid #ccc; cursor: pointer;">I</button>
-                    <button class="style-btn" data-cmd="strikeThrough" style="flex: 1; padding: 2px; text-decoration: line-through; background: #eee; border: 1px solid #ccc; cursor: pointer;">S</button>
-                </div>
-                <div style="font-size: 11px; color: #666; margin-bottom: 5px; padding: 0 5px;">Text Color</div>
-                <div id="color-options" style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 5px;">
-                    <div class="color-swatch" data-color="#ffffff" style="width: 20px; height: 20px; background: #ffffff; border: 1px solid #ddd; cursor: pointer;" title="White"></div>
-                    <div class="color-swatch" data-color="#ff0000" style="width: 20px; height: 20px; background: #ff0000; cursor: pointer;" title="Red"></div>
-                    <div class="color-swatch" data-color="#00ff00" style="width: 20px; height: 20px; background: #00ff00; cursor: pointer;" title="Green"></div>
-                    <div class="color-swatch" data-color="#ffff00" style="width: 20px; height: 20px; background: #ffff00; cursor: pointer;" title="Yellow"></div>
-                    <div class="color-swatch" data-color="#0000ff" style="width: 20px; height: 20px; background: #0000ff; cursor: pointer;" title="Blue"></div>
-                    <div class="color-swatch" data-color="#ff00ff" style="width: 20px; height: 20px; background: #ff00ff; cursor: pointer;" title="Magenta"></div>
-                    <div class="color-swatch" data-color="#00ffff" style="width: 20px; height: 20px; background: #00ffff; cursor: pointer;" title="Cyan"></div>
-                    <div class="color-swatch" data-color="#ffa500" style="width: 20px; height: 20px; background: #ffa500; cursor: pointer;" title="Orange"></div>
-                </div>
+            <div style="font-size: 11px; color: #666; margin-bottom: 5px; padding: 0 5px;">Color</div>
+            <div id="color-options" style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 5px;">
+                <div class="color-swatch" data-color="#ffffff" style="width: 20px; height: 20px; background: #ffffff; border: 1px solid #ddd; cursor: pointer;" title="White"></div>
+                <div class="color-swatch" data-color="#ff0000" style="width: 20px; height: 20px; background: #ff0000; cursor: pointer;" title="Red"></div>
+                <div class="color-swatch" data-color="#00ff00" style="width: 20px; height: 20px; background: #00ff00; cursor: pointer;" title="Green"></div>
+                <div class="color-swatch" data-color="#ffff00" style="width: 20px; height: 20px; background: #ffff00; cursor: pointer;" title="Yellow"></div>
+                <div class="color-swatch" data-color="#0000ff" style="width: 20px; height: 20px; background: #0000ff; cursor: pointer;" title="Blue"></div>
+                <div class="color-swatch" data-color="#ff00ff" style="width: 20px; height: 20px; background: #ff00ff; cursor: pointer;" title="Magenta"></div>
+                <div class="color-swatch" data-color="#00ffff" style="width: 20px; height: 20px; background: #00ffff; cursor: pointer;" title="Cyan"></div>
+                <div class="color-swatch" data-color="#ffa500" style="width: 20px; height: 20px; background: #ffa500; cursor: pointer;" title="Orange"></div>
             </div>
         </div>
     </div>

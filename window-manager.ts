@@ -77,8 +77,10 @@ function createCursorWindowInternal(targetDisplay: Display) {
     });
     cursorWindow.setIgnoreMouseEvents(true, { forward: true });
     cursorWindow.loadFile(path.join(__dirname, 'cursor-window.html'));
-    cursorWindow.webContents.openDevTools({ mode: 'detach' });
-    cursorWindow.webContents.on('did-finish-load', () => {});
+    // cursorWindow.webContents.openDevTools({ mode: 'detach' });
+    cursorWindow.webContents.on('did-finish-load', () => {
+        sendCursorWindowOpenedToMain();
+    });
     cursorWindow.on('closed', () => {
         console.log('[WindowManager] cursorWindow closed.'); // 追加ログ
         cursorWindow = null;
@@ -255,6 +257,14 @@ export function sendAvailableDisplays() {
         mainWindow.webContents.send('available-displays', displays);
     } catch (e) {
         sendLaunchErrorToMain('Failed to get display list.');
+    }
+}
+
+
+
+export function sendCursorWindowOpenedToMain() {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send('cursor-window-opened');
     }
 }
 

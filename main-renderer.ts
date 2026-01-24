@@ -6,8 +6,7 @@ interface Window {
 }
 
 const displaySelect = document.getElementById('display-select') as HTMLSelectElement;
-const launchButton = document.getElementById('launch-button') as HTMLButtonElement;
-const closeButton = document.getElementById('close-button') as HTMLButtonElement;
+const cursorToggleBtn = document.getElementById('cursor-toggle-btn') as HTMLButtonElement;
 const errorMessageDiv = document.getElementById('error-message') as HTMLElement;
 const mainBatteryStatusLeft = document.getElementById('main-battery-status-left') as HTMLElement;
 const mainBatteryStatusRight = document.getElementById('main-battery-status-right') as HTMLElement;
@@ -67,7 +66,7 @@ window.electronAPI.onAvailableDisplays((displays: any[]) => {
             displaySelect.appendChild(option);
         });
         displaySelect.disabled = false;
-        launchButton.disabled = false;
+        cursorToggleBtn.disabled = false;
         // Set default target to first display
         if (displays.length > 0) {
             window.electronAPI.setTargetDisplay(displays[0].id);
@@ -78,9 +77,8 @@ window.electronAPI.onAvailableDisplays((displays: any[]) => {
         option.text = '-- No Displays Found --';
         displaySelect.appendChild(option);
         displaySelect.disabled = true;
-        launchButton.disabled = true;
+        cursorToggleBtn.disabled = true;
     }
-    closeButton.style.display = 'none';
 });
 
 // onAvailablePresentationsはメインプロセスからのプッシュ通知用として残しておく
@@ -105,34 +103,46 @@ displaySelect.addEventListener('change', () => {
     }
 });
 
-launchButton.addEventListener('click', () => {
-    const selectedDisplayId = displaySelect.value;
-    if (selectedDisplayId) {
-        window.electronAPI.launchCursorWindow(selectedDisplayId);
-        launchButton.disabled = true;
-        displaySelect.disabled = true;
-        closeButton.style.display = '';
-        errorMessageDiv.textContent = '';
+cursorToggleBtn.addEventListener('click', () => {
+    const isRunning = cursorToggleBtn.textContent === 'OFF';
+    if (isRunning) {
+        // Stop
+        errorMessageDiv.textContent = 'Closing cursor window...';
+        window.electronAPI.closeCursorWindow();
+    } else {
+        // Start
+        const selectedDisplayId = displaySelect.value;
+        if (selectedDisplayId) {
+            window.electronAPI.launchCursorWindow(selectedDisplayId);
+            cursorToggleBtn.disabled = true;
+            displaySelect.disabled = true;
+            errorMessageDiv.textContent = '';
+        }
     }
 });
 
-closeButton.addEventListener('click', () => {
-    errorMessageDiv.textContent = 'Closing cursor window...';
-    window.electronAPI.closeCursorWindow();
+window.electronAPI.onCursorWindowOpened(() => {
+    cursorToggleBtn.textContent = 'OFF';
+    cursorToggleBtn.style.background = '#dc3545';
+    cursorToggleBtn.disabled = false;
+    displaySelect.disabled = true;
+    errorMessageDiv.textContent = '';
 });
 
 window.electronAPI.onCursorWindowClosed(() => {
-    errorMessageDiv.textContent = 'Cursor window closed. Select a display to launch again.';
+    errorMessageDiv.textContent = 'Cursor window closed. Ready to launch again.';
     displaySelect.disabled = false;
-    launchButton.disabled = false;
-    closeButton.style.display = 'none';
+    cursorToggleBtn.disabled = false;
+    cursorToggleBtn.textContent = 'ON';
+    cursorToggleBtn.style.background = '#28a745';
 });
 
 window.electronAPI.onLaunchError((message: string) => {
-    errorMessageDiv.textContent = `Error launching cursor window: ${message}`;
-    launchButton.disabled = false;
+    errorMessageDiv.textContent = `Error: ${message}`;
+    cursorToggleBtn.disabled = false;
     displaySelect.disabled = false;
-    closeButton.style.display = 'none';
+    cursorToggleBtn.textContent = 'ON';
+    cursorToggleBtn.style.background = '#28a745';
 });
 
 const mainStatusLeftText = document.getElementById('main-status-left-text') as HTMLElement;
@@ -320,8 +330,7 @@ window.electronAPI.onUpdateTimerPresets((presets: number[]) => {
 // Initial load broadcasts to others
 window.electronAPI.updateTimerPresets(currentPresets);
 
-launchButton.disabled = true;
-closeButton.style.display = 'none';
+cursorToggleBtn.disabled = true;
 pptSelect.disabled = true;
 
 // --- Sound Notification Management (v2 - Two Timed Sounds) ---
