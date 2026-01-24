@@ -11,11 +11,11 @@ const countdownMenuValueElement: HTMLElement | null = document.getElementById('c
 
 let countdownInterval: NodeJS.Timeout | null = null;
 let countdownValue: number = 10;
-let currentCountdownInitialValue: number = 10;
+let currentCountdownInitialValue: number = parseInt(localStorage.getItem('countdownInitialValue') || '10');
 let currentFontSize: number = parseInt(localStorage.getItem('timerFontSize') || '100'); // Load saved size
 let isCountdownMenuVisible = false;
 let selectedPresetIndex: number = -1; 
-let currentPresetValues: number[] = [10, 60, 120, 180, 300]; 
+let currentPresetValues: number[] = JSON.parse(localStorage.getItem('timerPresets') || '[10, 60, 120, 180, 300]'); 
 const timerPresetsContainer: HTMLElement | null = document.getElementById('timer-presets-container');
 
 function updateTimerFontSize(delta: number) {
@@ -175,6 +175,7 @@ function applyCountdownValue(delta: number) {
         countdownTimerElement.style.color = '#ffffff'; 
     }
     window.electronAPI.sendCountdownInitialValue(currentCountdownInitialValue);
+    localStorage.setItem('countdownInitialValue', String(currentCountdownInitialValue));
 }
 
 // --- Manual Window Dragging (Removed in favor of CSS drag zone) ---
@@ -198,6 +199,7 @@ if (wheelZone) {
 
 window.electronAPI.onUpdateCountdownInitialValue((value: number) => {
     currentCountdownInitialValue = value;
+    localStorage.setItem('countdownInitialValue', String(value));
     if (countdownTimerElement && !countdownInterval) {
         countdownTimerElement.textContent = formatTime(currentCountdownInitialValue);
     }
@@ -209,6 +211,7 @@ window.electronAPI.onUpdateCountdownInitialValue((value: number) => {
 window.electronAPI.onUpdateTimerPresets((presets: number[]) => {
     console.log('[TimerRenderer] Received presets update:', presets);
     currentPresetValues = presets;
+    localStorage.setItem('timerPresets', JSON.stringify(presets));
     if (isCountdownMenuVisible) {
         renderTimerPresets();
     }

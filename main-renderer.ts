@@ -241,6 +241,7 @@ function renderPresets() {
         btn.addEventListener('click', () => {
              countdownInitialValueInput.value = String(time);
              window.electronAPI.sendCountdownInitialValue(time);
+             localStorage.setItem('countdownInitialValue', String(time));
              window.electronAPI.startCountdownTimer(time);
         });
         presetButtonsContainer.appendChild(btn);
@@ -448,11 +449,23 @@ loadPowerPointPresentations();
 window.electronAPI.onUpdateCountdownInitialValue((value: number) => {
     if (!Number.isNaN(value)) {
         countdownInitialValueInput.value = String(value);
+        localStorage.setItem('countdownInitialValue', String(value));
     }
 });
 countdownInitialValueInput.addEventListener('change', () => {
     const value = parseInt(countdownInitialValueInput.value, 10);
     if (!isNaN(value) && value >= 1 && value <= 3600) {
         window.electronAPI.sendCountdownInitialValue(value);
+        localStorage.setItem('countdownInitialValue', String(value));
     }
 });
+
+// Load initial value on startup
+const savedInitialValue = localStorage.getItem('countdownInitialValue');
+if (savedInitialValue) {
+    const val = parseInt(savedInitialValue, 10);
+    if (!isNaN(val)) {
+        countdownInitialValueInput.value = savedInitialValue;
+        window.electronAPI.sendCountdownInitialValue(val);
+    }
+}
