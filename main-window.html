@@ -102,8 +102,14 @@
     <hr>
     <div id="main-joycon-status">
         <strong>Joy-Con Status:</strong>
-        <span id="main-status-left" class="disconnected">Left: Disconnected</span> |
-        <span id="main-status-right" class="disconnected">Right: Disconnected</span>
+        <span id="main-status-left-container">
+            <span id="main-status-left-text" class="disconnected">Left: Disconnected</span>
+            <button id="joycon-left-action-btn" style="padding: 2px 8px; font-size: 11px; margin-left: 5px;">Connect</button>
+        </span> |
+        <span id="main-status-right-container">
+            <span id="main-status-right-text" class="disconnected">Right: Disconnected</span>
+            <button id="joycon-right-action-btn" style="padding: 2px 8px; font-size: 11px; margin-left: 5px;">Connect</button>
+        </span>
     </div>
 
     <div id="battery-status" style="margin-top: 20px;">

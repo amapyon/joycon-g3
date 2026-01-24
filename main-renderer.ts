@@ -9,8 +9,6 @@ const displaySelect = document.getElementById('display-select') as HTMLSelectEle
 const launchButton = document.getElementById('launch-button') as HTMLButtonElement;
 const closeButton = document.getElementById('close-button') as HTMLButtonElement;
 const errorMessageDiv = document.getElementById('error-message') as HTMLElement;
-const mainStatusLeft = document.getElementById('main-status-left') as HTMLElement;
-const mainStatusRight = document.getElementById('main-status-right') as HTMLElement;
 const mainBatteryStatusLeft = document.getElementById('main-battery-status-left') as HTMLElement;
 const mainBatteryStatusRight = document.getElementById('main-battery-status-right') as HTMLElement;
 const pptSelect = document.getElementById('ppt-select') as HTMLSelectElement;
@@ -137,15 +135,48 @@ window.electronAPI.onLaunchError((message: string) => {
     closeButton.style.display = 'none';
 });
 
+const mainStatusLeftText = document.getElementById('main-status-left-text') as HTMLElement;
+const mainStatusRightText = document.getElementById('main-status-right-text') as HTMLElement;
+const joyconLeftActionBtn = document.getElementById('joycon-left-action-btn') as HTMLButtonElement;
+const joyconRightActionBtn = document.getElementById('joycon-right-action-btn') as HTMLButtonElement;
+
 window.electronAPI.onJoyConStatusUpdate((status: { leftConnected: boolean; rightConnected: boolean }) => {
-    console.log('JoyCon status:', status);
-    if (mainStatusLeft) {
-        mainStatusLeft.textContent = status.leftConnected ? 'Left: Connected' : 'Left: Disconnected';
-        mainStatusLeft.className = status.leftConnected ? 'connected' : 'disconnected';
+    console.log('JoyCon status update in renderer:', status);
+    
+    // Update Left
+    if (mainStatusLeftText && joyconLeftActionBtn) {
+        mainStatusLeftText.textContent = status.leftConnected ? 'Left: Connected' : 'Left: Disconnected';
+        mainStatusLeftText.className = status.leftConnected ? 'connected' : 'disconnected';
+        joyconLeftActionBtn.textContent = status.leftConnected ? 'Power Off' : 'Connect';
+        joyconLeftActionBtn.style.backgroundColor = status.leftConnected ? '#dc3545' : '#28a745';
+        joyconLeftActionBtn.style.color = 'white';
     }
-    if (mainStatusRight) {
-        mainStatusRight.textContent = status.rightConnected ? 'Right: Connected' : 'Right: Disconnected';
-        mainStatusRight.className = status.rightConnected ? 'connected' : 'disconnected';
+    
+    // Update Right
+    if (mainStatusRightText && joyconRightActionBtn) {
+        mainStatusRightText.textContent = status.rightConnected ? 'Right: Connected' : 'Right: Disconnected';
+        mainStatusRightText.className = status.rightConnected ? 'connected' : 'disconnected';
+        joyconRightActionBtn.textContent = status.rightConnected ? 'Power Off' : 'Connect';
+        joyconRightActionBtn.style.backgroundColor = status.rightConnected ? '#dc3545' : '#28a745';
+        joyconRightActionBtn.style.color = 'white';
+    }
+});
+
+joyconLeftActionBtn.addEventListener('click', () => {
+    const isConnected = mainStatusLeftText.classList.contains('connected');
+    if (isConnected) {
+        window.electronAPI.shutdownJoyCon(true);
+    } else {
+        window.electronAPI.connectJoyCon(true);
+    }
+});
+
+joyconRightActionBtn.addEventListener('click', () => {
+    const isConnected = mainStatusRightText.classList.contains('connected');
+    if (isConnected) {
+        window.electronAPI.shutdownJoyCon(false);
+    } else {
+        window.electronAPI.connectJoyCon(false);
     }
 });
 

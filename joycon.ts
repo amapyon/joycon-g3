@@ -41,6 +41,8 @@ export default class JoyConManager extends EventEmitter {
     scanTimer: NodeJS.Timeout | null = null;
     connectingL = false;
     connectingR = false;
+    autoConnectL = true; // Added
+    autoConnectR = true; // Added
 
     constructor(scanIntervalMs: number = DEFAULT_SCAN_INTERVAL) {
         super();
@@ -296,7 +298,7 @@ export default class JoyConManager extends EventEmitter {
         if (this.hidL) {
             console.log('[Debug] Left Joy-Con is connected. Requesting battery status.');
             this.requestBatteryStatus(true);
-        } else if (joyconLPath) {
+        } else if (joyconLPath && this.autoConnectL) { // Check autoConnectL
             console.log('[Debug] Found disconnected Left Joy-Con. Attempting to connect.');
             this.connectJoyCon(joyconLPath, true);
         }
@@ -305,10 +307,31 @@ export default class JoyConManager extends EventEmitter {
         if (this.hidR) {
             console.log('[Debug] Right Joy-Con is connected. Requesting battery status.');
             this.requestBatteryStatus(false);
-        } else if (joyconRPath) {
+        } else if (joyconRPath && this.autoConnectR) { // Check autoConnectR
             console.log('[Debug] Found disconnected Right Joy-Con. Attempting to connect.');
             this.connectJoyCon(joyconRPath, false);
         }
+    }
+
+    /** Joy-Conの電源を切るコマンドを送信して切断 */
+    shutdownJoyCon(isLeft: boolean): void {
+        const hidDevice = isLeft ? this.hidL : this.hidR;
+        if (hidDevice) {
+            console.log(`[JoyConManager] Shutting down and powering off ${isLeft ? 'L' : 'R'} Joy-Con...`);
+            const packetNumber = isLeft ? this.globalPacketNumberL : this.globalPacketNumberR;
+            // Subcommand 0x06: Set ship mode (power off)
+            const command = [0x01, packetNumber, 0x00, 0x01, 0x40, 0x40, 0x00, 0x01, 0x40, 0x40, 0x06];
+            this.sendCommand(hidDevice, command, isLeft);
+            
+            // Wait slightly for command to send then close
+            setTimeout(() => {
+                this.closeJoyCon(isLeft);
+            }, 200);
+        }
+        
+        // Disable auto-reconnect until manual re-enable
+        if (isLeft) this.autoConnectL = false;
+        else this.autoConnectR = false;
     }
 
     /** デバイススキャンを開始 (初回接続含む) */

@@ -49,6 +49,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
     hideTimerWindow: () => ipcRenderer.send('hide-timer-window'),
     moveTimerWindow: (x: number, y: number) => ipcRenderer.send('move-timer-window', { x, y }),
     stopTimerDrag: () => ipcRenderer.send('stop-timer-drag'),
+    connectJoyCon: (isLeft: boolean) => ipcRenderer.send('connect-joycon', isLeft),
+    shutdownJoyCon: (isLeft: boolean) => ipcRenderer.send('shutdown-joycon', isLeft),
 });
 
 console.log('Preload script loaded.');

@@ -109,5 +109,19 @@ export function setupIpcHandlers(windowManagerInstance = WindowManager, joyconMa
         }
     });
 
+    ipcMain.on('connect-joycon', (event, isLeft: boolean) => {
+        console.log(`[IPC Handler] Received 'connect-joycon' request for ${isLeft ? 'L' : 'R'}.`);
+        if (isLeft) joyconManager.autoConnectL = true;
+        else joyconManager.autoConnectR = true;
+        joyconManager.connectAll(); // Trigger immediate check
+        event.reply('joycon-status-update', joyconManager.getConnectionStatus());
+    });
+
+    ipcMain.on('shutdown-joycon', (event, isLeft: boolean) => {
+        console.log(`[IPC Handler] Received 'shutdown-joycon' request for ${isLeft ? 'L' : 'R'}.`);
+        joyconManager.shutdownJoyCon(isLeft);
+        event.reply('joycon-status-update', joyconManager.getConnectionStatus());
+    });
+
     console.log('IPC Handlers setup complete.');
 }
