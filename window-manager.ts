@@ -6,6 +6,7 @@ let mainWindow: BrowserWindow | null = null;
 
 let cursorWindow: BrowserWindow | null = null;
 let timerWindow: BrowserWindow | null = null;
+let messageWindow: BrowserWindow | null = null;
 
 export function createWindow(): BrowserWindow {
     if (mainWindow && !mainWindow.isDestroyed()) {
@@ -34,6 +35,9 @@ export function createWindow(): BrowserWindow {
         }
         if (timerWindow && !timerWindow.isDestroyed()) {
             timerWindow.close();
+        }
+        if (messageWindow && !messageWindow.isDestroyed()) {
+            messageWindow.close();
         }
     });
     return mainWindow;
@@ -176,6 +180,69 @@ export function createTimerWindow(targetDisplay?: Display) {
     return timerWindow;
 }
 
+let storedMessageBounds: { x: number, y: number, width: number, height: number } | null = null;
+
+export function createMessageWindow(targetDisplay?: Display) {
+    if (messageWindow && !messageWindow.isDestroyed()) return messageWindow;
+    
+    const displayToUse = targetDisplay || storedTargetDisplay || screen.getPrimaryDisplay();
+    
+    let initialWidth = 600;
+    let initialHeight = 150;
+    let initialX: number;
+    let initialY: number;
+
+    if (storedMessageBounds) {
+        initialX = storedMessageBounds.x;
+        initialY = storedMessageBounds.y;
+        initialWidth = storedMessageBounds.width;
+        initialHeight = storedMessageBounds.height;
+    } else {
+        initialX = displayToUse.bounds.x + (displayToUse.bounds.width - initialWidth) / 2;
+        initialY = displayToUse.bounds.y + displayToUse.bounds.height - initialHeight - 100;
+    }
+
+    messageWindow = new BrowserWindow({
+        x: initialX,
+        y: initialY,
+        width: initialWidth,
+        height: initialHeight,
+        frame: false,
+        transparent: true,
+        alwaysOnTop: true,
+        skipTaskbar: true,
+        hasShadow: false,
+        resizable: true,
+        title: "\u200b",
+        webPreferences: {
+            preload: path.join(__dirname, 'preload.js'),
+            contextIsolation: true,
+            nodeIntegration: false,
+        },
+    });
+
+    messageWindow.loadFile(path.join(__dirname, 'message-window.html'));
+
+    const updateBounds = () => {
+        if (messageWindow && !messageWindow.isDestroyed()) {
+            storedMessageBounds = messageWindow.getBounds();
+        }
+    };
+    messageWindow.on('move', updateBounds);
+    messageWindow.on('resize', updateBounds);
+
+    messageWindow.on('closed', () => {
+        messageWindow = null;
+    });
+
+    return messageWindow;
+}
+
+export function getMessageWindow() {
+    if (messageWindow && !messageWindow.isDestroyed()) return messageWindow;
+    return null;
+}
+
 export function getTimerWindow() {
     if (timerWindow && !timerWindow.isDestroyed()) return timerWindow;
     return null;
@@ -217,6 +284,8 @@ export function closeAllWindows() {
     const mainWin = getMainWindow();
     const cursorWin = getCursorWindow();
     const timerWin = getTimerWindow();
+    const msgWin = getMessageWindow();
+    if (msgWin) msgWin.close();
     if (timerWin) timerWin.close();
     if (cursorWin) cursorWin.close();
     if (mainWin) mainWin.close();
@@ -241,4 +310,6 @@ export default {
     createTimerWindow,
     getTimerWindow,
     setTargetDisplay,
+    createMessageWindow,
+    getMessageWindow,
 };

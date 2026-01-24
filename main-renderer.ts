@@ -475,3 +475,22 @@ if (savedInitialValue) {
         window.electronAPI.sendCountdownInitialValue(val);
     }
 }
+
+// --- Message Window Logic ---
+const messageInput = document.getElementById('message-input') as HTMLInputElement;
+const toggleMessageButton = document.getElementById('toggle-message-button') as HTMLButtonElement;
+const messagePreview = document.getElementById('message-preview') as HTMLElement;
+
+if (messageInput && toggleMessageButton) {
+    messageInput.addEventListener('input', () => {
+        const text = messageInput.value;
+        window.electronAPI.sendMessageText(text);
+        if (messagePreview) {
+             messagePreview.textContent = text ? `Preview: ${text}` : '';
+        }
+    });
+
+    toggleMessageButton.addEventListener('click', () => {
+        window.electronAPI.toggleMessageWindow();
+    });
+}

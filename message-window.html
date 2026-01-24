@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'">
+    <title></title>
+    <link rel="stylesheet" href="style.css">
+    <style>
+        html {
+            overflow: hidden;
+        }
+        body {
+            background-color: rgba(70, 70, 70, 0.8);
+            color: #ffffff;
+            text-align: center;
+            margin: 0px auto;
+            padding: 0px;
+            font-family: "Impact", "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            user-select: none;
+            overflow: hidden;
+        }
+        #messageDisplay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            word-break: break-all;
+            padding: 20px;
+            font-size: 48pt;
+            box-sizing: border-box;
+            pointer-events: none;
+        }
+        .interaction-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            z-index: 10;
+            pointer-events: none;
+        }
+        #drag-zone {
+            flex: 1; /* Top 50% */
+            pointer-events: auto;
+            -webkit-app-region: drag;
+            cursor: move;
+        }
+        #wheel-zone {
+            flex: 1; /* Bottom 50% */
+            pointer-events: auto;
+            -webkit-app-region: no-drag;
+            cursor: ns-resize;
+        }
+    </style>
+</head>
+<body>
+    <div id="messageDisplay">No Message</div>
+    <div class="interaction-overlay">
+        <div id="drag-zone" title="Drag to move"></div>
+        <div id="wheel-zone" title="Scroll to resize font"></div>
+    </div>
+    <script src="./message-renderer.js"></script>
+</body>
+</html>

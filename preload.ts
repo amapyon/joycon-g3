@@ -55,6 +55,13 @@ contextBridge.exposeInMainWorld('electronAPI', {
     getMediaBasePath: () => ipcRenderer.invoke('get-media-base-path'),
     updateTimerNotifications: (configs: any[]) => ipcRenderer.send('update-timer-notifications', configs),
     onUpdateTimerNotifications: (callback: (configs: any[]) => void) => ipcRenderer.on('update-timer-notifications', (event, configs) => callback(configs)),
+    
+    // --- Message Window Control ---
+    sendMessageText: (text: string) => ipcRenderer.send('send-message-text', text),
+    onUpdateMessageText: (callback: (text: string) => void) => ipcRenderer.on('update-message-text', (event, text) => callback(text)),
+    toggleMessageWindow: () => ipcRenderer.send('toggle-message-window'),
+    moveMessageWindow: (x: number, y: number) => ipcRenderer.send('move-message-window', { x, y }),
+    stopMessageDrag: () => ipcRenderer.send('stop-message-drag'),
 });
 
 console.log('Preload script loaded.');

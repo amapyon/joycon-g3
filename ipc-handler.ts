@@ -148,5 +148,57 @@ export function setupIpcHandlers(windowManagerInstance = WindowManager, joyconMa
         return path.join(process.cwd(), 'media');
     });
 
+    // --- Message Window Handlers ---
+    let lastMessageText = '';
+    ipcMain.on('send-message-text', (event, text) => {
+        lastMessageText = text;
+        const msgWin = windowManagerInstance.getMessageWindow();
+        if (msgWin && !msgWin.isDestroyed()) {
+            msgWin.webContents.send('update-message-text', text);
+        }
+    });
+
+    ipcMain.on('toggle-message-window', () => {
+        let msgWin = windowManagerInstance.getMessageWindow();
+        if (msgWin && !msgWin.isDestroyed()) {
+            if (msgWin.isVisible()) {
+                msgWin.hide();
+            } else {
+                msgWin.show();
+                msgWin.webContents.send('update-message-text', lastMessageText);
+            }
+        } else {
+            msgWin = windowManagerInstance.createMessageWindow();
+            if (msgWin) {
+                msgWin.webContents.once('did-finish-load', () => {
+                    if (msgWin && !msgWin.isDestroyed()) {
+                        msgWin.show();
+                        msgWin.webContents.send('update-message-text', lastMessageText);
+                    }
+                });
+            }
+        }
+    });
+
+    let isMessageMoving = false;
+    ipcMain.on('move-message-window', (event, { x, y }) => {
+        const msgWin = windowManagerInstance.getMessageWindow();
+        if (msgWin && !msgWin.isDestroyed()) {
+            if (!isMessageMoving) {
+                isMessageMoving = true;
+                msgWin.setResizable(false);
+            }
+            msgWin.setPosition(Math.round(x), Math.round(y));
+        }
+    });
+
+    ipcMain.on('stop-message-drag', () => {
+        const msgWin = windowManagerInstance.getMessageWindow();
+        if (msgWin && !msgWin.isDestroyed()) {
+            isMessageMoving = false;
+            msgWin.setResizable(true);
+        }
+    });
+
     console.log('IPC Handlers setup complete.');
 }
