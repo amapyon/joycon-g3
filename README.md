@@ -1,0 +1,82 @@
+# Joy-Con Multi Cursor & PowerPoint Controller
+
+Joy-Con を使用して Windows 上で複数のマウスカーソル操作や PowerPoint のスライドショー制御を行う Electron アプリケーションです。
+
+## 📁 プロジェクト構成
+
+ソースコードはルートディレクトリに配置されており、ビルド時に `dist/` へ出力されます。
+
+### 主要ディレクトリ・ファイル
+*   **Main Process** (バックグラウンド処理)
+    *   `main.ts`: アプリケーションのエントリーポイント。ライフサイクル管理、IPC通信の統括。
+    *   `joycon.ts`: Joy-Con (HID) との通信、ジャイロデータの取得処理。
+    *   `imu-processor.ts`: ジャイロ/加速度センサーデータの解析・補正ロジック。
+    *   `window-manager.ts`: ウィンドウの生成・管理（設定画面・カーソルオーバーレイ）。
+    *   `ipc-handler.ts`: Renderer プロセスとの IPC 通信ハンドリング。
+    *   `powerpoint-control.ts`: `winax` を使用した PowerPoint COM 操作。
+
+*   **Renderer Process** (画面表示)
+    *   **設定画面 (Main Window)**
+        *   `main-window.html`: アプリ起動時の設定UI。
+        *   `main-renderer.ts`: UIロジック、設定値の IPC 送信。
+    *   **カーソルオーバーレイ (Cursor Window)**
+        *   `cursor-window.html`: 画面上に Joy-Con カーソルを描画する透明ウィンドウ。
+        *   `cursor-renderer.ts`: カーソルの描画更新処理。
+
+*   **Preload**
+    *   `preload.ts`: ContextBridge を使用し、Main プロセスの機能を安全に Renderer へ公開。
+
+*   **Assets**
+    *   `assets/`: アイコンなどの静的リソース。
+    *   `style.css`: 共通スタイルシート。
+
+## 🚀 開発環境セットアップと起動
+
+Node.js (Windows環境推奨) が必要です。ネイティブモジュール (`node-hid`, `winax`) を使用しているため、ビルドツール等の環境依存に注意してください。
+
+### 1. インストール
+```powershell
+npm install
+```
+※ ネイティブモジュールでエラーが出る場合は `npm run rebuild` を実行してください。
+
+### 2. 開発モードでの起動
+TypeScript のコンパイルと Electron の起動を行います。
+
+**ターミナル A (コンパイル監視):**
+```powershell
+npm run watch
+```
+**ターミナル B (アプリ起動):**
+```powershell
+npm start
+```
+
+## 📜 主要スクリプト (npm scripts)
+
+| コマンド | 説明 |
+| --- | --- |
+| `npm run build` | TypeScript をコンパイルし、HTML/CSS を `dist/` へコピーします。 |
+| `npm run watch` | TypeScript の変更を監視し、自動的に再コンパイルします (`tsc -w`)。 |
+| `npm start` | コンパイル済みのファイル (`dist/main.js`) を Electron で起動します。 |
+| `npm run rebuild` | `electron-rebuild` を使い、`node-hid` や `winax` を現在の Electron バージョンに合わせて再ビルドします。 |
+| `npm run package-win` | Windows 用の実行ファイル (`.exe`) をビルド・パッケージングします。 |
+
+## 📦 ビルドとパッケージング (配布用)
+
+配布用の `.exe` ファイルを作成する手順です。
+
+1.  **クリーンビルド**
+    ```powershell
+    npm run build
+    ```
+2.  **パッケージング**
+    ```powershell
+    npm run package-win
+    ```
+    *   完了すると `dist_packager/JoyCon Clicker-win32-x64/` フォルダ内に実行ファイルが生成されます。
+    *   配布時はこのフォルダごと配布してください。
+
+## ⚠️ 注意事項
+*   **Windows 専用**: `winax` (ActiveX/COM) を使用しているため、PowerPoint 連携機能は Windows 環境でのみ動作します。
+*   **再ビルド**: Electron のバージョンを変更した場合や、Node.js の環境が変わった場合は必ず `npm run rebuild` を実行してください。

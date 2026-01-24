@@ -27,6 +27,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     recenterImu: (id: 'cursorLeft' | 'cursorRight') => ipcRenderer.send('recenter-imu', id),
     getOpenPowerPointPresentations: () => ipcRenderer.invoke('get-open-powerpoint-presentations'),
     onUpdatePointer: (callback: (...args: any[]) => void) => ipcRenderer.on('update-pointer', (event, ...args) => callback(...args)),
+
     // --- カーソルマップ設定をmainプロセスへ送信 ---
     sendCursorMapConfig: (config: any) => ipcRenderer.send('cursor-map-config', config),
     // --- カーソル表示状態をmainプロセスへ送信 ---
@@ -34,6 +35,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
     sendCountdownInitialValue: (value: number) => ipcRenderer.send('countdown-initial-value', value), // New
     onUpdateCountdownInitialValue: (callback: (...args: any[]) => void) => ipcRenderer.on('update-countdown-initial-value', (event, ...args) => callback(...args)), // New
     onChangeFontSize: (callback: (...args: any[]) => void) => ipcRenderer.on('change-font-size', (event, ...args) => callback(...args)), // New
+    
+    // --- Countdown Timer Control ---
+    startCountdownTimer: (duration: number) => ipcRenderer.send('start-countdown-timer', duration),
+    onStartCountdown: (callback: (...args: any[]) => void) => ipcRenderer.on('start-countdown', (event, ...args) => callback(...args)),
 });
 
 console.log('Preload script loaded.');

@@ -183,6 +183,24 @@ countdownInitialValueInput.addEventListener('change', () => {
     }
 });
 
+// Preset Buttons Logic
+const presetButtons = document.querySelectorAll('.preset-btn');
+presetButtons.forEach(btn => {
+    btn.addEventListener('click', () => {
+        const time = parseInt((btn as HTMLElement).dataset.time || '10', 10);
+        
+        // Update input
+        countdownInitialValueInput.value = String(time);
+        
+        // Send value update
+        window.electronAPI.sendCountdownInitialValue(time);
+        
+        // Start timer immediately
+        console.log(`[main-renderer] Preset clicked: ${time}s. Starting timer now.`);
+        window.electronAPI.startCountdownTimer(time);
+    });
+});
+
 launchButton.disabled = true;
 closeButton.style.display = 'none';
 pptSelect.disabled = true;

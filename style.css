@@ -77,3 +77,27 @@ h1 {
     font-size: 12px;
     opacity: 0.85;
 }
+
+/* Preset Buttons in Main Window */
+.preset-btn {
+    background-color: #fff;
+    border: 1px solid #ced4da;
+    border-radius: 4px;
+    padding: 6px 12px;
+    margin-right: 5px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: all 0.2s ease;
+    color: #495057;
+}
+
+.preset-btn:hover {
+    background-color: #e2e6ea;
+    border-color: #adb5bd;
+    color: #212529;
+}
+
+.preset-btn:active {
+    background-color: #dae0e5;
+    transform: translateY(1px);
+}

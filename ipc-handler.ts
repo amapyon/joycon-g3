@@ -81,5 +81,15 @@ export function setupIpcHandlers(windowManagerInstance = WindowManager, joyconMa
         }
     });
 
+    ipcMain.on('start-countdown-timer', (event, duration: number) => {
+        console.log(`[IPC Handler] Received 'start-countdown-timer': ${duration}s`);
+        const cursorWin = windowManagerInstance.getCursorWindow();
+        if (cursorWin && !cursorWin.isDestroyed()) {
+            cursorWin.webContents.send('start-countdown', duration);
+        } else {
+            console.warn('[IPC Handler] Cursor window not found, cannot start countdown.');
+        }
+    });
+
     console.log('IPC Handlers setup complete.');
 }
