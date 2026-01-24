@@ -3,7 +3,7 @@
         electronAPI: any;
     }
 
-    const messageDisplay = document.getElementById('messageDisplay');
+    const messageContent = document.getElementById('messageContent');
 
     let currentFontSize = parseInt(localStorage.getItem('messageFontSize') || '64');
 
@@ -14,35 +14,19 @@
         
         console.log(`[MessageRenderer] Updating font size to: ${currentFontSize}px (delta: ${delta})`);
         
-        if (messageDisplay) {
-            messageDisplay.style.fontSize = `${currentFontSize}px`;
+        if (messageContent) {
+            messageContent.style.fontSize = `${currentFontSize}px`;
         }
         localStorage.setItem('messageFontSize', String(currentFontSize));
     }
 
     // Initial font size
-    if (messageDisplay) {
-        messageDisplay.style.fontSize = `${currentFontSize}px`;
+    if (messageContent) {
+        messageContent.style.fontSize = `${currentFontSize}px`;
     }
 
-    window.addEventListener('wheel', (e: WheelEvent) => {
-        // e.preventDefault(); // Might be needed if inside a scrollable
-        const delta = e.deltaY < 0 ? 5 : -5;
-        updateFontSize(delta);
-    });
-
-    (window as any).electronAPI.onUpdateMessageText((text: string) => {
-        console.log(`[MessageRenderer] Received text: ${text}`);
-        if (messageDisplay) {
-            messageDisplay.textContent = text || '';
-        }
-    });
-
     const wheelZone = document.getElementById('wheel-zone');
-
     window.addEventListener('wheel', (e: WheelEvent) => {
-        // 全域でもホイールを許可するか、特定のゾーンに限定するか
-        // タイマーに合わせてゾーンに限定する場合：
         if (e.target === wheelZone || wheelZone?.contains(e.target as Node)) {
             const delta = e.deltaY < 0 ? 5 : -5;
             updateFontSize(delta);
@@ -51,8 +35,8 @@
 
     (window as any).electronAPI.onUpdateMessageText((text: string) => {
         console.log(`[MessageRenderer] Received text: ${text}`);
-        if (messageDisplay) {
-            messageDisplay.textContent = text || '';
+        if (messageContent) {
+            messageContent.innerHTML = text || '';
         }
     });
 

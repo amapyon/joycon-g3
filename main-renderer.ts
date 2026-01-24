@@ -477,20 +477,87 @@ if (savedInitialValue) {
 }
 
 // --- Message Window Logic ---
-const messageInput = document.getElementById('message-input') as HTMLTextAreaElement;
+const messageInput = document.getElementById('message-input') as HTMLDivElement;
 const toggleMessageButton = document.getElementById('toggle-message-button') as HTMLButtonElement;
-const messagePreview = document.getElementById('message-preview') as HTMLElement;
+const colorContextMenu = document.getElementById('color-context-menu') as HTMLDivElement;
 
 if (messageInput && toggleMessageButton) {
     messageInput.addEventListener('input', () => {
-        const text = messageInput.value;
+        let text = messageInput.innerHTML;
+        // Chromium adds a trailing <br> to contenteditable sometimes. Remove it.
+        text = text.replace(/<br\s*\/?>$/i, '');
+        
         window.electronAPI.sendMessageText(text);
-        if (messagePreview) {
-             messagePreview.textContent = text ? `Preview: ${text}` : '';
-        }
     });
 
     toggleMessageButton.addEventListener('click', () => {
         window.electronAPI.toggleMessageWindow();
+    });
+
+    // Handle Context Menu (Right Click)
+    messageInput.addEventListener('contextmenu', (e: MouseEvent) => {
+        e.preventDefault();
+        
+        // Show menu at mouse position
+        if (colorContextMenu) {
+            colorContextMenu.style.display = 'block';
+            colorContextMenu.style.left = `${e.clientX}px`;
+            colorContextMenu.style.top = `${e.clientY}px`;
+        }
+    });
+
+    // Hide context menu when clicking elsewhere
+    window.addEventListener('click', (e: MouseEvent) => {
+        if (colorContextMenu && !colorContextMenu.contains(e.target as Node)) {
+            colorContextMenu.style.display = 'none';
+        }
+    });
+
+    // Apply color when swatch is clicked
+    const swatches = document.querySelectorAll('.color-swatch');
+    
+    // Helper to apply formatting to the saved selection
+    function applyColor(color: string) {
+        messageInput.focus();
+        
+        // Ensure we are working with the selection
+        const selection = window.getSelection();
+        if (selection && selection.rangeCount > 0) {
+             document.execCommand('foreColor', false, color);
+        } else {
+             // If no selection, just set color for future typing or select all
+             document.execCommand('selectAll', false);
+             document.execCommand('foreColor', false, color);
+        }
+        
+        // Trigger input event after formatting
+        messageInput.dispatchEvent(new Event('input'));
+    }
+
+    swatches.forEach(swatch => {
+        swatch.addEventListener('mousedown', (e: Event) => {
+            // Use mousedown and preventDefault to avoid losing selection from the input
+            e.preventDefault();
+            const color = (swatch as HTMLElement).dataset.color;
+            if (color) {
+                applyColor(color);
+            }
+            if (colorContextMenu) colorContextMenu.style.display = 'none';
+        });
+    });
+
+    // Apply styles (Bold, Italic, Strike)
+    const styleBtns = document.querySelectorAll('.style-btn');
+    styleBtns.forEach(btn => {
+        btn.addEventListener('mousedown', (e: Event) => {
+            e.preventDefault();
+            const cmd = (btn as HTMLElement).dataset.cmd;
+            if (cmd) {
+                messageInput.focus();
+                document.execCommand(cmd, false);
+                messageInput.dispatchEvent(new Event('input'));
+            }
+            if (colorContextMenu) colorContextMenu.style.display = 'none';
+        });
     });
 }

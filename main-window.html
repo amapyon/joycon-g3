@@ -132,11 +132,32 @@
     <hr style="margin: 15px 0;">
     <div>
         <label>On-Screen Message:</label>
-        <div style="display: flex; flex-direction: column; gap: 10px;">
-            <textarea id="message-input" placeholder="Type a message (multi-line supported)..." style="width: 100%; height: 80px; padding: 10px; border: 1px solid #ccc; border-radius: 4px; resize: vertical; font-family: inherit; font-size: 14px;"></textarea>
-            <button id="toggle-message-button" style="background-color: #007bff; color: white; margin-right: 0; align-self: flex-end;">Show/Hide Message</button>
+        <div style="display: flex; gap: 10px; position: relative; align-items: flex-start;">
+            <div id="message-input" contenteditable="true" 
+                 style="flex: 1; min-height: 42px; padding: 10px; border: 1px solid #ccc; border-radius: 4px; background: white; font-family: inherit; font-size: 14px; overflow-y: auto; white-space: pre-wrap; resize: vertical;"></div>
+            <button id="toggle-message-button" style="background-color: #007bff; color: white; margin-right: 0; white-space: nowrap; height: 42px; padding: 0 15px;">Show/Hide</button>
+            
+            <!-- Custom Context Menu for Colors & Style -->
+            <div id="color-context-menu" style="display: none; position: fixed; background: white; border: 1px solid #ccc; box-shadow: 2px 2px 5px rgba(0,0,0,0.2); z-index: 1000; padding: 5px; border-radius: 4px; min-width: 120px;">
+                <div style="font-size: 11px; color: #666; margin-bottom: 5px; padding: 0 5px;">Format</div>
+                <div id="style-options" style="display: flex; gap: 5px; margin-bottom: 8px; padding: 0 5px;">
+                    <button class="style-btn" data-cmd="bold" style="flex: 1; padding: 2px; font-weight: bold; background: #eee; border: 1px solid #ccc; cursor: pointer;">B</button>
+                    <button class="style-btn" data-cmd="italic" style="flex: 1; padding: 2px; font-style: italic; background: #eee; border: 1px solid #ccc; cursor: pointer;">I</button>
+                    <button class="style-btn" data-cmd="strikeThrough" style="flex: 1; padding: 2px; text-decoration: line-through; background: #eee; border: 1px solid #ccc; cursor: pointer;">S</button>
+                </div>
+                <div style="font-size: 11px; color: #666; margin-bottom: 5px; padding: 0 5px;">Text Color</div>
+                <div id="color-options" style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 5px;">
+                    <div class="color-swatch" data-color="#ffffff" style="width: 20px; height: 20px; background: #ffffff; border: 1px solid #ddd; cursor: pointer;" title="White"></div>
+                    <div class="color-swatch" data-color="#ff0000" style="width: 20px; height: 20px; background: #ff0000; cursor: pointer;" title="Red"></div>
+                    <div class="color-swatch" data-color="#00ff00" style="width: 20px; height: 20px; background: #00ff00; cursor: pointer;" title="Green"></div>
+                    <div class="color-swatch" data-color="#ffff00" style="width: 20px; height: 20px; background: #ffff00; cursor: pointer;" title="Yellow"></div>
+                    <div class="color-swatch" data-color="#0000ff" style="width: 20px; height: 20px; background: #0000ff; cursor: pointer;" title="Blue"></div>
+                    <div class="color-swatch" data-color="#ff00ff" style="width: 20px; height: 20px; background: #ff00ff; cursor: pointer;" title="Magenta"></div>
+                    <div class="color-swatch" data-color="#00ffff" style="width: 20px; height: 20px; background: #00ffff; cursor: pointer;" title="Cyan"></div>
+                    <div class="color-swatch" data-color="#ffa500" style="width: 20px; height: 20px; background: #ffa500; cursor: pointer;" title="Orange"></div>
+                </div>
+            </div>
         </div>
-        <p id="message-preview" style="margin-top: 5px; font-size: 0.9em; color: #666; white-space: pre-wrap;"></p>
     </div>
     
     <hr style="margin-top: 20px;">
