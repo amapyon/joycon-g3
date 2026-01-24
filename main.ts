@@ -95,6 +95,17 @@ app.whenReady().then(() => {
             });
         });
     }
+
+    // --- IPCでtimer notificationsを受信 ---
+    if (!ipcMain.listenerCount('update-timer-notifications')) {
+        ipcMain.on('update-timer-notifications', (event: any, configs: any[]) => {
+            console.log(`[main.ts] Received timer notifications update:`, configs);
+            // Broadcast to all windows
+            [WindowManager.getCursorWindow(), WindowManager.getTimerWindow(), WindowManager.getMainWindow()].forEach(win => {
+                if (win && !win.isDestroyed()) win.webContents.send('update-timer-notifications', configs);
+            });
+        });
+    }
     const mainWin = WindowManager.getMainWindow();
     if (mainWin) {
         mainWin.webContents.on('did-finish-load', () => {

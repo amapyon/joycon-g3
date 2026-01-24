@@ -317,6 +317,131 @@ launchButton.disabled = true;
 closeButton.style.display = 'none';
 pptSelect.disabled = true;
 
+// --- Sound Notification Management (v2 - Two Timed Sounds) ---
+const sound1Select = document.getElementById('sound1-select') as HTMLSelectElement;
+const sound2Select = document.getElementById('sound2-select') as HTMLSelectElement;
+const sound1TimeInput = document.getElementById('sound1-time') as HTMLInputElement;
+const sound2TimeInput = document.getElementById('sound2-time') as HTMLInputElement;
+const refreshSoundsBtn = document.getElementById('refresh-sounds-btn') as HTMLButtonElement;
+
+interface NotificationConfig {
+    time: number;
+    filename: string;
+    absolutePath: string;
+}
+
+async function loadMediaFiles() {
+    const files = await window.electronAPI.getMediaFiles();
+    const dropdowns = [sound1Select, sound2Select];
+    
+    dropdowns.forEach(select => {
+        if (!select) return;
+        const currentVal = select.value;
+        select.innerHTML = '<option value="">-- No Sound Selected --</option>';
+        if (files && files.length > 0) {
+            files.forEach((file: string) => {
+                const option = document.createElement('option');
+                option.value = file;
+                option.text = file;
+                if (file === currentVal) option.selected = true;
+                select.appendChild(option);
+            });
+        }
+    });
+
+    restoreNotificationSettings();
+}
+
+function restoreNotificationSettings() {
+    // Load from localStorage
+    const saved = localStorage.getItem('timerNotifications');
+    if (saved) {
+        const configs: NotificationConfig[] = JSON.parse(saved);
+        if (configs[0]) {
+            sound1TimeInput.value = String(configs[0].time);
+            setSelectValue(sound1Select, configs[0].filename);
+        }
+        if (configs[1]) {
+            sound2TimeInput.value = String(configs[1].time);
+            setSelectValue(sound2Select, configs[1].filename);
+        }
+    }
+    broadcastNotificationUpdate();
+}
+
+function setSelectValue(select: HTMLSelectElement, val: string) {
+    for (let i = 0; i < select.options.length; i++) {
+        if (select.options[i].value === val) {
+            select.selectedIndex = i;
+            break;
+        }
+    }
+}
+
+async function broadcastNotificationUpdate() {
+    const basePath = await window.electronAPI.getMediaBasePath();
+    const configs: NotificationConfig[] = [
+        {
+            time: parseInt(sound1TimeInput.value, 10) || 0,
+            filename: sound1Select.value,
+            absolutePath: sound1Select.value ? (basePath + '/' + sound1Select.value).replace(/\\/g, '/') : ''
+        },
+        {
+            time: parseInt(sound2TimeInput.value, 10) || 0,
+            filename: sound2Select.value,
+            absolutePath: sound2Select.value ? (basePath + '/' + sound2Select.value).replace(/\\/g, '/') : ''
+        }
+    ];
+
+    localStorage.setItem('timerNotifications', JSON.stringify(configs));
+    window.electronAPI.updateTimerNotifications(configs);
+}
+
+[sound1Select, sound2Select, sound1TimeInput, sound2TimeInput].forEach(el => {
+    el?.addEventListener('change', broadcastNotificationUpdate);
+});
+
+const sound1PlayBtn = document.getElementById('sound1-play-btn') as HTMLButtonElement;
+const sound2PlayBtn = document.getElementById('sound2-play-btn') as HTMLButtonElement;
+
+async function previewSound(filename: string) {
+    if (!filename) return;
+    const basePath = await window.electronAPI.getMediaBasePath();
+    const absolutePath = (basePath + '/' + filename).replace(/\\/g, '/');
+    const audioUrl = absolutePath.startsWith('file://') ? absolutePath : 'file://' + absolutePath;
+    
+    try {
+        const audio = new Audio(audioUrl);
+        audio.play().catch(e => console.error('Preview play failed:', e));
+    } catch (err) {
+        console.error('Error playing preview:', err);
+    }
+}
+
+if (sound1PlayBtn) {
+    sound1PlayBtn.addEventListener('click', () => {
+        previewSound(sound1Select.value);
+    });
+}
+
+if (sound2PlayBtn) {
+    sound2PlayBtn.addEventListener('click', () => {
+        previewSound(sound2Select.value);
+    });
+}
+
+if (refreshSoundsBtn) {
+    refreshSoundsBtn.addEventListener('click', loadMediaFiles);
+}
+
+window.electronAPI.onUpdateTimerNotifications((configs: NotificationConfig[]) => {
+    // Sync UI only if it differs significantly or is first load
+    localStorage.setItem('timerNotifications', JSON.stringify(configs));
+});
+
+// Initial load
+loadMediaFiles();
+
 console.log('Main Renderer script loaded.');
 window.electronAPI.requestJoyConStatus();
 loadPowerPointPresentations(); 

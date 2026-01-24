@@ -51,6 +51,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
     stopTimerDrag: () => ipcRenderer.send('stop-timer-drag'),
     connectJoyCon: (isLeft: boolean) => ipcRenderer.send('connect-joycon', isLeft),
     shutdownJoyCon: (isLeft: boolean) => ipcRenderer.send('shutdown-joycon', isLeft),
+    getMediaFiles: () => ipcRenderer.invoke('get-media-files'),
+    getMediaBasePath: () => ipcRenderer.invoke('get-media-base-path'),
+    updateTimerNotifications: (configs: any[]) => ipcRenderer.send('update-timer-notifications', configs),
+    onUpdateTimerNotifications: (callback: (configs: any[]) => void) => ipcRenderer.on('update-timer-notifications', (event, configs) => callback(configs)),
 });
 
 console.log('Preload script loaded.');

@@ -1,5 +1,7 @@
 // ipc-handler.ts
-import { ipcMain, screen } from 'electron';
+import { ipcMain, screen, dialog } from 'electron';
+import fs from 'fs';
+import path from 'path';
 import WindowManager from './window-manager';
 import powerpointControl from './powerpoint-control';
 import imuProcessor from './imu-processor';
@@ -121,6 +123,29 @@ export function setupIpcHandlers(windowManagerInstance = WindowManager, joyconMa
         console.log(`[IPC Handler] Received 'shutdown-joycon' request for ${isLeft ? 'L' : 'R'}.`);
         joyconManager.shutdownJoyCon(isLeft);
         event.reply('joycon-status-update', joyconManager.getConnectionStatus());
+    });
+
+    ipcMain.handle('get-media-files', async () => {
+        const mediaDir = path.join(process.cwd(), 'media');
+        if (!fs.existsSync(mediaDir)) {
+            try {
+                fs.mkdirSync(mediaDir);
+            } catch (e) {
+                console.error('Failed to create media directory:', e);
+                return [];
+            }
+        }
+        try {
+            const files = fs.readdirSync(mediaDir);
+            return files.filter(f => /\.(mp3|wav|ogg)$/i.test(f));
+        } catch (e) {
+            console.error('Failed to read media directory:', e);
+            return [];
+        }
+    });
+
+    ipcMain.handle('get-media-base-path', () => {
+        return path.join(process.cwd(), 'media');
     });
 
     console.log('IPC Handlers setup complete.');

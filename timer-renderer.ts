@@ -110,6 +110,14 @@ function stopCountdown() {
     }
 }
 
+let timerNotificationConfigs: any[] = JSON.parse(localStorage.getItem('timerNotifications') || '[]');
+
+window.electronAPI.onUpdateTimerNotifications((configs: any[]) => {
+    console.log(`[TimerRenderer] Notifications updated:`, configs);
+    timerNotificationConfigs = configs;
+    localStorage.setItem('timerNotifications', JSON.stringify(configs));
+});
+
 function startCountdown(duration: number) {
     if (!countdownTimerElement) return;
 
@@ -117,6 +125,9 @@ function startCountdown(duration: number) {
     currentCountdownInitialValue = duration;
     countdownValue = duration;
     
+    // Track which sounds have already played this cycle to avoid repeats
+    const playedIndices = new Set<number>();
+
     countdownTimerElement.style.visibility = 'visible';
     countdownTimerElement.style.color = '#ffffff'; 
     countdownTimerElement.textContent = formatTime(countdownValue);
@@ -125,8 +136,26 @@ function startCountdown(duration: number) {
     window.electronAPI.sendTimerStatus(true);
 
     countdownInterval = setInterval(() => {
-        countdownValue--;
-        if (countdownValue >= 0) {
+        // Check for notifications ANY time the value matches (including start)
+        timerNotificationConfigs.forEach((config, index) => {
+            if (!playedIndices.has(index) && config.absolutePath && countdownValue === config.time) {
+                console.log(`[TimerRenderer] Alert trigger at ${config.time}s: ${config.absolutePath}`);
+                try {
+                    let audioUrl = config.absolutePath;
+                    if (!audioUrl.startsWith('file://') && !audioUrl.startsWith('http')) {
+                        audioUrl = 'file://' + config.absolutePath.replace(/\\/g, '/');
+                    }
+                    const audio = new Audio(audioUrl);
+                    audio.play().catch(e => console.error('Audio play failed:', e));
+                    playedIndices.add(index);
+                } catch (err) {
+                    console.error('Error playing notification sound:', err);
+                }
+            }
+        });
+
+        if (countdownValue > 0) {
+            countdownValue--;
             countdownTimerElement!.textContent = formatTime(countdownValue);
         } else {
             stopCountdown();
