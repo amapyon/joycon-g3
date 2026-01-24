@@ -145,20 +145,26 @@ window.electronAPI.onJoyConStatusUpdate((status: { leftConnected: boolean; right
     
     // Update Left
     if (mainStatusLeftText && joyconLeftActionBtn) {
-        mainStatusLeftText.textContent = status.leftConnected ? 'Left: Connected' : 'Left: Disconnected';
+        mainStatusLeftText.textContent = status.leftConnected ? 'L: 🟢' : 'L: ⚪';
         mainStatusLeftText.className = status.leftConnected ? 'connected' : 'disconnected';
-        joyconLeftActionBtn.textContent = status.leftConnected ? 'Power Off' : 'Connect';
+        joyconLeftActionBtn.textContent = status.leftConnected ? 'OFF' : 'ON';
         joyconLeftActionBtn.style.backgroundColor = status.leftConnected ? '#dc3545' : '#28a745';
         joyconLeftActionBtn.style.color = 'white';
+        joyconLeftActionBtn.style.padding = '2px 10px';
+        // Clear battery if disconnected
+        if (!status.leftConnected && mainBatteryStatusLeft) mainBatteryStatusLeft.textContent = '';
     }
     
     // Update Right
     if (mainStatusRightText && joyconRightActionBtn) {
-        mainStatusRightText.textContent = status.rightConnected ? 'Right: Connected' : 'Right: Disconnected';
+        mainStatusRightText.textContent = status.rightConnected ? 'R: 🟢' : 'R: ⚪';
         mainStatusRightText.className = status.rightConnected ? 'connected' : 'disconnected';
-        joyconRightActionBtn.textContent = status.rightConnected ? 'Power Off' : 'Connect';
+        joyconRightActionBtn.textContent = status.rightConnected ? 'OFF' : 'ON';
         joyconRightActionBtn.style.backgroundColor = status.rightConnected ? '#dc3545' : '#28a745';
         joyconRightActionBtn.style.color = 'white';
+        joyconRightActionBtn.style.padding = '2px 10px';
+        // Clear battery if disconnected
+        if (!status.rightConnected && mainBatteryStatusRight) mainBatteryStatusRight.textContent = '';
     }
 });
 
@@ -182,9 +188,9 @@ joyconRightActionBtn.addEventListener('click', () => {
 
 window.electronAPI.onJoyConBatteryStatusUpdate(({ isLeft, level }: { isLeft: boolean; level: number }) => {
     if (isLeft) {
-        mainBatteryStatusLeft.textContent = `${level}/8`;
+        mainBatteryStatusLeft.textContent = `🔋${level}/8`;
     } else {
-        mainBatteryStatusRight.textContent = `${level}/8`;
+        mainBatteryStatusRight.textContent = `🔋${level}/8`;
     }
 });
 
