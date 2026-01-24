@@ -44,6 +44,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
     onTimerMenuSelect: (callback: (...args: any[]) => void) => ipcRenderer.on('timer-menu-select', (event, ...args) => callback(...args)),
     updateTimerPresets: (presets: number[]) => ipcRenderer.send('update-timer-presets', presets),
     onUpdateTimerPresets: (callback: (...args: any[]) => void) => ipcRenderer.on('update-timer-presets', (event, ...args) => callback(...args)),
+    sendTimerStatus: (isCounting: boolean) => ipcRenderer.send('timer-status-update', isCounting),
+    onSetTimerMode: (callback: (mode: 'timer' | 'setup') => void) => ipcRenderer.on('set-timer-mode', (event, mode) => callback(mode)),
+    hideTimerWindow: () => ipcRenderer.send('hide-timer-window'),
+    moveTimerWindow: (x: number, y: number) => ipcRenderer.send('move-timer-window', { x, y }),
+    stopTimerDrag: () => ipcRenderer.send('stop-timer-drag'),
 });
 
 console.log('Preload script loaded.');

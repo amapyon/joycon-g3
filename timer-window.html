@@ -36,14 +36,46 @@
             visibility: hidden;
             font-family: monospace;
             font-weight: bold;
-            -webkit-app-region: drag; /* Make content draggable */
+            box-sizing: border-box; 
+            pointer-events: none; /* Number is transparent to clicks */
+        }
+        .interaction-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            z-index: 10;
+            pointer-events: none;
+        }
+        #drag-zone {
+            flex: 1; /* Top 50% */
+            pointer-events: auto;
+            -webkit-app-region: drag;
             cursor: move;
-            box-sizing: border-box; /* Include padding/border in width */
+            /* background: rgba(255, 0, 0, 0.1); Debug: Red */
+        }
+        #wheel-zone {
+            flex: 1; /* Bottom 50% */
+            pointer-events: auto;
+            -webkit-app-region: no-drag;
+            cursor: ns-resize;
+            /* background: rgba(0, 0, 100, 0.1); Debug: Blue */
+        }
+        .countdown-menu {
+            z-index: 30;
+            -webkit-app-region: no-drag;
         }
     </style>
 </head>
 <body>
     <div id="countdownTimer">10</div>
+    <div class="interaction-overlay">
+        <div id="drag-zone" title="Drag to move"></div>
+        <div id="wheel-zone" title="Scroll to resize font"></div>
+    </div>
     <div id="countdownMenu" class="countdown-menu" style="visibility: hidden;">
         <div class="countdown-menu__value">
             <span id="countdownMenuValue">10</span> sec

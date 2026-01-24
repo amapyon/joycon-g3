@@ -1,5 +1,5 @@
 // main.ts
-import { app, BrowserWindow } from 'electron';
+import { app, BrowserWindow, ipcMain } from 'electron';
 import path from 'path';
 import JoyConManager from './joycon';
 import powerpointControl from './powerpoint-control';
@@ -214,30 +214,90 @@ app.whenReady().then(() => {
             targetWindow.webContents.send('button-x-pressed', data);
         }
     });
+
+    let isTimerCounting = false; // Track if timer is active
+
+    // --- IPC for Timer Status ---
+    if (!ipcMain.listenerCount('timer-status-update')) {
+        ipcMain.on('timer-status-update', (event: any, isCounting: boolean) => {
+            console.log(`[main.ts] Timer status update: ${isCounting}`);
+            isTimerCounting = isCounting;
+        });
+    }
+    if (!ipcMain.listenerCount('hide-timer-window')) {
+        ipcMain.on('hide-timer-window', () => {
+             const timerWindow = WindowManager.getTimerWindow();
+             if (timerWindow && !timerWindow.isDestroyed()) {
+                 timerWindow.hide();
+             }
+        });
+    }
+
+    let isTimerMoving = false;
+
+    if (!ipcMain.listenerCount('move-timer-window')) {
+        ipcMain.on('move-timer-window', (event: any, { x, y }: { x: number, y: number }) => {
+            const timerWindow = WindowManager.getTimerWindow();
+            if (timerWindow && !timerWindow.isDestroyed()) {
+                if (!isTimerMoving) {
+                    isTimerMoving = true;
+                    timerWindow.setResizable(false); // Lock resize during move
+                }
+                timerWindow.setPosition(Math.round(x), Math.round(y));
+            }
+        });
+    }
+
+    if (!ipcMain.listenerCount('stop-timer-drag')) {
+        ipcMain.on('stop-timer-drag', () => {
+            const timerWindow = WindowManager.getTimerWindow();
+            if (timerWindow && !timerWindow.isDestroyed()) {
+                isTimerMoving = false;
+                timerWindow.setResizable(true); // Unlock resize
+            }
+        });
+    }
+
     // Add listener for button-plus-pressed
     joyconManager.on('button-plus-pressed', (data: any) => {
-        console.log(`[Main] button-plus-pressed received from JoyConManager for ${data?.id}`);
+        console.log(`[Main] button-plus-pressed received for ${data?.id}. Toggle logic.`);
         let targetWindow = WindowManager.getTimerWindow();
-        let isNew = false;
+        
         if (!targetWindow || targetWindow.isDestroyed()) {
-             console.log('[Main] Timer window not found, creating new one on primary display.');
+             console.log('[Main] Creating timer window on demand.');
              targetWindow = WindowManager.createTimerWindow();
-             isNew = true;
+             targetWindow.webContents.once('did-finish-load', () => {
+                 if (targetWindow && !targetWindow.isDestroyed()) {
+                     targetWindow.show();
+                     if (!isTimerCounting) {
+                         targetWindow.webContents.send('set-timer-mode', 'setup');
+                     } else {
+                         targetWindow.webContents.send('set-timer-mode', 'timer');
+                     }
+                 }
+             });
+             return;
         }
-        if (targetWindow && !targetWindow.isDestroyed()) {
-            console.log(`[Main] Sending button-plus-pressed IPC to renderer for ${data?.id}`);
+
+        if (targetWindow.isVisible()) {
+            console.log('[Main] Hiding timer window.');
+            targetWindow.hide();
+        } else {
+            console.log('[Main] Showing timer window.');
             targetWindow.show();
-            if (targetWindow.webContents.isLoading()) {
-                console.log('[Main] Timer window is loading, waiting for did-finish-load...');
-                targetWindow.webContents.once('did-finish-load', () => {
-                    console.log('[Main] Timer window loaded, sending button-plus-pressed now.');
-                    if (targetWindow && !targetWindow.isDestroyed()) {
-                        targetWindow.webContents.send('button-plus-pressed', data);
-                    }
-                });
+            // User requested: 
+            // - If not counting: show Setup UI
+            // - If counting: show Timer UI
+            if (!isTimerCounting) {
+                targetWindow.webContents.send('set-timer-mode', 'setup');
             } else {
-                targetWindow.webContents.send('button-plus-pressed', data);
+                targetWindow.webContents.send('set-timer-mode', 'timer');
             }
+        }
+
+        // Send event to renderer anyway if visibility logic allows (some features might rely on it)
+        if (targetWindow && !targetWindow.isDestroyed()) {
+            targetWindow.webContents.send('button-plus-pressed', data);
         }
     });
     joyconManager.on('button-minus-pressed', (data: any) => {

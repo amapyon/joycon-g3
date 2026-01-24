@@ -10,11 +10,15 @@
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Ubuntu, Cantarell, "Helvetica Neue", sans-serif;
             padding: 20px; /* 上左右のパディング */
-            padding-bottom: 50px; /* ★ 固定フッター分のスペースを確保 (重要) ★ */
+            padding-bottom: 60px; /* ★ 固定フッター分のスペースを確保 (重要) ★ */
             background-color: #f4f4f4;
             font-size: 14px;
             box-sizing: border-box; /* paddingを含めて計算 */
             min-height: 100vh; /* ウィンドウが縦に短い場合でも高さを確保 */
+            overflow-y: auto !important; /* Allow vertical scrolling */
+            height: auto !important;
+            width: auto !important;
+            user-select: text !important; /* Allow selecting text for configuration */
         }
         label { display: block; margin-bottom: 8px; font-weight: bold; color: #333; }
         select { width: 100%; padding: 10px; margin-bottom: 20px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }

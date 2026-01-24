@@ -12,11 +12,27 @@ const countdownMenuValueElement: HTMLElement | null = document.getElementById('c
 let countdownInterval: NodeJS.Timeout | null = null;
 let countdownValue: number = 10;
 let currentCountdownInitialValue: number = 10;
-let currentFontSize: number = 48; // Default, style controls this mostly but logic might override
+let currentFontSize: number = parseInt(localStorage.getItem('timerFontSize') || '100'); // Load saved size
 let isCountdownMenuVisible = false;
 let selectedPresetIndex: number = -1; 
 let currentPresetValues: number[] = [10, 60, 120, 180, 300]; 
 const timerPresetsContainer: HTMLElement | null = document.getElementById('timer-presets-container');
+
+function updateTimerFontSize(delta: number) {
+    currentFontSize += delta;
+    if (currentFontSize < 20) currentFontSize = 20;
+    if (currentFontSize > 500) currentFontSize = 500;
+    
+    if (countdownTimerElement) {
+        countdownTimerElement.style.fontSize = `${currentFontSize}px`;
+    }
+    localStorage.setItem('timerFontSize', String(currentFontSize));
+}
+
+// Initial application of font size
+if (countdownTimerElement) {
+    countdownTimerElement.style.fontSize = `${currentFontSize}px`;
+}
 
 function formatTimerWindowPresetLabel(seconds: number): string {
     if (seconds < 60) return `${seconds}s`;
@@ -74,6 +90,15 @@ function setCountdownMenuVisible(visible: boolean) {
             countdownTimerElement.textContent = formatTime(currentCountdownInitialValue);
         }
         renderTimerPresets(); // Re-render when menu opens
+    } else {
+        // Switching back to Timer UI
+        if (countdownTimerElement) {
+            countdownTimerElement.style.visibility = 'visible';
+            // Ensure color is reset if we stopped a finished timer
+            if (!countdownInterval) {
+                 countdownTimerElement.style.color = '#ffffff';
+            }
+        }
     }
 }
 
@@ -81,6 +106,7 @@ function stopCountdown() {
     if (countdownInterval) {
         clearInterval(countdownInterval);
         countdownInterval = null;
+        window.electronAPI.sendTimerStatus(false);
     }
 }
 
@@ -96,6 +122,7 @@ function startCountdown(duration: number) {
     countdownTimerElement.textContent = formatTime(countdownValue);
     
     console.log(`[TimerRenderer] Starting countdown: ${duration}s`);
+    window.electronAPI.sendTimerStatus(true);
 
     countdownInterval = setInterval(() => {
         countdownValue--;
@@ -121,7 +148,24 @@ function applyCountdownValue(delta: number) {
     window.electronAPI.sendCountdownInitialValue(currentCountdownInitialValue);
 }
 
+// --- Manual Window Dragging (Removed in favor of CSS drag zone) ---
+
 // Event Listeners
+
+window.electronAPI.onChangeFontSize((delta: number) => {
+    console.log(`[TimerRenderer] Change font size via Joy-Con: ${delta}`);
+    updateTimerFontSize(delta * 2); 
+});
+
+const wheelZone = document.getElementById('wheel-zone');
+if (wheelZone) {
+    wheelZone.addEventListener('wheel', (e: WheelEvent) => {
+        e.preventDefault();
+        const delta = e.deltaY < 0 ? 5 : -5;
+        console.log(`[TimerRenderer] Wheel detected on zone. Delta: ${delta}, Current: ${currentFontSize}`);
+        updateTimerFontSize(delta);
+    }, { passive: false });
+}
 
 window.electronAPI.onUpdateCountdownInitialValue((value: number) => {
     currentCountdownInitialValue = value;
@@ -141,6 +185,19 @@ window.electronAPI.onUpdateTimerPresets((presets: number[]) => {
     }
 });
 
+window.electronAPI.onSetTimerMode((mode: 'timer' | 'setup') => {
+    console.log(`[TimerRenderer] Setting mode to: ${mode}`);
+    if (mode === 'setup') {
+        setCountdownMenuVisible(true);
+    } else {
+        setCountdownMenuVisible(false);
+    }
+    // Re-apply font size on mode switch just in case
+    if (countdownTimerElement) {
+        countdownTimerElement.style.fontSize = `${currentFontSize}px`;
+    }
+});
+
 // IPC Listener for immediate start
 window.electronAPI.onStartCountdown((duration: number) => {
     console.log(`[TimerRenderer] Received start-countdown IPC: ${duration}s`);
@@ -152,19 +209,7 @@ window.electronAPI.onStartCountdown((duration: number) => {
 
 // Joy-Con Button Listeners
 window.electronAPI.onJoyConButtonPlusPressed(() => {
-    if (countdownTimerElement) {
-        if (isCountdownMenuVisible) {
-            applyCountdownValue(1);
-            return;
-        }
-        if (countdownInterval) {
-            stopCountdown();
-            countdownTimerElement.style.visibility = 'hidden';
-            countdownTimerElement.textContent = formatTime(currentCountdownInitialValue);
-        } else {
-            startCountdown(currentCountdownInitialValue);
-        }
-    }
+    // Note: main.ts handles window visibility toggle. 
 });
 
 window.electronAPI.onJoyConButtonMinusPressed(() => {
@@ -214,3 +259,8 @@ window.electronAPI.onTimerMenuSelect(() => {
 
 console.log('[TimerRenderer] Initialized.');
 renderTimerPresets();
+// Final apply for start
+if (countdownTimerElement) {
+    countdownTimerElement.style.fontSize = `${currentFontSize}px`;
+}
+
