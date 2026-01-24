@@ -74,12 +74,7 @@
         <option value="">-- Loading Presentations --</option>
     </select>
 
-    <hr style="margin: 15px 0;">
-    <div>
-        <label>Gyro Calibration:</label>
-        <button id="calibrate-button">Calibrate Joy-Cons</button>
-        <span id="calibration-status">(Place Joy-Cons on a flat surface before calibrating)</span>
-    </div>
+
     
     <hr style="margin: 15px 0;">
     <div>
@@ -166,7 +161,7 @@
 
     <hr>
     <div id="main-joycon-status">
-        <strong>Joy-Con Status:</strong>
+        <strong>Joy-Con:</strong>
         <span id="main-status-left-container">
             <span id="main-status-left-text" class="disconnected">L: ⚪</span>
             <span id="main-battery-status-left" style="font-size: 0.8em; margin-left: 5px; color: #666;"></span>
@@ -176,6 +171,10 @@
             <span id="main-status-right-text" class="disconnected">R: ⚪</span>
             <span id="main-battery-status-right" style="font-size: 0.8em; margin-left: 5px; color: #666;"></span>
             <button id="joycon-right-action-btn" style="padding: 2px 10px; font-size: 11px; margin-left: 5px;">ON</button>
+        </span> |
+        <span id="calibration-container" style="display: flex; align-items: center; gap: 5px;">
+            <button id="calibrate-button" style="padding: 2px 8px; font-size: 11px; background-color: #6c757d; color: white;">⚖️ Calibrate</button>
+            <span id="calibration-status" style="font-size: 0.8em; color: #666; max-width: 150px; overflow: hidden; text-overflow: ellipsis;">(flat surface)</span>
         </span>
     </div>
 

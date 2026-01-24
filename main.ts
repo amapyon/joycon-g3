@@ -118,29 +118,24 @@ app.whenReady().then(() => {
         joyconManager.on('imu-data', handleImuData);
 
         function handleImuData(data: { id: string, accel: { x: number, y: number, z: number }, gyro: { x: number, y: number, z: number } }) {
-            if (isCalibrating) {
-                calibrationSamples.push(data.gyro);
-                if (calibrationSamples.length >= CALIBRATION_SAMPLE_COUNT) {
-                    // Calculate average bias
-                    const sum = calibrationSamples.reduce((acc, gyro) => {
-                        acc.x += gyro.x;
-                        acc.y += gyro.y;
-                        acc.z += gyro.z;
-                        return acc;
-                    }, { x: 0, y: 0, z: 0 });
+            const cursorId = (data.id === 'R' || data.id === 'cursorRight') ? 'cursorRight' : 'cursorLeft';
+            
+            // Feed data to imuProcessor for calibration and attitude calculation
+            imuProcessor.update({
+                id: cursorId,
+                accel: data.accel,
+                gyro: data.gyro
+            });
 
-                    biasX = sum.x / CALIBRATION_SAMPLE_COUNT;
-                    biasY = sum.y / CALIBRATION_SAMPLE_COUNT;
-                    biasZ = sum.z / CALIBRATION_SAMPLE_COUNT;
-
-                    isCalibrating = false;
-                    calibrationSamples.length = 0; // Clear samples
-                    console.log(`Calibration complete. Bias: X=${biasX.toFixed(2)}, Y=${biasY.toFixed(2)}, Z=${biasZ.toFixed(2)}`);
-                }
+            if (imuProcessor.isCalibrating[cursorId]) {
                 return; // Don't move pointer during calibration
             }
 
-            const cursorId = data.id === 'R' || data.id === 'cursorRight' ? 'cursorRight' : 'cursorLeft';
+            if (isCalibrating) {
+                // ... logic to handle main.ts local calibration if still needed ...
+                // For now, let's keep it just in case, but imuProcessor handles its own.
+            }
+
             if (!isCursorVisible[cursorId]) { // Check visibility for the specific cursor
                 return; // Don't move pointer if not visible
             }
@@ -148,10 +143,11 @@ app.whenReady().then(() => {
             const moveSpeed = 0.1; // Adjusted to a more reasonable default
             const gyroDeadzone = 90; // Increased to account for higher noise/bias
 
-            // Apply bias correction
-            let effectiveGyroX = data.gyro.x - biasX;
-            let effectiveGyroY = data.gyro.y - biasY;
-            let effectiveGyroZ = data.gyro.z - biasZ;
+            // Apply bias correction from imuProcessor (per-cursor bias)
+            const state = imuProcessor.states[cursorId];
+            let effectiveGyroX = data.gyro.x - state.gyroBiasX;
+            let effectiveGyroY = data.gyro.y - state.gyroBiasY;
+            let effectiveGyroZ = data.gyro.z - state.gyroBiasZ;
 
             // Apply deadzone
             if (Math.abs(effectiveGyroX) < gyroDeadzone) effectiveGyroX = 0;
