@@ -80,21 +80,6 @@ body {
     cursor: move;
 }
 
-.countdown-menu__title {
-    font-weight: bold;
-    margin-bottom: 6px;
-}
-
-.countdown-menu__value {
-    font-size: 24px;
-    margin-bottom: 6px;
-}
-
-.countdown-menu__hint {
-    font-size: 12px;
-    opacity: 0.85;
-}
-
 .preset-container {
     display: flex;
     gap: 8px;

@@ -2,7 +2,14 @@
 import { contextBridge, ipcRenderer } from 'electron';
 
 contextBridge.exposeInMainWorld('electronAPI', {
-    // --- カーソルウィンドウが使用するAPI ---
+    // --- Main Window Control ---
+    getOpenPowerPointPresentations: () => ipcRenderer.invoke('get-open-powerpoint-presentations'),
+    connectJoyCon: (isLeft: boolean) => ipcRenderer.send('connect-joycon', isLeft),
+    shutdownJoyCon: (isLeft: boolean) => ipcRenderer.send('shutdown-joycon', isLeft),
+    getMediaFiles: () => ipcRenderer.invoke('get-media-files'),
+    getMediaBasePath: () => ipcRenderer.invoke('get-media-base-path'),
+
+    // --- Cursor Window Control ---
     onJoyConStatusUpdate: (callback: (...args: any[]) => void) => ipcRenderer.on('joycon-status-update', (event, ...args) => callback(...args)),
     onJoyConAttitude: (callback: (...args: any[]) => void) => ipcRenderer.on('joycon-attitude', (event, ...args) => callback(...args)),
     onJoyConButtonX: (callback: (...args: any[]) => void) => ipcRenderer.on('joycon-button-x', (event, ...args) => callback(...args)),
@@ -13,6 +20,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     onJoyConButtonPlusPressed: (callback: (...args: any[]) => void) => ipcRenderer.on('button-plus-pressed', (event, ...args) => callback(...args)),
     onJoyConButtonMinusPressed: (callback: (...args: any[]) => void) => ipcRenderer.on('button-minus-pressed', (event, ...args) => callback(...args)),
     onJoyConButtonSrPressed: (callback: (...args: any[]) => void) => ipcRenderer.on('button-sr-pressed', (event, ...args) => callback(...args)),
+
     onAvailableDisplays: (callback: (...args: any[]) => void) => ipcRenderer.on('available-displays', (event, ...args) => callback(...args)),
     setTargetDisplay: (displayId: number) => ipcRenderer.send('set-target-display', displayId),
     launchCursorWindow: (displayId: any) => ipcRenderer.send('launch-cursor-window', displayId),
@@ -27,18 +35,16 @@ contextBridge.exposeInMainWorld('electronAPI', {
     onJoyConBatteryStatusUpdate: (callback: (...args: any[]) => void) => ipcRenderer.on('joycon-battery-status-update', (event, ...args) => callback(...args)),
     requestJoyConStatus: () => ipcRenderer.send('request-joycon-status'),
     recenterImu: (id: 'cursorLeft' | 'cursorRight') => ipcRenderer.send('recenter-imu', id),
-    getOpenPowerPointPresentations: () => ipcRenderer.invoke('get-open-powerpoint-presentations'),
     onUpdatePointer: (callback: (...args: any[]) => void) => ipcRenderer.on('update-pointer', (event, ...args) => callback(...args)),
 
-    // --- カーソルマップ設定をmainプロセスへ送信 ---
     sendCursorMapConfig: (config: any) => ipcRenderer.send('cursor-map-config', config),
-    // --- カーソル表示状態をmainプロセスへ送信 ---
     sendCursorVisibilityUpdate: (id: 'cursorLeft' | 'cursorRight', isVisible: boolean) => ipcRenderer.send('cursor-visibility-update', { id, isVisible }),
-    sendCountdownInitialValue: (value: number) => ipcRenderer.send('countdown-initial-value', value), // New
-    onUpdateCountdownInitialValue: (callback: (...args: any[]) => void) => ipcRenderer.on('update-countdown-initial-value', (event, ...args) => callback(...args)), // New
-    onChangeFontSize: (callback: (...args: any[]) => void) => ipcRenderer.on('change-font-size', (event, ...args) => callback(...args)), // New
+    sendCountdownInitialValue: (value: number) => ipcRenderer.send('countdown-initial-value', value),
+    onUpdateCountdownInitialValue: (callback: (...args: any[]) => void) => ipcRenderer.on('update-countdown-initial-value', (event, ...args) => callback(...args)),
+    onChangeFontSize: (callback: (...args: any[]) => void) => ipcRenderer.on('change-font-size', (event, ...args) => callback(...args)),
     
-    // --- Countdown Timer Control ---
+    // --- Timer Window Control ---
+    toggleTimerWindow: () => ipcRenderer.send('toggle-timer-window'),
     startCountdownTimer: (duration: number) => ipcRenderer.send('start-countdown-timer', duration),
     onStartCountdown: (callback: (...args: any[]) => void) => ipcRenderer.on('start-countdown', (event, ...args) => callback(...args)),
     onTimerMenuNavigate: (callback: (...args: any[]) => void) => ipcRenderer.on('timer-menu-navigate', (event, ...args) => callback(...args)),
@@ -48,16 +54,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
     sendTimerStatus: (isCounting: boolean) => ipcRenderer.send('timer-status-update', isCounting),
     onSetTimerMode: (callback: (mode: 'timer' | 'setup') => void) => ipcRenderer.on('set-timer-mode', (event, mode) => callback(mode)),
     hideTimerWindow: () => ipcRenderer.send('hide-timer-window'),
-    moveTimerWindow: (x: number, y: number) => ipcRenderer.send('move-timer-window', { x, y }),
-    stopTimerDrag: () => ipcRenderer.send('stop-timer-drag'),
-    connectJoyCon: (isLeft: boolean) => ipcRenderer.send('connect-joycon', isLeft),
-    shutdownJoyCon: (isLeft: boolean) => ipcRenderer.send('shutdown-joycon', isLeft),
-    getMediaFiles: () => ipcRenderer.invoke('get-media-files'),
-    getMediaBasePath: () => ipcRenderer.invoke('get-media-base-path'),
+    sendTimerCountdownUpdate: (remainingTime: number) => ipcRenderer.send('timer-countdown-update', remainingTime), // New
     updateTimerNotifications: (configs: any[]) => ipcRenderer.send('update-timer-notifications', configs),
     onUpdateTimerNotifications: (callback: (configs: any[]) => void) => ipcRenderer.on('update-timer-notifications', (event, configs) => callback(configs)),
 
     // --- Message Window Control ---
+    toggleMessageWindow: () => ipcRenderer.send('toggle-message-window'),
     sendMessageText: (text: string) => ipcRenderer.send('send-message-text', text),
     onUpdateMessageText: (callback: (text: string) => void) => ipcRenderer.on('update-message-text', (event, text) => callback(text)),
     toggleMessageWindow: () => ipcRenderer.send('toggle-message-window'),

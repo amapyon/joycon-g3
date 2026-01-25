@@ -180,25 +180,5 @@ export function setupIpcHandlers(windowManagerInstance = WindowManager, joyconMa
         }
     });
 
-    let isMessageMoving = false;
-    ipcMain.on('move-message-window', (event, { x, y }) => {
-        const msgWin = windowManagerInstance.getMessageWindow();
-        if (msgWin && !msgWin.isDestroyed()) {
-            if (!isMessageMoving) {
-                isMessageMoving = true;
-                msgWin.setResizable(false);
-            }
-            msgWin.setPosition(Math.round(x), Math.round(y));
-        }
-    });
-
-    ipcMain.on('stop-message-drag', () => {
-        const msgWin = windowManagerInstance.getMessageWindow();
-        if (msgWin && !msgWin.isDestroyed()) {
-            isMessageMoving = false;
-            msgWin.setResizable(true);
-        }
-    });
-
     console.log('IPC Handlers setup complete.');
 }

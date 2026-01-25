@@ -240,31 +240,6 @@ app.whenReady().then(() => {
         });
     }
 
-    let isTimerMoving = false;
-
-    if (!ipcMain.listenerCount('move-timer-window')) {
-        ipcMain.on('move-timer-window', (event: any, { x, y }: { x: number, y: number }) => {
-            const timerWindow = WindowManager.getTimerWindow();
-            if (timerWindow && !timerWindow.isDestroyed()) {
-                if (!isTimerMoving) {
-                    isTimerMoving = true;
-                    timerWindow.setResizable(false); // Lock resize during move
-                }
-                timerWindow.setPosition(Math.round(x), Math.round(y));
-            }
-        });
-    }
-
-    if (!ipcMain.listenerCount('stop-timer-drag')) {
-        ipcMain.on('stop-timer-drag', () => {
-            const timerWindow = WindowManager.getTimerWindow();
-            if (timerWindow && !timerWindow.isDestroyed()) {
-                isTimerMoving = false;
-                timerWindow.setResizable(true); // Unlock resize
-            }
-        });
-    }
-
     // Helper function to toggle timer window visibility
     function toggleTimerWindowVisibility() {
         console.log('[Main] toggleTimerWindowVisibility called.');

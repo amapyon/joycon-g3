@@ -160,20 +160,6 @@
         }, 1000);
     }
 
-    function applyCountdownValue(delta: number) {
-        currentCountdownInitialValue = clampCountdownValue(currentCountdownInitialValue + delta);
-        updateCountdownMenuDisplay();
-        if (countdownTimerElement && !countdownInterval && !isCountdownMenuVisible) {
-            countdownTimerElement.textContent = formatTime(currentCountdownInitialValue);
-            countdownTimerElement.style.visibility = 'visible'; 
-            countdownTimerElement.style.color = '#ffffff'; 
-        }
-        window.electronAPI.sendCountdownInitialValue(currentCountdownInitialValue);
-        localStorage.setItem('countdownInitialValue', String(currentCountdownInitialValue));
-    }
-
-    // --- Manual Window Dragging (Removed in favor of CSS drag zone) ---
-
     // Event Listeners
 
     window.electronAPI.onChangeFontSize((delta: number) => {
@@ -231,16 +217,6 @@
             setCountdownMenuVisible(false);
         }
         startCountdown(duration);
-    });
-
-    // Joy-Con Button Listeners
-    window.electronAPI.onJoyConButtonPlusPressed(() => {
-        // Note: main.ts handles window visibility toggle. 
-    });
-
-    window.electronAPI.onJoyConButtonMinusPressed(() => {
-        if (!isCountdownMenuVisible) return;
-        applyCountdownValue(-1);
     });
 
     window.electronAPI.onJoyConButtonSrPressed(() => {

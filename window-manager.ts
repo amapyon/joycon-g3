@@ -144,7 +144,7 @@ export function createTimerWindow(targetDisplay?: Display) {
         minHeight: 100,
         fullscreen: false,
         frame: false,
-        resizable: true, // Enabled resizing
+        resizable: true,
         movable: true,
         alwaysOnTop: true,
         skipTaskbar: true,
@@ -157,8 +157,6 @@ export function createTimerWindow(targetDisplay?: Display) {
             backgroundThrottling: false,
         },
     });
-
-    // timerWindow.setIgnoreMouseEvents(true, { forward: true }); // Removed to allow interaction
 
     timerWindow.loadFile(path.join(__dirname, 'timer-window.html'));
     
