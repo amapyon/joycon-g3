@@ -294,6 +294,28 @@ app.whenReady().then(() => {
         });
     }
 
+    // Add IPC listener for timer countdown updates from timer-renderer
+    if (!ipcMain.listenerCount('timer-countdown-update')) {
+        ipcMain.on('timer-countdown-update', (event: any, remainingTime: number) => {
+            // console.log(`[Main] Received timer countdown update: ${remainingTime}`);
+            const mainWindow = WindowManager.getMainWindow();
+            if (mainWindow && !mainWindow.isDestroyed()) {
+                mainWindow.webContents.send('main-timer-update', remainingTime);
+            }
+        });
+    }
+
+    // Add IPC listener for timer countdown updates from timer-renderer
+    if (!ipcMain.listenerCount('timer-countdown-update')) {
+        ipcMain.on('timer-countdown-update', (event: any, remainingTime: number) => {
+            // console.log(`[Main] Received timer countdown update: ${remainingTime}`);
+            const mainWindow = WindowManager.getMainWindow();
+            if (mainWindow && !mainWindow.isDestroyed()) {
+                mainWindow.webContents.send('main-timer-update', remainingTime);
+            }
+        });
+    }
+
     joyconManager.on('button-plus-pressed', (data: any) => {
         console.log(`[Main] button-plus-pressed received for ${data?.id}. Toggle logic.`);
         toggleTimerWindowVisibility();

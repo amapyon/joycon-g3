@@ -151,11 +151,12 @@
             if (countdownValue > 0) {
                 countdownValue--;
                 countdownTimerElement!.textContent = formatTime(countdownValue);
+                window.electronAPI.sendTimerCountdownUpdate(countdownValue); // メインプロセスに残り時間を送信
             } else {
                 stopCountdown();
-                countdownTimerElement!.style.visibility = 'visible';
                 countdownTimerElement!.style.color = '#888888'; 
                 countdownTimerElement!.textContent = formatTime(currentCountdownInitialValue); 
+                window.electronAPI.sendTimerCountdownUpdate(countdownValue); // 0 になったことを送信
             }
         }, 1000);
     }

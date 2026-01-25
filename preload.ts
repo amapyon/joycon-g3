@@ -62,10 +62,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     toggleMessageWindow: () => ipcRenderer.send('toggle-message-window'),
     sendMessageText: (text: string) => ipcRenderer.send('send-message-text', text),
     onUpdateMessageText: (callback: (text: string) => void) => ipcRenderer.on('update-message-text', (event, text) => callback(text)),
-    toggleMessageWindow: () => ipcRenderer.send('toggle-message-window'),
-    toggleTimerWindow: () => ipcRenderer.send('toggle-timer-window'),
-    moveMessageWindow: (x: number, y: number) => ipcRenderer.send('move-message-window', { x, y }),
-    stopMessageDrag: () => ipcRenderer.send('stop-message-drag'),
+    onMainTimerUpdate: (callback: (remainingTime: number) => void) => ipcRenderer.on('main-timer-update', (event, remainingTime) => callback(remainingTime)), // New
 });
 
 console.log('Preload script loaded.');

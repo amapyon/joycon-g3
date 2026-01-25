@@ -500,6 +500,25 @@ if (toggleTimerWindowBtn) {
     });
 }
 
+const mainCountdownDisplay = document.getElementById('main-countdown-display') as HTMLElement;
+
+function formatTimeForDisplay(seconds: number): string {
+    const m = Math.floor(seconds / 60);
+    const s = seconds % 60;
+    return `${m}:${String(s).padStart(2, '0')}`;
+}
+
+window.electronAPI.onMainTimerUpdate((remainingTime: number) => {
+    if (mainCountdownDisplay) {
+        mainCountdownDisplay.textContent = formatTimeForDisplay(remainingTime);
+        if (remainingTime <= 0) {
+            mainCountdownDisplay.style.color = '#dc3545'; // 赤色
+        } else {
+            mainCountdownDisplay.style.color = '#007bff'; // 青色
+        }
+    }
+});
+
 console.log('Main Renderer script loaded.');
 window.electronAPI.requestJoyConStatus();
 loadPowerPointPresentations(); 
