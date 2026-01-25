@@ -310,16 +310,6 @@ function renderLoop() {
             const smoothing = cursorData.smoothing || 0.1;
             cursorData.x += (cursorData.targetX - cursorData.x) * smoothing;
             cursorData.y += (cursorData.targetY - cursorData.y) * smoothing;
-
-            // Add blinking effect
-            if (cursorData.blink) {
-                const time = Date.now() / 100; // Blinking speed
-                cursorData.opacity = (Math.sin(time) + 1) / 2 * 0.9 + 0.1; // Opacity from 0.1 to 1.0
-                element.style.opacity = String(cursorData.opacity);
-            } else {
-                element.style.opacity = '1';
-            }
-
             const halfWidth = element.offsetWidth / 2;
             const halfHeight = element.offsetHeight / 2;
             if (!Number.isNaN(halfWidth) && !Number.isNaN(halfHeight) && halfWidth >= 0 && halfHeight >= 0) {
