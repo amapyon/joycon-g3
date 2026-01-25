@@ -8,22 +8,82 @@ h1 {
     margin-top: 0;
 }
 
-#main-joycon-status span { /* メインウィンドウ用 */
-    font-weight: bold;
-    padding: 2px 5px;
+#main-window hr { margin-top: 25px; margin-bottom: 15px; border: 0; border-top: 1px solid #ccc; }
+#main-window label {
+    font-weight: bold; font-size: 11px; flex-shrink: 0; margin: 0;
+}
+#main-window select {
+    flex: 1;
+    height: 24px;
+    font-size: 11px;
+    padding: 0 4px;
+    border: 1px solid #ccc;
     border-radius: 3px;
-    display: inline-block;
-} 
-
-.connected {
+    box-sizing: border-box;
+    margin: 0;
+    line-height: 22px;
+    min-width: 0;
+}
+#main-window button {
+    padding: 4px 8px;
+    cursor: pointer;
+    border: none;
+    border-radius: 4px;
+    font-size: 14px;
+    transition: background-color 0.2s ease;
+    margin-right: 4px;
+    vertical-align: middle;
+}
+#main-window button:disabled {
+    background-color: #cccccc;
+    cursor: not-allowed;
+}
+#main-window .sound-play-btn {
+    width: 28px; height: 24px; padding: 0; font-size: 11px; background: #17a2b8; color: white; border: none; border-radius: 3px; flex-shrink: 0; cursor: pointer; margin: 0; display: flex; align-items: center; justify-content: center; opacity: 0.5;
+}
+#main-joycon-status {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    background-color: #e9ecef;
+    border-top: 1px solid #ccc;
+    padding: 5px 20px;
+    box-sizing: border-box;
+    font-size: 0.85em;
+    color: #333;
+    z-index: 10;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    white-space: nowrap;
+    overflow: hidden;
+}
+#main-joycon-status span {
+    display: flex;
+    align-items: center;
+}
+#main-joycon-status .connected {
     color: #98c379;
     background-color: rgba(152, 195, 121, 0.1); 
 }
 
-.disconnected {
+#main-joycon-status .disconnected {
     color: #e06c75;
     background-color: rgba(224, 108, 117, 0.1); 
 }
+#main-joycon-status .battery {
+    font-size: 0.9rem;
+    margin-left: 5px;
+    color: #666;
+}
+#main-joycon-status .action-btn {
+    padding: 2px 10px;
+    font-size: 0.8rem;
+    margin-left: 5px;
+}
+
+
 
 .cursor {
     width: 48px;

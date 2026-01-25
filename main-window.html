@@ -9,79 +9,44 @@
         /* main-window 専用のスタイル */
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Ubuntu, Cantarell, "Helvetica Neue", sans-serif;
-            padding: 20px; /* 上左右のパディング */
-            padding-bottom: 60px; /* ★ 固定フッター分のスペースを確保 (重要) ★ */
+            padding: 20px;
+            padding-bottom: 60px;
             background-color: #f4f4f4;
             font-size: 14px;
-            box-sizing: border-box; /* paddingを含めて計算 */
-            min-height: 100vh; /* ウィンドウが縦に短い場合でも高さを確保 */
-            overflow-y: auto !important; /* Allow vertical scrolling */
+            box-sizing: border-box;
+            min-height: 100vh;
+            overflow-y: auto !important;
             height: auto !important;
             width: auto !important;
-            user-select: text !important; /* Allow selecting text for configuration */
+            user-select: text !important;
         }
-        label { display: block; margin-bottom: 8px; font-weight: bold; color: #333; }
-        select { width: 100%; padding: 10px; margin-bottom: 20px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
-        button { padding: 12px 25px; cursor: pointer; border: none; border-radius: 4px; font-size: 14px; transition: background-color 0.2s ease; margin-right: 10px; vertical-align: middle; /* ボタンの縦位置揃え */ }
-        #launch-button { background-color: #28a745; color: white; }
-        #launch-button:hover { background-color: #218838; }
-        #close-button { background-color: #6c757d; color: white; }
-        #close-button:hover { background-color: #5a6268; }
-        button:disabled { background-color: #cccccc; cursor: not-allowed; }
         #error-message { color: #dc3545; margin-top: 15px; font-weight: bold; min-height: 1.2em; }
-        hr { margin-top: 25px; margin-bottom: 15px; border: 0; border-top: 1px solid #ccc; }
-        #main-joycon-status {
-            position: fixed;
-            bottom: 0;
-            left: 0;
-            width: 100%;
-            background-color: #e9ecef;
-            border-top: 1px solid #ccc;
-            padding: 5px 20px;
-            box-sizing: border-box;
-            font-size: 0.85em;
-            color: #333;
-            z-index: 10;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            white-space: nowrap;
-            overflow: hidden;
-        }
-        #main-joycon-status span {
-            display: flex;
-            align-items: center;
-        }
-        .running-slideshow { font-weight: bold; color: green; }
-        /* style.css の .connected, .disconnected を利用 */
     </style>
 </head>
-<body>
+<body id="main-window">
     <div style="padding: 8px; background: #f8f9fa; border-radius: 4px; border: 1px solid #dee2e6; margin-bottom: 10px;">
         <!-- Cursor Section -->
         <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px; height: 26px;">
-            <label for="display-select" style="font-weight: bold; font-size: 11px; flex-shrink: 0; width: 85px; margin: 0;">Cursor Screen:</label>
-            <select id="display-select" disabled style="flex: 1; height: 24px; font-size: 11px; padding: 0 4px; border: 1px solid #ccc; border-radius: 3px; box-sizing: border-box; margin: 0; line-height: 22px; min-width: 0;">
+            <label for="display-select" style="width: 85px;">Cursor Screen:</label>
+            <select id="display-select" disabled>
                 <option value="">-- Loading Displays --</option>
             </select>
-            <button id="cursor-toggle-btn" disabled style="width: 40px; height: 24px; font-size: 11px; background: #28a745; color: white; border: none; border-radius: 3px; cursor: pointer; flex-shrink: 0; display: flex; align-items: center; justify-content: center; margin: 0;">ON</button>
+            <button id="cursor-toggle-btn" disabled style="width: 48px; height: 24px; background: #28a745; color: white;">ON</button>
         </div>
 
         <!-- PPT Section -->
         <div style="display: flex; align-items: center; gap: 8px; height: 26px;">
-            <label for="ppt-select" style="font-weight: bold; font-size: 11px; flex-shrink: 0; width: 85px; margin: 0;">PPT Target:</label>
-            <select id="ppt-select" disabled style="flex: 1; height: 24px; font-size: 11px; padding: 0 4px; border: 1px solid #ccc; border-radius: 3px; box-sizing: border-box; margin: 0; line-height: 22px; min-width: 0;">
+            <label for="ppt-select" style="width: 85px;">PPT Target:</label>
+            <select id="ppt-select" disabled>
                 <option value="">-- Loading Presentations --</option>
             </select>
             <div style="width: 40px; flex-shrink: 0;"></div> <!-- Alignment Spacer -->
         </div>
     </div>
-
-
     
     <div style="padding: 8px; background: #fff3cd; border-radius: 4px; border: 1px solid #ffeeba; margin-bottom: 10px;">
         <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 5px;">
-            <label style="font-weight: bold; font-size: 0.9em; white-space: nowrap;">Timer (s):</label>
+            <label>Timer (s):</label>
             <input type="number" id="countdown-initial-value" value="10" min="1" max="3600" style="width: 60px; padding: 4px; border: 1px solid #ccc; border-radius: 4px; font-size: 0.9em;">
             <div id="preset-buttons-container" style="display: flex; gap: 5px; flex-wrap: wrap;">
                 <!-- Generated dynamically -->
@@ -103,25 +68,25 @@
                 <span style="font-size: 11px; color: #856404; font-weight: bold; width: 32px; flex-shrink: 0; margin: 0;">🔔1:</span>
                 <input type="number" id="sound1-time" value="30" min="0" max="3600" style="width: 45px; height: 24px; font-size: 11px; padding: 0 4px; border: 1px solid #ccc; border-radius: 3px; box-sizing: border-box; margin: 0;">
                 <span style="font-size: 11px; color: #666; width: 10px; flex-shrink: 0; margin: 0;">s</span>
-                <select id="sound1-select" style="flex: 1; height: 24px; font-size: 11px; padding: 0 2px; border: 1px solid #ccc; border-radius: 3px; box-sizing: border-box; min-width: 0; margin: 0; line-height: 22px; vertical-align: middle;">
+                <select id="sound1-select">
                     <option value="">-- No Audio --</option>
                 </select>
-                <button id="sound1-play-btn" style="width: 28px; height: 24px; padding: 0; font-size: 11px; background: #17a2b8; color: white; border: none; border-radius: 3px; flex-shrink: 0; cursor: pointer; margin: 0; display: flex; align-items: center; justify-content: center;">▶</button>
+                <button id="sound1-play-btn" class="sound-play-btn">▶</button>
             </div>
             <div style="display: flex; align-items: center; gap: 5px; height: 26px;">
                 <span style="font-size: 11px; color: #856404; font-weight: bold; width: 32px; flex-shrink: 0; margin: 0;">🔔2:</span>
                 <input type="number" id="sound2-time" value="0" min="0" max="3600" style="width: 45px; height: 24px; font-size: 11px; padding: 0 4px; border: 1px solid #ccc; border-radius: 3px; box-sizing: border-box; margin: 0;">
                 <span style="font-size: 11px; color: #666; width: 10px; flex-shrink: 0; margin: 0;">s</span>
-                <select id="sound2-select" style="flex: 1; height: 24px; font-size: 11px; padding: 0 2px; border: 1px solid #ccc; border-radius: 3px; box-sizing: border-box; min-width: 0; margin: 0; line-height: 22px; vertical-align: middle;">
+                <select id="sound2-select">
                     <option value="">-- No Audio --</option>
                 </select>
-                <button id="sound2-play-btn" style="width: 28px; height: 24px; padding: 0; font-size: 11px; background: #17a2b8; color: white; border: none; border-radius: 3px; flex-shrink: 0; cursor: pointer; margin: 0; display: flex; align-items: center; justify-content: center;">▶</button>
+                <button id="sound2-play-btn" class="sound-play-btn">▶</button>
             </div>
         </div>
     </div>
     
     <div style="display: flex; align-items: center; gap: 10px; padding: 8px; background: #e2f3f5; border-radius: 4px; border: 1px solid #bee5eb;">
-        <label style="font-weight: bold; font-size: 0.9em; white-space: nowrap;">Message:</label>
+        <label>Message:</label>
         <div id="message-input" contenteditable="true" 
              style="flex: 1; min-height: 24px; max-height: 100px; padding: 6px; border: 1px solid #ccc; border-radius: 4px; background: white; font-family: inherit; font-size: 13px; overflow-y: auto; white-space: pre-wrap; resize: vertical;"></div>
         <button id="toggle-message-button" style="background-color: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; white-space: nowrap; height: 36px; padding: 0 12px; font-size: 0.9em;">Show/Hide</button>
@@ -147,34 +112,30 @@
         </div>
     </div>
     
-    <hr style="margin-top: 20px;">
-
-    <div id="error-message"></div>
-
+    <hr>
     <div style="text-align: center; margin-bottom: 10px;">
         <span style="font-size: 1.2em; font-weight: bold;">Timer: </span>
         <span id="main-countdown-display" style="font-size: 1.2em; font-weight: bold; color: #007bff;">--:--</span>
     </div>
     <hr>
+    <div id="error-message"></div>
     <div id="main-joycon-status">
         <strong>Joy-Con:</strong>
         <span id="main-status-left-container">
             <span id="main-status-left-text" class="disconnected">L: ⚪</span>
-            <span id="main-battery-status-left" style="font-size: 0.8em; margin-left: 5px; color: #666;"></span>
-            <button id="joycon-left-action-btn" style="padding: 2px 10px; font-size: 11px; margin-left: 5px;">ON</button>
+            <span id="main-battery-status-left" class="battery"></span>
+            <button id="joycon-left-action-btn" class="action-btn">ON</button>
         </span> |
         <span id="main-status-right-container">
             <span id="main-status-right-text" class="disconnected">R: ⚪</span>
-            <span id="main-battery-status-right" style="font-size: 0.8em; margin-left: 5px; color: #666;"></span>
-            <button id="joycon-right-action-btn" style="padding: 2px 10px; font-size: 11px; margin-left: 5px;">ON</button>
+            <span id="main-battery-status-right" class="battery"></span>
+            <button id="joycon-right-action-btn" class="action-btn">ON</button>
         </span> |
         <span id="calibration-container" style="display: flex; align-items: center; gap: 5px;">
-            <button id="calibrate-button" style="padding: 2px 8px; font-size: 11px; background-color: #6c757d; color: white;">⚖️ Calibrate</button>
-            <span id="calibration-status" style="font-size: 0.8em; color: #666; max-width: 150px; overflow: hidden; text-overflow: ellipsis;">(flat surface)</span>
+            <button id="calibrate-button" class="action-btn" style="background-color: #6c757d; color: white;">Calibrate</button>
+            <span id="calibration-status" style="max-width: 150px; overflow: hidden; text-overflow: ellipsis;">(flat surface)</span>
         </span>
     </div>
-
-
 
     <script src="main-renderer.js"></script>
 </body>
