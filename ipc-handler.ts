@@ -168,11 +168,14 @@ export function setupIpcHandlers(windowManagerInstance = WindowManager, joyconMa
                 msgWin.webContents.send('update-message-text', lastMessageText);
             }
         } else {
-            msgWin = windowManagerInstance.createMessageWindow();
+            const mainWin = windowManagerInstance.getMainWindow();
+            const mainWinBounds = mainWin ? mainWin.getBounds() : screen.getPrimaryDisplay().bounds;
+            const mainDisplay = screen.getDisplayNearestPoint({ x: mainWinBounds.x, y: mainWinBounds.y });
+
+            msgWin = windowManagerInstance.createMessageWindow(mainDisplay); // Pass mainDisplay here
             if (msgWin) {
                 msgWin.webContents.once('did-finish-load', () => {
                     if (msgWin && !msgWin.isDestroyed()) {
-                        msgWin.show();
                         msgWin.webContents.send('update-message-text', lastMessageText);
                     }
                 });

@@ -198,7 +198,7 @@ export function createMessageWindow(targetDisplay?: Display) {
         initialHeight = storedMessageBounds.height;
     } else {
         initialX = displayToUse.bounds.x + (displayToUse.bounds.width - initialWidth) / 2;
-        initialY = displayToUse.bounds.y + displayToUse.bounds.height - initialHeight - 100;
+        initialY = displayToUse.bounds.y + (displayToUse.bounds.height - initialHeight) / 2;
     }
 
     messageWindow = new BrowserWindow({
@@ -220,6 +220,8 @@ export function createMessageWindow(targetDisplay?: Display) {
     });
 
     messageWindow.loadFile(path.join(__dirname, 'message-window.html'));
+    messageWindow.show(); // Show the window immediately
+
 
     const updateBounds = () => {
         if (messageWindow && !messageWindow.isDestroyed()) {
