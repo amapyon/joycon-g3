@@ -26,10 +26,33 @@
     }
 
     const wheelZone = document.getElementById('wheel-zone');
+
+    let currentOpacity = parseFloat(localStorage.getItem('messageWindowOpacity') || '0.8'); // Initial default opacity
+    // Set initial body opacity
+    document.body.style.backgroundColor = `rgba(70, 70, 70, ${currentOpacity})`;
+
+    function updateTransparency(delta: number) {
+        currentOpacity += delta;
+        if (currentOpacity < 0.1) currentOpacity = 0.1; // Minimum transparency
+        if (currentOpacity > 1.0) currentOpacity = 1.0; // Maximum transparency
+
+        document.body.style.backgroundColor = `rgba(70, 70, 70, ${currentOpacity})`;
+        localStorage.setItem('messageWindowOpacity', String(currentOpacity));
+    }
+
     window.addEventListener('wheel', (e: WheelEvent) => {
         if (e.target === wheelZone || wheelZone?.contains(e.target as Node)) {
-            const delta = e.deltaY < 0 ? 5 : -5;
-            updateFontSize(delta);
+            e.preventDefault(); // Prevent default scroll behavior
+
+            if (e.shiftKey) {
+                // Adjust transparency
+                const delta = e.deltaY < 0 ? 0.05 : -0.05; // Scroll up increases opacity, down decreases
+                updateTransparency(delta);
+            } else {
+                // Adjust font size (existing logic)
+                const delta = e.deltaY < 0 ? 5 : -5;
+                updateFontSize(delta);
+            }
         }
     });
 
