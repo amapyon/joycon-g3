@@ -130,7 +130,7 @@ export function createTimerWindow(targetDisplay?: Display) {
         initialHeight = storedTimerBounds.height;
     } else {
         // Calculate top-right position
-        const padding = 20;
+        const padding = 5;
         initialX = displayToUse.bounds.x + displayToUse.bounds.width - initialWidth - padding;
         initialY = displayToUse.bounds.y + padding;
     }
