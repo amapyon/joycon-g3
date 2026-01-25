@@ -215,7 +215,6 @@ export function createMessageWindow(targetDisplay?: Display) {
         skipTaskbar: true,
         hasShadow: false,
         resizable: true,
-        title: "\u200b",
         webPreferences: {
             preload: path.join(__dirname, 'preload.js'),
             contextIsolation: true,

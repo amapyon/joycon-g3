@@ -24,12 +24,13 @@
   "license": "ISC",
   "devDependencies": {
     "@electron/rebuild": "^3.7.2",
-    "electron": "^35.1.5",
+    "electron": "35.1.5",
     "electron-packager": "^17.1.2",
     "typescript": "^5.8.3"
   },
   "dependencies": {
     "@openai/codex": "^0.77.0",
+    "audit": "^0.0.6",
     "node-hid": "^3.1.2",
     "winax": "^3.6.2"
   }
