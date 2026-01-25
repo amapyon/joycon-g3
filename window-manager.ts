@@ -3,12 +3,11 @@ import { BrowserWindow, screen, Display } from 'electron';
 import path from 'path';
 
 let mainWindow: BrowserWindow | null = null;
-
 let cursorWindow: BrowserWindow | null = null;
 let timerWindow: BrowserWindow | null = null;
 let messageWindow: BrowserWindow | null = null;
 
-export function createWindow(): BrowserWindow {
+export function createMainWindow(): BrowserWindow {
     if (mainWindow && !mainWindow.isDestroyed()) {
         mainWindow.focus();
         return mainWindow;
@@ -307,7 +306,7 @@ export function closeCursorWindow() {
 }
 
 export default {
-    createWindow,
+    createMainWindow,
     createCursorWindow,
     sendAvailableDisplays,
     sendLaunchErrorToMain,

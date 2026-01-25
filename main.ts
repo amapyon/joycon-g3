@@ -55,7 +55,7 @@ app.whenReady().then(() => {
     if (!connected) {
         console.warn('Initial connection to PowerPoint failed. Ensure PowerPoint is running.');
     }
-    WindowManager.createWindow();
+    WindowManager.createMainWindow();
     IpcHandler.setupIpcHandlers(WindowManager, joyconManager);
 
     // Helper function to toggle timer window visibility
@@ -507,7 +507,7 @@ app.whenReady().then(() => {
     joyconManager.startScanningAndConnect();
     app.on('activate', () => {
         if (BrowserWindow.getAllWindows().length === 0) {
-            WindowManager.createWindow();
+            WindowManager.createMainWindow();
         }
     });
 });
