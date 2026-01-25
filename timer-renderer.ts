@@ -168,13 +168,42 @@
         updateTimerFontSize(delta * 2); 
     });
 
+    // Load and apply initial transparency
+    let currentOpacity = parseFloat(localStorage.getItem('timerWindowOpacity') || '0.9'); // Initial default for countdownTimer background
+
+    // Function to apply opacity to the countdownTimer
+    function applyCountdownTimerOpacity(opacity: number) {
+        if (countdownTimerElement) {
+            // Assuming the base color is 100, 100, 100 as per style.css
+            countdownTimerElement.style.background = `rgba(100, 100, 100, ${opacity})`;
+        }
+    }
+    applyCountdownTimerOpacity(currentOpacity); // Apply on load
+
+    function updateTransparency(delta: number) {
+        currentOpacity += delta;
+        if (currentOpacity < 0.1) currentOpacity = 0.1; // Minimum transparency
+        if (currentOpacity > 1.0) currentOpacity = 1.0; // Maximum transparency
+
+        applyCountdownTimerOpacity(currentOpacity);
+        localStorage.setItem('timerWindowOpacity', String(currentOpacity));
+    }
+
     const wheelZone = document.getElementById('wheel-zone');
     if (wheelZone) {
         wheelZone.addEventListener('wheel', (e: WheelEvent) => {
-            e.preventDefault();
-            const delta = e.deltaY < 0 ? 5 : -5;
-            console.log(`[TimerRenderer] Wheel detected on zone. Delta: ${delta}, Current: ${currentFontSize}`);
-            updateTimerFontSize(delta);
+            e.preventDefault(); // Prevent default scroll behavior
+
+            if (e.shiftKey) {
+                // Adjust transparency
+                const delta = e.deltaY < 0 ? 0.05 : -0.05; // Scroll up increases opacity, down decreases
+                updateTransparency(delta);
+            } else {
+                // Adjust font size (existing logic)
+                const delta = e.deltaY < 0 ? 5 : -5;
+                console.log(`[TimerRenderer] Wheel detected on zone. Delta: ${delta}, Current: ${currentFontSize}`);
+                updateTimerFontSize(delta);
+            }
         }, { passive: false });
     }
 
