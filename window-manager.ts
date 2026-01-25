@@ -89,8 +89,7 @@ function createCursorWindowInternal(targetDisplay: Display) {
     });
     cursorWindow.on('leave-full-screen', () => {
     });
-    // Create timer window on the same display
-    createTimerWindow(targetDisplay);
+
 }
 
 let storedTargetDisplay: Display | null = null;
@@ -129,10 +128,9 @@ export function createTimerWindow(targetDisplay?: Display) {
         initialWidth = storedTimerBounds.width;
         initialHeight = storedTimerBounds.height;
     } else {
-        // Calculate top-right position
-        const padding = 5;
-        initialX = displayToUse.bounds.x + displayToUse.bounds.width - initialWidth - padding;
-        initialY = displayToUse.bounds.y + padding;
+        // Calculate center position on the display
+        initialX = displayToUse.bounds.x + (displayToUse.bounds.width - initialWidth) / 2;
+        initialY = displayToUse.bounds.y + (displayToUse.bounds.height - initialHeight) / 2;
     }
 
     timerWindow = new BrowserWindow({
@@ -159,6 +157,7 @@ export function createTimerWindow(targetDisplay?: Display) {
     });
 
     timerWindow.loadFile(path.join(__dirname, 'timer-window.html'));
+    timerWindow.show(); // Show the window immediately after loading
     
     // Uncomment for debugging
     // timerWindow.webContents.openDevTools({ mode: 'detach' });

@@ -1,5 +1,5 @@
 // main.ts
-import { app, BrowserWindow, ipcMain } from 'electron';
+import { app, BrowserWindow, ipcMain, screen } from 'electron';
 import path from 'path';
 import JoyConManager from './joycon';
 import powerpointControl from './powerpoint-control';
@@ -22,10 +22,10 @@ const FONT_SIZE_CHANGE_INTERVAL = 100; // Milliseconds between font size changes
 const MENU_NAV_INTERVAL = 250; // Milliseconds between menu navigation steps (ignored in flick mode)
 let lastFontSizeChangeTime = 0; // Timestamp of the last font size change
 let isTimerMenuNavActive = false; // Track if stick is currently tilted for menu navigation
+let isTimerCounting = false; // Track if timer is active
 
 // 物理ピクセルでの画面サイズを取得する関数
 function getPhysicalScreenSize() {
-    const { screen } = require('electron');
     const primaryDisplay = screen.getPrimaryDisplay();
     if (primaryDisplay && primaryDisplay.size && primaryDisplay.scaleFactor) {
         return {
@@ -58,8 +58,81 @@ app.whenReady().then(() => {
     WindowManager.createWindow();
     IpcHandler.setupIpcHandlers(WindowManager, joyconManager);
 
+    // Helper function to toggle timer window visibility
+    function toggleTimerWindowVisibility() {
+        console.log('[Main] toggleTimerWindowVisibility called.');
+        let targetWindow = WindowManager.getTimerWindow();
+        
+        if (!targetWindow || targetWindow.isDestroyed()) {
+             console.log('[Main] Timer window does not exist or is destroyed. Creating new window.');
+             // When creating, ensure it's on the main display
+             const mainWin = WindowManager.getMainWindow(); // Get mainWin here
+             const mainWinBounds = mainWin ? mainWin.getBounds() : screen.getPrimaryDisplay().bounds; // Fallback to primary if mainWin not available yet
+             const mainDisplay = screen.getDisplayNearestPoint({ x: mainWinBounds.x, y: mainWinBounds.y });
+             targetWindow = WindowManager.createTimerWindow(mainDisplay);
+             if (!targetWindow) {
+                 console.error('[Main] Failed to create timer window.');
+                 return;
+             }
+             targetWindow.webContents.once('did-finish-load', () => {
+                 if (targetWindow && !targetWindow.isDestroyed()) {
+                     console.log('[Main] Timer window did-finish-load. Showing window.');
+                     targetWindow.show();
+                     if (!isTimerCounting) {
+                         targetWindow.webContents.send('set-timer-mode', 'setup');
+                     } else {
+                         targetWindow.webContents.send('set-timer-mode', 'timer');
+                     }
+                 } else {
+                     console.warn('[Main] Timer window was destroyed before did-finish-load.');
+                 }
+             });
+             return; // Exit after initiating creation
+        }
+
+        console.log('[Main] Timer window exists. Checking visibility.');
+        if (targetWindow.isVisible()) {
+            console.log('[Main] Hiding timer window.');
+            targetWindow.hide();
+        } else {
+            console.log('[Main] Showing timer window.');
+            targetWindow.show();
+            // User requested: 
+            // - If not counting: show Setup UI
+            // - If counting: show Timer UI
+            if (!isTimerCounting) {
+                targetWindow.webContents.send('set-timer-mode', 'setup');
+            } else {
+                targetWindow.webContents.send('set-timer-mode', 'timer');
+            }
+        }
+    }
+
+    const mainWin = WindowManager.getMainWindow();
+    if (mainWin) {
+        // Get the display where the main window is located
+        const mainWinBounds = mainWin.getBounds();
+        const mainDisplay = screen.getDisplayNearestPoint({ x: mainWinBounds.x, y: mainWinBounds.y });
+
+        // Create the timer window on the same display as the main window
+        const timerWindow = WindowManager.createTimerWindow(mainDisplay);
+        if (timerWindow) {
+            timerWindow.webContents.once('did-finish-load', () => {
+                if (!isTimerCounting) {
+                    timerWindow.webContents.send('set-timer-mode', 'setup');
+                } else {
+                    timerWindow.webContents.send('set-timer-mode', 'timer');
+                }
+            });
+        }
+        mainWin.webContents.on('did-finish-load', () => {
+            if (powerpointControl) {
+                // プレゼンテーションリスト送信など
+            }
+        });
+    }
+
     // --- IPCでcursorMapConfigを受信 ---
-    const { ipcMain } = require('electron');
     if (!ipcMain.listenerCount('cursor-map-config')) {
         ipcMain.on('cursor-map-config', (event: any, config: any) => {
             cursorMapConfig = config;
@@ -106,11 +179,38 @@ app.whenReady().then(() => {
             });
         });
     }
-    const mainWin = WindowManager.getMainWindow();
-    if (mainWin) {
-        mainWin.webContents.on('did-finish-load', () => {
-            if (powerpointControl) {
-                // プレゼンテーションリスト送信など
+
+    // --- IPC for Timer Status ---
+    if (!ipcMain.listenerCount('timer-status-update')) {
+        ipcMain.on('timer-status-update', (event: any, isCountingUpdate: boolean) => {
+            console.log(`[main.ts] Timer status update: ${isCountingUpdate}`);
+            isTimerCounting = isCountingUpdate;
+        });
+    }
+    if (!ipcMain.listenerCount('hide-timer-window')) {
+        ipcMain.on('hide-timer-window', () => {
+             const timerWindow = WindowManager.getTimerWindow();
+             if (timerWindow && !timerWindow.isDestroyed()) {
+                 timerWindow.hide();
+             }
+        });
+    }
+
+    // Add IPC listener for toggling timer window from main-renderer
+    if (!ipcMain.listenerCount('toggle-timer-window')) {
+        ipcMain.on('toggle-timer-window', () => {
+            console.log('[Main] Received toggle-timer-window IPC from renderer.');
+            toggleTimerWindowVisibility();
+        });
+    }
+
+    // Add IPC listener for timer countdown updates from timer-renderer
+    if (!ipcMain.listenerCount('timer-countdown-update')) {
+        ipcMain.on('timer-countdown-update', (event: any, remainingTime: number) => {
+            // console.log(`[Main] Received timer countdown update: ${remainingTime}`);
+            const mainWindow = WindowManager.getMainWindow();
+            if (mainWindow && !mainWindow.isDestroyed()) {
+                mainWindow.webContents.send('main-timer-update', remainingTime);
             }
         });
     }
@@ -220,100 +320,6 @@ app.whenReady().then(() => {
             targetWindow.webContents.send('button-x-pressed', data);
         }
     });
-
-    let isTimerCounting = false; // Track if timer is active
-
-    // --- IPC for Timer Status ---
-    if (!ipcMain.listenerCount('timer-status-update')) {
-        ipcMain.on('timer-status-update', (event: any, isCounting: boolean) => {
-            console.log(`[main.ts] Timer status update: ${isCounting}`);
-            isTimerCounting = isCounting;
-        });
-    }
-    if (!ipcMain.listenerCount('hide-timer-window')) {
-        ipcMain.on('hide-timer-window', () => {
-             const timerWindow = WindowManager.getTimerWindow();
-             if (timerWindow && !timerWindow.isDestroyed()) {
-                 timerWindow.hide();
-             }
-        });
-    }
-
-    // Helper function to toggle timer window visibility
-    function toggleTimerWindowVisibility() {
-        console.log('[Main] toggleTimerWindowVisibility called.');
-        let targetWindow = WindowManager.getTimerWindow();
-        
-        if (!targetWindow || targetWindow.isDestroyed()) {
-             console.log('[Main] Timer window does not exist or is destroyed. Creating new window.');
-             targetWindow = WindowManager.createTimerWindow();
-             if (!targetWindow) {
-                 console.error('[Main] Failed to create timer window.');
-                 return;
-             }
-             targetWindow.webContents.once('did-finish-load', () => {
-                 if (targetWindow && !targetWindow.isDestroyed()) {
-                     console.log('[Main] Timer window did-finish-load. Showing window.');
-                     targetWindow.show();
-                     if (!isTimerCounting) {
-                         targetWindow.webContents.send('set-timer-mode', 'setup');
-                     } else {
-                         targetWindow.webContents.send('set-timer-mode', 'timer');
-                     }
-                 } else {
-                     console.warn('[Main] Timer window was destroyed before did-finish-load.');
-                 }
-             });
-             return; // Exit after initiating creation
-        }
-
-        console.log('[Main] Timer window exists. Checking visibility.');
-        if (targetWindow.isVisible()) {
-            console.log('[Main] Hiding timer window.');
-            targetWindow.hide();
-        } else {
-            console.log('[Main] Showing timer window.');
-            targetWindow.show();
-            // User requested: 
-            // - If not counting: show Setup UI
-            // - If counting: show Timer UI
-            if (!isTimerCounting) {
-                targetWindow.webContents.send('set-timer-mode', 'setup');
-            } else {
-                targetWindow.webContents.send('set-timer-mode', 'timer');
-            }
-        }
-    }
-
-    // Add IPC listener for toggling timer window from main-renderer
-    if (!ipcMain.listenerCount('toggle-timer-window')) {
-        ipcMain.on('toggle-timer-window', () => {
-            console.log('[Main] Received toggle-timer-window IPC from renderer.');
-            toggleTimerWindowVisibility();
-        });
-    }
-
-    // Add IPC listener for timer countdown updates from timer-renderer
-    if (!ipcMain.listenerCount('timer-countdown-update')) {
-        ipcMain.on('timer-countdown-update', (event: any, remainingTime: number) => {
-            // console.log(`[Main] Received timer countdown update: ${remainingTime}`);
-            const mainWindow = WindowManager.getMainWindow();
-            if (mainWindow && !mainWindow.isDestroyed()) {
-                mainWindow.webContents.send('main-timer-update', remainingTime);
-            }
-        });
-    }
-
-    // Add IPC listener for timer countdown updates from timer-renderer
-    if (!ipcMain.listenerCount('timer-countdown-update')) {
-        ipcMain.on('timer-countdown-update', (event: any, remainingTime: number) => {
-            // console.log(`[Main] Received timer countdown update: ${remainingTime}`);
-            const mainWindow = WindowManager.getMainWindow();
-            if (mainWindow && !mainWindow.isDestroyed()) {
-                mainWindow.webContents.send('main-timer-update', remainingTime);
-            }
-        });
-    }
 
     joyconManager.on('button-plus-pressed', (data: any) => {
         console.log(`[Main] button-plus-pressed received for ${data?.id}. Toggle logic.`);
