@@ -114,82 +114,81 @@ app.whenReady().then(() => {
             }
         });
     }
-        // --- IMU Pointer Control ---
-        joyconManager.on('imu-data', handleImuData);
 
-        function handleImuData(data: { id: string, accel: { x: number, y: number, z: number }, gyro: { x: number, y: number, z: number } }) {
-            const cursorId = (data.id === 'R' || data.id === 'cursorRight') ? 'cursorRight' : 'cursorLeft';
-            
-            // Feed data to imuProcessor for calibration and attitude calculation
-            imuProcessor.update({
-                id: cursorId,
-                accel: data.accel,
-                gyro: data.gyro
-            });
+    joyconManager.on('imu-data', handleImuData);
 
-            if (imuProcessor.isCalibrating[cursorId]) {
-                return; // Don't move pointer during calibration
-            }
+    function handleImuData(data: { id: string, accel: { x: number, y: number, z: number }, gyro: { x: number, y: number, z: number } }) {
+        const cursorId = (data.id === 'R' || data.id === 'cursorRight') ? 'cursorRight' : 'cursorLeft';
+        
+        // Feed data to imuProcessor for calibration and attitude calculation
+        imuProcessor.update({
+            id: cursorId,
+            accel: data.accel,
+            gyro: data.gyro
+        });
 
-            if (isCalibrating) {
-                // ... logic to handle main.ts local calibration if still needed ...
-                // For now, let's keep it just in case, but imuProcessor handles its own.
-            }
-
-            if (!isCursorVisible[cursorId]) { // Check visibility for the specific cursor
-                return; // Don't move pointer if not visible
-            }
-
-            const moveSpeed = 0.1; // Adjusted to a more reasonable default
-            const gyroDeadzone = 90; // Increased to account for higher noise/bias
-
-            // Apply bias correction from imuProcessor (per-cursor bias)
-            const state = imuProcessor.states[cursorId];
-            let effectiveGyroX = data.gyro.x - state.gyroBiasX;
-            let effectiveGyroY = data.gyro.y - state.gyroBiasY;
-            let effectiveGyroZ = data.gyro.z - state.gyroBiasZ;
-
-            // Apply deadzone
-            if (Math.abs(effectiveGyroX) < gyroDeadzone) effectiveGyroX = 0;
-            if (Math.abs(effectiveGyroY) < gyroDeadzone) effectiveGyroY = 0;
-            if (Math.abs(effectiveGyroZ) < gyroDeadzone) effectiveGyroZ = 0;
-
-            // console.log(`Effective Gyro: X=${effectiveGyroX.toFixed(2)}, Y=${effectiveGyroY.toFixed(2)}, Z=${effectiveGyroZ.toFixed(2)}`);
-
-            // --- JoyConごとにポインター座標を分離 ---
-            const id = data.id === 'R' || data.id === 'cursorRight' ? 'cursorRight' : 'cursorLeft';
-            // ポインターごとの座標を保持（型定義を追加して型エラー回避）
-            type PointerPositions = { cursorLeft: { x: number, y: number }, cursorRight: { x: number, y: number } };
-            type CursorMapConfig = { [key in 'cursorLeft' | 'cursorRight']: { xSign: number, ySign: number } };
-            const g = globalThis as typeof globalThis & { pointerPositions?: PointerPositions, cursorMapConfig?: CursorMapConfig };
-            if (!g.pointerPositions) g.pointerPositions = { cursorLeft: { x: 600, y: 300 }, cursorRight: { x: 600, y: 300 } };
-            const pointerPosition = g.pointerPositions[id];
-
-            // --- Use sign from cursor-renderer.ts mapping ---
-            // Default signs in case not received from renderer
-            let xSign = 1;
-            let ySign = 1;
-
-            if (cursorMapConfig && cursorMapConfig[id]) {
-                xSign = cursorMapConfig[id].xSign;
-                ySign = cursorMapConfig[id].ySign;
-            } else {
-                // console.warn(`[main.ts] cursorMapConfig for ${id} is undefined. Using default signs.`);
-            }
-
-            pointerPosition.x += effectiveGyroZ * moveSpeed * xSign; // Gyro Z for screen X
-            pointerPosition.y += effectiveGyroY * moveSpeed * ySign; // Gyro Y for screen Y, inverted
-            pointerPosition.x = Math.max(0, Math.min(screenWidth, pointerPosition.x));
-            pointerPosition.y = Math.max(0, Math.min(screenHeight, pointerPosition.y));
-            const pointerWindow = WindowManager.getCursorWindow();
-            if (pointerWindow && !pointerWindow.isDestroyed()) {
-                pointerWindow.webContents.send('update-pointer', { id, x: pointerPosition.x, y: pointerPosition.y });
-            }
+        if (imuProcessor.isCalibrating[cursorId]) {
+            return; // Don't move pointer during calibration
         }
+
+        if (isCalibrating) {
+            // ... logic to handle main.ts local calibration if still needed ...
+            // For now, let's keep it just in case, but imuProcessor handles its own.
+        }
+
+        if (!isCursorVisible[cursorId]) { // Check visibility for the specific cursor
+            return; // Don't move pointer if not visible
+        }
+
+        const moveSpeed = 0.1; // Adjusted to a more reasonable default
+        const gyroDeadzone = 90; // Increased to account for higher noise/bias
+
+        // Apply bias correction from imuProcessor (per-cursor bias)
+        const state = imuProcessor.states[cursorId];
+        let effectiveGyroX = data.gyro.x - state.gyroBiasX;
+        let effectiveGyroY = data.gyro.y - state.gyroBiasY;
+        let effectiveGyroZ = data.gyro.z - state.gyroBiasZ;
+
+        // Apply deadzone
+        if (Math.abs(effectiveGyroX) < gyroDeadzone) effectiveGyroX = 0;
+        if (Math.abs(effectiveGyroY) < gyroDeadzone) effectiveGyroY = 0;
+        if (Math.abs(effectiveGyroZ) < gyroDeadzone) effectiveGyroZ = 0;
+
+        // console.log(`Effective Gyro: X=${effectiveGyroX.toFixed(2)}, Y=${effectiveGyroY.toFixed(2)}, Z=${effectiveGyroZ.toFixed(2)}`);
+
+        // --- JoyConごとにポインター座標を分離 ---
+        const id = data.id === 'R' || data.id === 'cursorRight' ? 'cursorRight' : 'cursorLeft';
+        // ポインターごとの座標を保持（型定義を追加して型エラー回避）
+        type PointerPositions = { cursorLeft: { x: number, y: number }, cursorRight: { x: number, y: number } };
+        type CursorMapConfig = { [key in 'cursorLeft' | 'cursorRight']: { xSign: number, ySign: number } };
+        const g = globalThis as typeof globalThis & { pointerPositions?: PointerPositions, cursorMapConfig?: CursorMapConfig };
+        if (!g.pointerPositions) g.pointerPositions = { cursorLeft: { x: 600, y: 300 }, cursorRight: { x: 600, y: 300 } };
+        const pointerPosition = g.pointerPositions[id];
+
+        // --- Use sign from cursor-renderer.ts mapping ---
+        // Default signs in case not received from renderer
+        let xSign = 1;
+        let ySign = 1;
+
+        if (cursorMapConfig && cursorMapConfig[id]) {
+            xSign = cursorMapConfig[id].xSign;
+            ySign = cursorMapConfig[id].ySign;
+        } else {
+            // console.warn(`[main.ts] cursorMapConfig for ${id} is undefined. Using default signs.`);
+        }
+
+        pointerPosition.x += effectiveGyroZ * moveSpeed * xSign; // Gyro Z for screen X
+        pointerPosition.y += effectiveGyroY * moveSpeed * ySign; // Gyro Y for screen Y, inverted
+        pointerPosition.x = Math.max(0, Math.min(screenWidth, pointerPosition.x));
+        pointerPosition.y = Math.max(0, Math.min(screenHeight, pointerPosition.y));
+        const pointerWindow = WindowManager.getCursorWindow();
+        if (pointerWindow && !pointerWindow.isDestroyed()) {
+            pointerWindow.webContents.send('update-pointer', { id, x: pointerPosition.x, y: pointerPosition.y });
+        }
+    }
     imuProcessor.on('attitude-update', (attitudeData: any) => {
         const targetWindow = WindowManager.getCursorWindow();
         if (targetWindow && !targetWindow.isDestroyed()) {
-            // console.log('[Main] Sending attitude update to cursor window.', attitudeData);
             targetWindow.webContents.send('joycon-attitude', attitudeData);
         }
     });
