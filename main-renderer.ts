@@ -491,6 +491,15 @@ window.electronAPI.onUpdateTimerNotifications((configs: NotificationConfig[]) =>
 // Initial load
 loadMediaFiles();
 
+// Timer window toggle
+const toggleTimerWindowBtn = document.getElementById('toggle-timer-window-btn') as HTMLButtonElement;
+if (toggleTimerWindowBtn) {
+    toggleTimerWindowBtn.addEventListener('click', () => {
+        console.log('[Main Renderer] Toggle timer window');
+        window.electronAPI.toggleTimerWindow();
+    });
+}
+
 console.log('Main Renderer script loaded.');
 window.electronAPI.requestJoyConStatus();
 loadPowerPointPresentations(); 

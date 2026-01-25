@@ -265,27 +265,35 @@ app.whenReady().then(() => {
         });
     }
 
-    // Add listener for button-plus-pressed
-    joyconManager.on('button-plus-pressed', (data: any) => {
-        console.log(`[Main] button-plus-pressed received for ${data?.id}. Toggle logic.`);
+    // Helper function to toggle timer window visibility
+    function toggleTimerWindowVisibility() {
+        console.log('[Main] toggleTimerWindowVisibility called.');
         let targetWindow = WindowManager.getTimerWindow();
         
         if (!targetWindow || targetWindow.isDestroyed()) {
-             console.log('[Main] Creating timer window on demand.');
+             console.log('[Main] Timer window does not exist or is destroyed. Creating new window.');
              targetWindow = WindowManager.createTimerWindow();
+             if (!targetWindow) {
+                 console.error('[Main] Failed to create timer window.');
+                 return;
+             }
              targetWindow.webContents.once('did-finish-load', () => {
                  if (targetWindow && !targetWindow.isDestroyed()) {
+                     console.log('[Main] Timer window did-finish-load. Showing window.');
                      targetWindow.show();
                      if (!isTimerCounting) {
                          targetWindow.webContents.send('set-timer-mode', 'setup');
                      } else {
                          targetWindow.webContents.send('set-timer-mode', 'timer');
                      }
+                 } else {
+                     console.warn('[Main] Timer window was destroyed before did-finish-load.');
                  }
              });
-             return;
+             return; // Exit after initiating creation
         }
 
+        console.log('[Main] Timer window exists. Checking visibility.');
         if (targetWindow.isVisible()) {
             console.log('[Main] Hiding timer window.');
             targetWindow.hide();
@@ -301,51 +309,55 @@ app.whenReady().then(() => {
                 targetWindow.webContents.send('set-timer-mode', 'timer');
             }
         }
+    }
+
+    // Add IPC listener for toggling timer window from main-renderer
+    if (!ipcMain.listenerCount('toggle-timer-window')) {
+        ipcMain.on('toggle-timer-window', () => {
+            console.log('[Main] Received toggle-timer-window IPC from renderer.');
+            toggleTimerWindowVisibility();
+        });
+    }
+
+    joyconManager.on('button-plus-pressed', (data: any) => {
+        console.log(`[Main] button-plus-pressed received for ${data?.id}. Toggle logic.`);
+        toggleTimerWindowVisibility();
 
         // Send event to renderer anyway if visibility logic allows (some features might rely on it)
+        const targetWindow = WindowManager.getTimerWindow();
         if (targetWindow && !targetWindow.isDestroyed()) {
             targetWindow.webContents.send('button-plus-pressed', data);
         }
     });
     joyconManager.on('button-minus-pressed', (data: any) => {
         console.log(`[Main] button-minus-pressed received from JoyConManager for ${data?.id}`);
-        let targetWindow = WindowManager.getTimerWindow();
-        let isNew = false;
-        if (!targetWindow || targetWindow.isDestroyed()) {
-             targetWindow = WindowManager.createTimerWindow();
-             isNew = true;
-        }
-        if (targetWindow && !targetWindow.isDestroyed()) {
-            targetWindow.show();
-            if (targetWindow.webContents.isLoading()) {
-                targetWindow.webContents.once('did-finish-load', () => {
-                   if (targetWindow && !targetWindow.isDestroyed()) {
-                        targetWindow.webContents.send('button-minus-pressed', data);
+        let timerWindow = WindowManager.getTimerWindow();
+        if (timerWindow && !timerWindow.isDestroyed()) {
+            timerWindow.show();
+            if (timerWindow.webContents.isLoading()) {
+                timerWindow.webContents.once('did-finish-load', () => {
+                   if (timerWindow && !timerWindow.isDestroyed()) {
+                        timerWindow.webContents.send('button-minus-pressed', data);
                    }
                 });
             } else {
-               targetWindow.webContents.send('button-minus-pressed', data);
+               timerWindow.webContents.send('button-minus-pressed', data);
             }
         }
     });
     joyconManager.on('button-sr-pressed', (data: any) => {
         console.log(`[Main] button-sr-pressed received from JoyConManager for ${data?.id}`);
-        let targetWindow = WindowManager.getTimerWindow();
-        let isNew = false;
-        if (!targetWindow || targetWindow.isDestroyed()) {
-             targetWindow = WindowManager.createTimerWindow();
-             isNew = true;
-        }
-        if (targetWindow && !targetWindow.isDestroyed()) {
-            targetWindow.show();
-            if (targetWindow.webContents.isLoading()) {
-                targetWindow.webContents.once('did-finish-load', () => {
-                   if (targetWindow && !targetWindow.isDestroyed()) {
-                        targetWindow.webContents.send('button-sr-pressed', data);
+        let timerWindow = WindowManager.getTimerWindow();
+        if (timerWindow && !timerWindow.isDestroyed()) {
+            timerWindow.show();
+            if (timerWindow.webContents.isLoading()) {
+                timerWindow.webContents.once('did-finish-load', () => {
+                   if (timerWindow && !timerWindow.isDestroyed()) {
+                        timerWindow.webContents.send('button-sr-pressed', data);
                    }
                 });
             } else {
-               targetWindow.webContents.send('button-sr-pressed', data);
+               timerWindow.webContents.send('button-sr-pressed', data);
             }
         }
     });
