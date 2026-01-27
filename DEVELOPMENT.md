@@ -99,6 +99,9 @@ npm start
 
 必要に応じて PowerPoint を起動した状態で挙動を確認してください。
 
+## 作業後の必須手順
+- コード変更後は必ず `npm run build` を実行して `dist/` に反映する
+
 ## watch の出力
 - `npm run watch` は `dist/` に出力します
 - `npm start` は `dist/main/main.js` を起動します
