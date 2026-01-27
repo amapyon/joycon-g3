@@ -56,6 +56,14 @@ window.electronAPI.onAvailableDisplays((displays: any[]) => {
     console.log('Available displays:', displays);
     displaySelect.innerHTML = '';
     if (displays && displays.length > 0) {
+        const storedDisplayIdRaw = localStorage.getItem('lastDisplayId');
+        const storedDisplayId = storedDisplayIdRaw ? parseInt(storedDisplayIdRaw, 10) : null;
+        const displayIds = displays.map((display) => display.id);
+        const fallbackDisplayId = displayIds.reduce((min, id) => (id < min ? id : min), displayIds[0]);
+        const defaultDisplayId = storedDisplayId !== null && displayIds.includes(storedDisplayId)
+            ? storedDisplayId
+            : fallbackDisplayId;
+
         displays.forEach((display) => {
             const option = document.createElement('option');
             option.value = display.id;
@@ -67,10 +75,8 @@ window.electronAPI.onAvailableDisplays((displays: any[]) => {
         });
         displaySelect.disabled = false;
         cursorToggleBtn.disabled = false;
-        // Set default target to first display
-        if (displays.length > 0) {
-            window.electronAPI.setTargetDisplay(displays[0].id);
-        }
+        displaySelect.value = String(defaultDisplayId);
+        window.electronAPI.setTargetDisplay(defaultDisplayId);
     } else {
         const option = document.createElement('option');
         option.value = '';
@@ -100,6 +106,7 @@ displaySelect.addEventListener('change', () => {
     if (!isNaN(selectedDisplayId)) {
         console.log(`[main-renderer] Display selected: ${selectedDisplayId}`);
         window.electronAPI.setTargetDisplay(selectedDisplayId);
+        localStorage.setItem('lastDisplayId', String(selectedDisplayId));
     }
 });
 
