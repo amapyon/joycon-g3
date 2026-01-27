@@ -54,11 +54,15 @@ export function createCursorWindow(targetDisplay: Display) {
 
 function createCursorWindowInternal(targetDisplay: Display) {
     console.log(`[WindowManager] createCursorWindowInternal called for display ID: ${targetDisplay.id}`); // 追加ログ
+    const bounds = targetDisplay.bounds;
+    const width = Math.max(bounds.width, targetDisplay.size.width);
+    const height = Math.max(bounds.height, targetDisplay.size.height);
+    const cursorBounds = { x: bounds.x, y: bounds.y, width, height };
     cursorWindow = new BrowserWindow({
-        x: targetDisplay.bounds.x,
-        y: targetDisplay.bounds.y,
-        width: targetDisplay.bounds.width,
-        height: targetDisplay.bounds.height,
+        x: cursorBounds.x,
+        y: cursorBounds.y,
+        width: cursorBounds.width,
+        height: cursorBounds.height,
         fullscreen: false, // Changed to false to prevent display capture issues
         frame: false,
         resizable: false,
@@ -67,6 +71,7 @@ function createCursorWindowInternal(targetDisplay: Display) {
         skipTaskbar: true,
         transparent: true,
         hasShadow: false,
+        show: false,
         webPreferences: {
             preload: path.join(__dirname, '..', 'preload', 'preload.js'),
             contextIsolation: true,
@@ -75,8 +80,14 @@ function createCursorWindowInternal(targetDisplay: Display) {
         },
     });
     cursorWindow.setIgnoreMouseEvents(true, { forward: true });
+    cursorWindow.setBounds(cursorBounds);
     cursorWindow.loadFile(path.join(__dirname, '..', 'renderer', 'cursor-window.html'));
     // cursorWindow.webContents.openDevTools({ mode: 'detach' });
+    cursorWindow.once('ready-to-show', () => {
+        if (!cursorWindow || cursorWindow.isDestroyed()) return;
+        cursorWindow.setBounds(cursorBounds);
+        cursorWindow.show();
+    });
     cursorWindow.webContents.on('did-finish-load', () => {
         sendCursorWindowOpenedToMain();
     });

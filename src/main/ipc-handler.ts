@@ -6,6 +6,7 @@ import WindowManager from './window-manager';
 import powerpointControl from './powerpoint-control';
 import imuProcessor from './imu-processor';
 import JoyConManager from './joycon';
+import { setScreenSize } from './screen-state';
 
 export function setupIpcHandlers(windowManagerInstance = WindowManager, joyconManager: JoyConManager) {
     console.log('Setting up IPC Handlers...');
@@ -108,6 +109,12 @@ export function setupIpcHandlers(windowManagerInstance = WindowManager, joyconMa
         const id = typeof displayId === 'string' ? parseInt(displayId, 10) : displayId;
         if (!process.platform || !Number.isNaN(id)) { // Basic check
             windowManagerInstance.setTargetDisplay(id);
+            const target = screen.getAllDisplays().find((display) => display.id === id);
+            if (target) {
+                const width = target.size.width * target.scaleFactor;
+                const height = target.size.height * target.scaleFactor;
+                setScreenSize(width, height);
+            }
         }
     });
 

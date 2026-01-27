@@ -6,6 +6,7 @@ import powerpointControl from './powerpoint-control';
 import WindowManager from './window-manager';
 import * as IpcHandler from './ipc-handler';
 import imuProcessor from './imu-processor';
+import { getScreenSize, setScreenSize } from './screen-state';
 
 // --- IMU Pointer Control Variables ---
 let isCalibrating = false;
@@ -37,9 +38,6 @@ function getPhysicalScreenSize() {
     return { width: 1200, height: 600 };
 }
 
-let screenWidth = 1200;
-let screenHeight = 600;
-
 const joyconManager = new JoyConManager();
 
 // --- カーソルマップ設定を保持する変数 ---
@@ -48,8 +46,7 @@ let cursorMapConfig: { [key in 'cursorLeft' | 'cursorRight']?: { xSign: number, 
 app.whenReady().then(() => {
     // 物理ピクセルでの画面サイズを初期化
     const { width, height } = getPhysicalScreenSize();
-    screenWidth = width;
-    screenHeight = height;
+    setScreenSize(width, height);
     console.log('App Ready. Initializing modules...');
     const connected = powerpointControl.connect();
     if (!connected) {
@@ -139,6 +136,7 @@ app.whenReady().then(() => {
             console.log('[main.ts] Received cursorMapConfig from renderer:', cursorMapConfig);
         });
     }
+
     // Add IPC listener for cursor visibility updates
     if (!ipcMain.listenerCount('cursor-visibility-update')) {
         ipcMain.on('cursor-visibility-update', (event: any, data: { id: 'cursorLeft' | 'cursorRight', isVisible: boolean }) => {
@@ -290,6 +288,7 @@ app.whenReady().then(() => {
 
         console.log(`[Main][${cursorId}] Pointer Pos (after gyro update, before clamp): X=${pointerPosition.x.toFixed(2)}, Y=${pointerPosition.y.toFixed(2)}`);
 
+        const { width: screenWidth, height: screenHeight } = getScreenSize();
         pointerPosition.x = Math.max(0, Math.min(screenWidth, pointerPosition.x));
         pointerPosition.y = Math.max(0, Math.min(screenHeight, pointerPosition.y));
         const pointerWindow = WindowManager.getCursorWindow();
