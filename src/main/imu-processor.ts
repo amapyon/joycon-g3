@@ -44,7 +44,7 @@ interface IMUState {
 /**
  * IMU データの姿勢推定とキャリブレーションを行い、イベントを発行する。
  */
-class IMUProcessor extends EventEmitter {
+export class IMUProcessor extends EventEmitter {
     states: Record<CursorId, IMUState>;
     lastRawGyro: Record<CursorId, IMUVector>;
     isCalibrating: Record<CursorId, boolean>;

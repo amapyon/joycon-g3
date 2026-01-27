@@ -8,6 +8,8 @@
     "build": "tsc && npm run copy-renderer",
     "watch": "npm run copy-renderer && tsc -w",
     "start": "electron .",
+    "test": "jest",
+    "test:watch": "jest --watch",
     "rebuild": "electron-rebuild -f -w node-hid,winax",
     "package-win": "electron-packager . \"JoyCon Clicker\" --platform=win32 --arch=x64 --out=dist_packager --overwrite --icon=assets/icon.ico --ignore=\"^/dist_.*\" --ignore=\"^/node_modules/(electron|electron-packager|electron-rebuild|\\.bin)(/|$)\" --ignore=\"^/\\.git$\" --ignore=\"^/\\.vscode$\" --ignore=\"^/assets$\""
   },
@@ -27,7 +29,10 @@
     "@electron/rebuild": "^3.7.2",
     "electron": "35.1.5",
     "electron-packager": "^17.1.2",
-    "typescript": "^5.8.3"
+    "jest": "^29.7.0",
+    "ts-jest": "^29.3.1",
+    "typescript": "^5.8.3",
+    "@types/jest": "^29.5.14"
   },
   "dependencies": {
     "@openai/codex": "^0.77.0",
