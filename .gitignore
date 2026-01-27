@@ -1,5 +1,6 @@
 /node_modules/
 /dist_packager/
 /dist/
+/src_legacy/
 *.mp3
 *.wav

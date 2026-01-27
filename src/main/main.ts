@@ -220,6 +220,8 @@ app.whenReady().then(() => {
     function handleImuData(data: { id: string, accel: { x: number, y: number, z: number }, gyro: { x: number, y: number, z: number } }) {
         const cursorId = (data.id === 'R' || data.id === 'cursorRight') ? 'cursorRight' : 'cursorLeft';
         
+        console.log(`[Main][${cursorId}] Raw Gyro: X=${data.gyro.x.toFixed(2)}, Y=${data.gyro.y.toFixed(2)}, Z=${data.gyro.z.toFixed(2)}`);
+
         // Feed data to imuProcessor for calibration and attitude calculation
         imuProcessor.update({
             id: cursorId,
@@ -249,10 +251,14 @@ app.whenReady().then(() => {
         let effectiveGyroY = data.gyro.y - state.gyroBiasY;
         let effectiveGyroZ = data.gyro.z - state.gyroBiasZ;
 
+        console.log(`[Main][${cursorId}] Gyro Bias: X=${state.gyroBiasX.toFixed(2)}, Y=${state.gyroBiasY.toFixed(2)}, Z=${state.gyroBiasZ.toFixed(2)}`);
+
         // Apply deadzone
         if (Math.abs(effectiveGyroX) < gyroDeadzone) effectiveGyroX = 0;
         if (Math.abs(effectiveGyroY) < gyroDeadzone) effectiveGyroY = 0;
         if (Math.abs(effectiveGyroZ) < gyroDeadzone) effectiveGyroZ = 0;
+
+        console.log(`[Main][${cursorId}] Effective Gyro (after deadzone): X=${effectiveGyroX.toFixed(2)}, Y=${effectiveGyroY.toFixed(2)}, Z=${effectiveGyroZ.toFixed(2)}`);
 
         // console.log(`Effective Gyro: X=${effectiveGyroX.toFixed(2)}, Y=${effectiveGyroY.toFixed(2)}, Z=${effectiveGyroZ.toFixed(2)}`);
 
@@ -264,6 +270,8 @@ app.whenReady().then(() => {
         const g = globalThis as typeof globalThis & { pointerPositions?: PointerPositions, cursorMapConfig?: CursorMapConfig };
         if (!g.pointerPositions) g.pointerPositions = { cursorLeft: { x: 600, y: 300 }, cursorRight: { x: 600, y: 300 } };
         const pointerPosition = g.pointerPositions[id];
+
+        console.log(`[Main][${cursorId}] Pointer Pos (before update): X=${pointerPosition.x.toFixed(2)}, Y=${pointerPosition.y.toFixed(2)}`);
 
         // --- Use sign from cursor-renderer.ts mapping ---
         // Default signs in case not received from renderer
@@ -279,9 +287,15 @@ app.whenReady().then(() => {
 
         pointerPosition.x += effectiveGyroZ * moveSpeed * xSign; // Gyro Z for screen X
         pointerPosition.y += effectiveGyroY * moveSpeed * ySign; // Gyro Y for screen Y, inverted
+
+        console.log(`[Main][${cursorId}] Pointer Pos (after gyro update, before clamp): X=${pointerPosition.x.toFixed(2)}, Y=${pointerPosition.y.toFixed(2)}`);
+
         pointerPosition.x = Math.max(0, Math.min(screenWidth, pointerPosition.x));
         pointerPosition.y = Math.max(0, Math.min(screenHeight, pointerPosition.y));
         const pointerWindow = WindowManager.getCursorWindow();
+
+        console.log(`[Main][${cursorId}] Pointer Pos (after clamp): X=${pointerPosition.x.toFixed(2)}, Y=${pointerPosition.y.toFixed(2)}. Screen: ${screenWidth}x${screenHeight}`);
+
         if (pointerWindow && !pointerWindow.isDestroyed()) {
             pointerWindow.webContents.send('update-pointer', { id, x: pointerPosition.x, y: pointerPosition.y });
         }

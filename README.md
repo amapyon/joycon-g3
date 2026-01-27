@@ -4,31 +4,31 @@ Joy-Con を使用して Windows 上で複数のマウスカーソル操作や Po
 
 ## 📁 プロジェクト構成
 
-ソースコードはルートディレクトリに配置されており、ビルド時に `dist/` へ出力されます。
+ソースコードは `src/` 配下に配置され、ビルド時に `dist/` へ出力されます。
 
 ### 主要ディレクトリ・ファイル
 *   **Main Process** (バックグラウンド処理)
-    *   `main.ts`: アプリケーションのエントリーポイント。ライフサイクル管理、IPC通信の統括。
-    *   `joycon.ts`: Joy-Con (HID) との通信、ジャイロデータの取得処理。
-    *   `imu-processor.ts`: ジャイロ/加速度センサーデータの解析・補正ロジック。
-    *   `window-manager.ts`: ウィンドウの生成・管理（設定画面・カーソルオーバーレイ）。
-    *   `ipc-handler.ts`: Renderer プロセスとの IPC 通信ハンドリング。
-    *   `powerpoint-control.ts`: `winax` を使用した PowerPoint COM 操作。
+    *   `src/main/main.ts`: アプリケーションのエントリーポイント。ライフサイクル管理、IPC通信の統括。
+    *   `src/main/joycon.ts`: Joy-Con (HID) との通信、ジャイロデータの取得処理。
+    *   `src/main/imu-processor.ts`: ジャイロ/加速度センサーデータの解析・補正ロジック。
+    *   `src/main/window-manager.ts`: ウィンドウの生成・管理（設定画面・カーソルオーバーレイ）。
+    *   `src/main/ipc-handler.ts`: Renderer プロセスとの IPC 通信ハンドリング。
+    *   `src/main/powerpoint-control.ts`: `winax` を使用した PowerPoint COM 操作。
 
 *   **Renderer Process** (画面表示)
     *   **設定画面 (Main Window)**
-        *   `main-window.html`: アプリ起動時の設定UI。
-        *   `main-renderer.ts`: UIロジック、設定値の IPC 送信。
+        *   `src/renderer/main-window.html`: アプリ起動時の設定UI。
+        *   `src/renderer/main-renderer.ts`: UIロジック、設定値の IPC 送信。
     *   **カーソルオーバーレイ (Cursor Window)**
-        *   `cursor-window.html`: 画面上に Joy-Con カーソルを描画する透明ウィンドウ。
-        *   `cursor-renderer.ts`: カーソルの描画更新処理。
+        *   `src/renderer/cursor-window.html`: 画面上に Joy-Con カーソルを描画する透明ウィンドウ。
+        *   `src/renderer/cursor-renderer.ts`: カーソルの描画更新処理。
 
 *   **Preload**
-    *   `preload.ts`: ContextBridge を使用し、Main プロセスの機能を安全に Renderer へ公開。
+    *   `src/preload/preload.ts`: ContextBridge を使用し、Main プロセスの機能を安全に Renderer へ公開。
 
 *   **Assets**
     *   `assets/`: アイコンなどの静的リソース。
-    *   `style.css`: 共通スタイルシート。
+    *   `src/renderer/styles/style.css`: 共通スタイルシート。
 
 ## 🚀 開発環境セットアップと起動
 
@@ -57,8 +57,9 @@ npm start
 | コマンド | 説明 |
 | --- | --- |
 | `npm run build` | TypeScript をコンパイルし、HTML/CSS を `dist/` へコピーします。 |
-| `npm run watch` | TypeScript の変更を監視し、自動的に再コンパイルします (`tsc -w`)。 |
-| `npm start` | コンパイル済みのファイル (`dist/main.js`) を Electron で起動します。 |
+| `npm run copy-renderer` | HTML/CSS を `dist/` へコピーします。 |
+| `npm run watch` | HTML/CSS をコピー後、TypeScript の変更を監視し、自動的に再コンパイルします (`tsc -w`)。 |
+| `npm start` | コンパイル済みのファイル (`dist/main/main.js`) を Electron で起動します。 |
 | `npm run rebuild` | `electron-rebuild` を使い、`node-hid` や `winax` を現在の Electron バージョンに合わせて再ビルドします。 |
 | `npm run package-win` | Windows 用の実行ファイル (`.exe`) をビルド・パッケージングします。 |
 

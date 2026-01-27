@@ -16,12 +16,12 @@ export function createMainWindow(): BrowserWindow {
         width: 1200,
         height: 600,
         webPreferences: {
-            preload: path.join(__dirname, 'preload.js'),
+            preload: path.join(__dirname, '..', 'preload', 'preload.js'),
             contextIsolation: true,
             nodeIntegration: false,
         },
     });
-    mainWindow.loadFile(path.join(__dirname, 'main-window.html'));
+    mainWindow.loadFile(path.join(__dirname, '..', 'renderer', 'main-window.html'));
     mainWindow.webContents.openDevTools(); // 開発者ツールを開く
     mainWindow.webContents.on('did-finish-load', () => {
         sendAvailableDisplays();
@@ -68,14 +68,14 @@ function createCursorWindowInternal(targetDisplay: Display) {
         transparent: true,
         hasShadow: false,
         webPreferences: {
-            preload: path.join(__dirname, 'preload.js'),
+            preload: path.join(__dirname, '..', 'preload', 'preload.js'),
             contextIsolation: true,
             nodeIntegration: false,
             backgroundThrottling: false,
         },
     });
     cursorWindow.setIgnoreMouseEvents(true, { forward: true });
-    cursorWindow.loadFile(path.join(__dirname, 'cursor-window.html'));
+    cursorWindow.loadFile(path.join(__dirname, '..', 'renderer', 'cursor-window.html'));
     // cursorWindow.webContents.openDevTools({ mode: 'detach' });
     cursorWindow.webContents.on('did-finish-load', () => {
         sendCursorWindowOpenedToMain();
@@ -148,14 +148,14 @@ export function createTimerWindow(targetDisplay?: Display) {
         transparent: true,
         hasShadow: false,
         webPreferences: {
-            preload: path.join(__dirname, 'preload.js'),
+            preload: path.join(__dirname, '..', 'preload', 'preload.js'),
             contextIsolation: true,
             nodeIntegration: false,
             backgroundThrottling: false,
         },
     });
 
-    timerWindow.loadFile(path.join(__dirname, 'timer-window.html'));
+    timerWindow.loadFile(path.join(__dirname, '..', 'renderer', 'timer-window.html'));
     timerWindow.show(); // Show the window immediately after loading
     
     // Uncomment for debugging
@@ -212,13 +212,13 @@ export function createMessageWindow(targetDisplay?: Display) {
         hasShadow: false,
         resizable: true,
         webPreferences: {
-            preload: path.join(__dirname, 'preload.js'),
+            preload: path.join(__dirname, '..', 'preload', 'preload.js'),
             contextIsolation: true,
             nodeIntegration: false,
         },
     });
 
-    messageWindow.loadFile(path.join(__dirname, 'message-window.html'));
+    messageWindow.loadFile(path.join(__dirname, '..', 'renderer', 'message-window.html'));
     messageWindow.show(); // Show the window immediately
 
 

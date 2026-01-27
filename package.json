@@ -2,10 +2,11 @@
   "name": "joycon-multi-cursor-final",
   "version": "1.1.0",
   "description": "Select display, control cursors with Joy-Cons (Gyro, Button Toggles/Resets), PowerPoint control via COM",
-  "main": "dist/main.js",
+  "main": "dist/main/main.js",
   "scripts": {
-    "build": "tsc && powershell -Command \"Copy-Item -Path main-window.html, style.css, cursor-window.html, timer-window.html, message-window.html -Destination dist\"",
-    "watch": "tsc -w",
+    "copy-renderer": "mkdir -p dist/renderer/styles && cp src/renderer/*.html dist/renderer/ && cp src/renderer/styles/*.css dist/renderer/styles/",
+    "build": "tsc && npm run copy-renderer",
+    "watch": "npm run copy-renderer && tsc -w",
     "start": "electron .",
     "rebuild": "electron-rebuild -f -w node-hid,winax",
     "package-win": "electron-packager . \"JoyCon Clicker\" --platform=win32 --arch=x64 --out=dist_packager --overwrite --icon=assets/icon.ico --ignore=\"^/dist_.*\" --ignore=\"^/node_modules/(electron|electron-packager|electron-rebuild|\\.bin)(/|$)\" --ignore=\"^/\\.git$\" --ignore=\"^/\\.vscode$\" --ignore=\"^/assets$\""
