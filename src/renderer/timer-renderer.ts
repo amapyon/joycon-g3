@@ -12,6 +12,10 @@
     let currentPresetValues: number[] = JSON.parse(localStorage.getItem('timerPresets') || '[10, 60, 120, 180, 300]'); 
     const timerPresetsContainer: HTMLElement | null = document.getElementById('timer-presets-container');
 
+    /**
+     * タイマーのフォントサイズを更新する。
+     * @param delta 増減量
+     */
     function updateTimerFontSize(delta: number) {
         currentFontSize += delta;
         if (currentFontSize < 20) currentFontSize = 20;
@@ -28,6 +32,11 @@
         countdownTimerElement.style.fontSize = `${currentFontSize}px`;
     }
 
+    /**
+     * タイマーウィンドウのプリセット表示ラベルを生成する。
+     * @param seconds 秒数
+     * @returns 表示ラベル
+     */
     function formatTimerWindowPresetLabel(seconds: number): string {
         if (seconds < 60) return `${seconds}s`;
         const mins = Math.floor(seconds / 60);
@@ -35,6 +44,9 @@
         return secs === 0 ? `${mins}m` : `${mins}m${secs}s`;
     }
 
+    /**
+     * タイマーウィンドウのプリセットを描画する。
+     */
     function renderTimerPresets() {
         if (!timerPresetsContainer) return;
         timerPresetsContainer.innerHTML = '';
@@ -55,22 +67,39 @@
     }
 
     // Helper to format text as M:SS
+    /**
+     * 秒数を M:SS 形式に整形する。
+     * @param seconds 秒数
+     * @returns 表示用文字列
+     */
     function formatTime(seconds: number): string {
         const m = Math.floor(seconds / 60);
         const s = seconds % 60;
         return `${m}:${String(s).padStart(2, '0')}`;
     }
 
+    /**
+     * カウントダウン値を範囲内に収める。
+     * @param value カウントダウン値
+     * @returns 補正後の値
+     */
     function clampCountdownValue(value: number) {
         return Math.max(1, Math.min(3600, value));
     }
 
+    /**
+     * カウントダウンメニュー表示を更新する。
+     */
     function updateCountdownMenuDisplay() {
         if (countdownMenuValueElement) {
             countdownMenuValueElement.textContent = formatTime(currentCountdownInitialValue);
         }
     }
 
+    /**
+     * カウントダウンメニューの表示状態を切り替える。
+     * @param visible 表示するかどうか
+     */
     function setCountdownMenuVisible(visible: boolean) {
         isCountdownMenuVisible = visible;
         if (countdownMenuElement) {
@@ -96,6 +125,9 @@
         }
     }
 
+    /**
+     * カウントダウンを停止する。
+     */
     function stopCountdown() {
         if (countdownInterval) {
             clearInterval(countdownInterval);
@@ -112,6 +144,10 @@
         localStorage.setItem('timerNotifications', JSON.stringify(configs));
     });
 
+    /**
+     * カウントダウンを開始する。
+     * @param duration 秒数
+     */
     function startCountdown(duration: number) {
         if (!countdownTimerElement) return;
 
@@ -172,6 +208,10 @@
     let currentOpacity = parseFloat(localStorage.getItem('timerWindowOpacity') || '0.9'); // Initial default for countdownTimer background
 
     // Function to apply opacity to the countdownTimer
+    /**
+     * タイマー表示の透明度を適用する。
+     * @param opacity 透明度
+     */
     function applyCountdownTimerOpacity(opacity: number) {
         if (countdownTimerElement) {
             // Assuming the base color is 100, 100, 100 as per style.css
@@ -180,6 +220,10 @@
     }
     applyCountdownTimerOpacity(currentOpacity); // Apply on load
 
+    /**
+     * 透明度を更新する。
+     * @param delta 増減量
+     */
     function updateTransparency(delta: number) {
         currentOpacity += delta;
         if (currentOpacity < 0.1) currentOpacity = 0.1; // Minimum transparency
@@ -253,6 +297,9 @@
         setCountdownMenuVisible(!isCountdownMenuVisible);
     });
 
+    /**
+     * プリセットのフォーカス状態を更新する。
+     */
     function updatePresetFocus() {
         const btns = timerPresetsContainer?.querySelectorAll('.menu-preset-btn');
         if (!btns) return;

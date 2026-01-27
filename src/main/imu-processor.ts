@@ -41,13 +41,19 @@ interface IMUState {
     gyroBiasZ: number;
 }
 
-// IMUデータ処理クラス
+/**
+ * IMU データの姿勢推定とキャリブレーションを行い、イベントを発行する。
+ */
 class IMUProcessor extends EventEmitter {
     states: Record<CursorId, IMUState>;
     lastRawGyro: Record<CursorId, IMUVector>;
     isCalibrating: Record<CursorId, boolean>;
     calibrationData: Record<CursorId, { x: number[]; y: number[]; z: number[] }>;
 
+    /**
+     * IMUProcessor を初期化する。
+     * @param alpha コンプリメンタリフィルタの係数
+     */
     constructor(alpha = 0.95) {
         super();
         // 各カーソルの初期状態を生成
@@ -70,7 +76,11 @@ class IMUProcessor extends EventEmitter {
         console.log('[IMUProcessor] Initialized.');
     }
 
-    // IMU状態の初期値を生成
+    /**
+     * IMU 状態の初期値を生成する。
+     * @param alpha コンプリメンタリフィルタの係数
+     * @returns 初期化済み IMU 状態
+     */
     createInitialState(alpha: number): IMUState {
         return {
             pitch: 0,
@@ -87,7 +97,10 @@ class IMUProcessor extends EventEmitter {
         };
     }
 
-    // IMUデータを受け取り、姿勢を更新
+    /**
+     * IMU データを受け取り、姿勢を更新する。
+     * @param imuData 受信した IMU データ
+     */
     update(imuData: IMUData) {
         const state = this.states[imuData.id];
         if (!state) return;
@@ -185,7 +198,10 @@ class IMUProcessor extends EventEmitter {
         });
     }
 
-    // 現在の姿勢を基準（オフセット）として再設定
+    /**
+     * 現在の姿勢を基準（オフセット）として再設定する。
+     * @param id 対象カーソル ID
+     */
     recenter(id: CursorId) {
         const state = this.states[id];
         if (!state) return;
@@ -195,7 +211,11 @@ class IMUProcessor extends EventEmitter {
         console.log(`[IMUProcessor] Recenter for ${id}: rollOffset=${state.rollOffset.toFixed(2)}, pitchOffset=${state.pitchOffset.toFixed(2)}, yawOffset=${state.yawOffset.toFixed(2)}`);
     }
 
-    // ジャイロキャリブレーション開始
+    /**
+     * ジャイロキャリブレーションを開始する。
+     * @param id 対象カーソル ID
+     * @param durationMs 計測時間（ミリ秒）
+     */
     startGyroCalibration(id: CursorId, durationMs = 2000) {
         if (this.isCalibrating[id]) return;
         this.isCalibrating[id] = true;
@@ -206,7 +226,10 @@ class IMUProcessor extends EventEmitter {
         }, durationMs);
     }
 
-    // ジャイロキャリブレーション終了・バイアス計算
+    /**
+     * ジャイロキャリブレーションを終了し、バイアスを計算する。
+     * @param id 対象カーソル ID
+     */
     finishGyroCalibration(id: CursorId) {
         const data = this.calibrationData[id];
         if (!data || data.x.length === 0) {
@@ -223,7 +246,10 @@ class IMUProcessor extends EventEmitter {
         this.emit('calibration-status', { id, status: 'complete' });
     }
 
-    // 現在のジャイロ値をバイアスとして即時設定
+    /**
+     * 現在のジャイロ値をバイアスとして即時設定する。
+     * @param id 対象カーソル ID
+     */
     calibrate(id: CursorId) {
         const gyro = this.lastRawGyro[id];
         this.states[id].gyroBiasX = gyro.x;

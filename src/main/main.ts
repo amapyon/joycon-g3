@@ -25,7 +25,10 @@ let lastFontSizeChangeTime = 0; // Timestamp of the last font size change
 let isTimerMenuNavActive = false; // Track if stick is currently tilted for menu navigation
 let isTimerCounting = false; // Track if timer is active
 
-// 物理ピクセルでの画面サイズを取得する関数
+/**
+ * 物理ピクセルでの画面サイズを取得する。
+ * @returns 画面サイズ
+ */
 function getPhysicalScreenSize() {
     const primaryDisplay = screen.getPrimaryDisplay();
     if (primaryDisplay && primaryDisplay.size && primaryDisplay.scaleFactor) {
@@ -55,7 +58,9 @@ app.whenReady().then(() => {
     WindowManager.createMainWindow();
     IpcHandler.setupIpcHandlers(WindowManager, joyconManager);
 
-    // Helper function to toggle timer window visibility
+    /**
+     * タイマーウィンドウの表示状態を切り替える。
+     */
     function toggleTimerWindowVisibility() {
         console.log('[Main] toggleTimerWindowVisibility called.');
         let targetWindow = WindowManager.getTimerWindow();
@@ -215,6 +220,10 @@ app.whenReady().then(() => {
 
     joyconManager.on('imu-data', handleImuData);
 
+    /**
+     * IMU データを受け取り、ポインター座標を更新する。
+     * @param data IMU データ
+     */
     function handleImuData(data: { id: string, accel: { x: number, y: number, z: number }, gyro: { x: number, y: number, z: number } }) {
         const cursorId = (data.id === 'R' || data.id === 'cursorRight') ? 'cursorRight' : 'cursorLeft';
         

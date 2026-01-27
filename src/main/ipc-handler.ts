@@ -8,6 +8,11 @@ import imuProcessor from './imu-processor';
 import JoyConManager from './joycon';
 import { setScreenSize } from './screen-state';
 
+/**
+ * IPC ハンドラを登録する。
+ * @param windowManagerInstance ウィンドウ管理インスタンス
+ * @param joyconManager Joy-Con 管理インスタンス
+ */
 export function setupIpcHandlers(windowManagerInstance = WindowManager, joyconManager: JoyConManager) {
     console.log('Setting up IPC Handlers...');
 

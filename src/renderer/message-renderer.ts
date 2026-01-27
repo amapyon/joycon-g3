@@ -7,6 +7,10 @@
 
     let currentFontSize = parseInt(localStorage.getItem('messageFontSize') || '64');
 
+    /**
+     * メッセージのフォントサイズを更新する。
+     * @param delta 増減量
+     */
     function updateFontSize(delta: number) {
         currentFontSize += delta;
         if (currentFontSize < 10) currentFontSize = 10;
@@ -31,6 +35,10 @@
     // Set initial body opacity
     document.body.style.backgroundColor = `rgba(70, 70, 70, ${currentOpacity})`;
 
+    /**
+     * 透明度を更新する。
+     * @param delta 増減量
+     */
     function updateTransparency(delta: number) {
         currentOpacity += delta;
         if (currentOpacity < 0.1) currentOpacity = 0.1; // Minimum transparency

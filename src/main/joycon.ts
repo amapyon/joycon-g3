@@ -30,6 +30,9 @@ interface JoyConPaths {
     joyconRPath: string | null;
 }
 
+/**
+ * Joy-Con の接続・初期化・入力解析を管理し、イベントを発行する。
+ */
 export default class JoyConManager extends EventEmitter {
     hidL: HID.HID | null = null;
     hidR: HID.HID | null = null;
@@ -44,6 +47,10 @@ export default class JoyConManager extends EventEmitter {
     autoConnectL = true; // Added
     autoConnectR = true; // Added
 
+    /**
+     * Joy-Con 管理クラスを生成する。
+     * @param scanIntervalMs デバイススキャン間隔（ミリ秒）
+     */
     constructor(scanIntervalMs: number = DEFAULT_SCAN_INTERVAL) {
         super();
         this.lastButtonStateL = this.resetButtonState();
@@ -51,7 +58,10 @@ export default class JoyConManager extends EventEmitter {
         this.scanIntervalMs = scanIntervalMs;
     }
 
-    /** ボタン状態を初期化 */
+    /**
+     * ボタン状態を初期化する。
+     * @returns 初期化済みボタン状態
+     */
     resetButtonState(): ButtonState {
         return {
             slPressed: false,
@@ -69,7 +79,10 @@ export default class JoyConManager extends EventEmitter {
         };
     }
 
-    /** 現在の接続状態を取得 */
+    /**
+     * 現在の接続状態を取得する。
+     * @returns 左右の接続状態
+     */
     getConnectionStatus() {
         return {
             leftConnected: !!this.hidL,
@@ -77,7 +90,10 @@ export default class JoyConManager extends EventEmitter {
         };
     }
 
-    /** Joy-Conデバイスのパスを検索 */
+    /**
+     * Joy-Con デバイスのパスを検索する。
+     * @returns 左右のデバイスパス
+     */
     findJoyCons(): JoyConPaths {
         try {
             if (!HID || typeof HID.devices !== 'function') {
@@ -102,7 +118,13 @@ export default class JoyConManager extends EventEmitter {
         }
     }
 
-    /** コマンドをJoy-Conに送信 */
+    /**
+     * コマンドを Joy-Con に送信する。
+     * @param hidDevice 対象の HID デバイス
+     * @param commandBytes 送信コマンド配列
+     * @param isLeft 左 Joy-Con かどうか
+     * @returns 送信成功かどうか
+     */
     sendCommand(hidDevice: HID.HID | null, commandBytes: number[], isLeft: boolean): boolean {
         if (!hidDevice) return false;
         try {
@@ -120,7 +142,12 @@ export default class JoyConManager extends EventEmitter {
         }
     }
 
-    /** Joy-Conを初期化 */
+    /**
+     * Joy-Con を初期化する。
+     * @param hidDevice 対象の HID デバイス
+     * @param isLeft 左 Joy-Con かどうか
+     * @returns 初期化成功かどうか
+     */
     async initializeJoyCon(hidDevice: HID.HID, isLeft: boolean): Promise<boolean> {
         const packetNumber = () => (isLeft ? this.globalPacketNumberL : this.globalPacketNumberR);
         const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -147,7 +174,10 @@ export default class JoyConManager extends EventEmitter {
         }
     }
 
-    /** HIDデバイスを安全に閉じる */
+    /**
+     * HID デバイスを安全に閉じる。
+     * @param hidDevice 対象の HID デバイス
+     */
     closeHidDevice(hidDevice: HID.HID | null): void {
         if (hidDevice) {
             try {
@@ -161,7 +191,10 @@ export default class JoyConManager extends EventEmitter {
         }
     }
 
-    /** 指定されたJoy-Con接続を閉じる */
+    /**
+     * 指定された Joy-Con 接続を閉じる。
+     * @param isLeft 左 Joy-Con かどうか
+     */
     closeJoyCon(isLeft: boolean): void {
         const targetHid = isLeft ? this.hidL : this.hidR;
         const wasConnected = !!targetHid;
@@ -184,14 +217,20 @@ export default class JoyConManager extends EventEmitter {
         }
     }
 
-    /** 全てのJoy-Con接続を閉じ、スキャンも停止する */
+    /**
+     * 全ての Joy-Con 接続を閉じ、スキャンも停止する。
+     */
     closeAll(): void {
         this.stopScanning();
         this.closeJoyCon(true);
         this.closeJoyCon(false);
     }
 
-    /** Joy-Conに接続し初期化 */
+    /**
+     * Joy-Con に接続し初期化する。
+     * @param path デバイスパス
+     * @param isLeft 左 Joy-Con かどうか
+     */
     connectJoyCon(path: string | null, isLeft: boolean): void {
         if (!path) return;
         if ((isLeft && (this.hidL || this.connectingL)) || (!isLeft && (this.hidR || this.connectingR))) {
@@ -271,7 +310,9 @@ export default class JoyConManager extends EventEmitter {
         }
     }
 
-    /** 全てのJoy-Conに接続試行 */
+    /**
+     * 全ての Joy-Con に接続を試行する。
+     */
     connectAll(): void {
         console.log('Attempting to connect all available Joy-Cons...');
         const { joyconLPath, joyconRPath } = this.findJoyCons();
@@ -280,7 +321,10 @@ export default class JoyConManager extends EventEmitter {
     }
 
 
-    /** Joy-Conのバッテリー状態を要求 */
+    /**
+     * Joy-Con のバッテリー状態を要求する。
+     * @param isLeft 左 Joy-Con かどうか
+     */
     requestBatteryStatus(isLeft: boolean): void {
         const hidDevice = isLeft ? this.hidL : this.hidR;
         if (hidDevice) {
@@ -292,7 +336,9 @@ export default class JoyConManager extends EventEmitter {
         }
     }
 
-    /** 定期的にデバイスをスキャンして未接続のJoy-Conに接続試行 */
+    /**
+     * 定期的にデバイスをスキャンして未接続の Joy-Con に接続を試行する。
+     */
     scanDevices(): void {
         console.log('[Debug] scanDevices() called.');
         const { joyconLPath, joyconRPath } = this.findJoyCons();
@@ -316,7 +362,10 @@ export default class JoyConManager extends EventEmitter {
         }
     }
 
-    /** Joy-Conの電源を切るコマンドを送信して切断 */
+    /**
+     * Joy-Con の電源を切るコマンドを送信して切断する。
+     * @param isLeft 左 Joy-Con かどうか
+     */
     shutdownJoyCon(isLeft: boolean): void {
         const hidDevice = isLeft ? this.hidL : this.hidR;
         if (hidDevice) {
@@ -337,7 +386,9 @@ export default class JoyConManager extends EventEmitter {
         else this.autoConnectR = false;
     }
 
-    /** デバイススキャンを開始 (初回接続含む) */
+    /**
+     * デバイススキャンを開始する（初回接続を含む）。
+     */
     startScanningAndConnect(): void {
         if (this.scanTimer) {
             console.log('Device scanner already running.');
@@ -350,7 +401,9 @@ export default class JoyConManager extends EventEmitter {
         }, this.scanIntervalMs);
     }
 
-    /** デバイススキャンを停止 */
+    /**
+     * デバイススキャンを停止する。
+     */
     stopScanning(): void {
         if (this.scanTimer) {
             console.log('Stopping device scan.');
@@ -359,7 +412,12 @@ export default class JoyConManager extends EventEmitter {
         }
     }
 
-    /** 受信データを解析し、★IMUデータ(加速度+ジャイロ)★とボタンイベントを発行 */
+    /**
+     * 受信データを解析し、IMUデータ（加速度・ジャイロ）とボタンイベントを発行する。
+     * @param hidDevice 受信元の HID デバイス
+     * @param data 受信データ
+     * @param isLeft 左 Joy-Con かどうか
+     */
     parseJoyConData(hidDevice: HID.HID, data: Buffer, isLeft: boolean): void {
         const reportId = data[0];
 

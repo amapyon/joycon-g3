@@ -110,7 +110,10 @@ window.electronAPI.onUpdatePointer((pos: { id: 'cursorLeft' | 'cursorRight', x: 
     }
 });
 
-// カーソルを画面中央にリセット
+/**
+ * カーソルを画面中央にリセットする。
+ * @param cursorId 対象カーソル ID
+ */
 function resetCursor(cursorId: 'cursorLeft' | 'cursorRight') {
     // console.log(`[cursor-renderer] resetCursor called for ${cursorId}`); // 追加ログ
     const cursorData = cursors[cursorId];
@@ -147,7 +150,10 @@ function resetCursor(cursorId: 'cursorLeft' | 'cursorRight') {
     updateCursorElementPosition(cursorId);
 }
 
-// カーソルDOM要素の位置を更新
+/**
+ * カーソル DOM 要素の位置を更新する。
+ * @param cursorId 対象カーソル ID
+ */
 function updateCursorElementPosition(cursorId: 'cursorLeft' | 'cursorRight') {
     const cursorData = cursors[cursorId];
     const element = cursorElements[cursorId];
@@ -219,7 +225,9 @@ window.electronAPI.onJoyConButtonDown((data: { pressed: boolean }) => {
     updatePointerVisibility();
 });
 
-// ポインター表示状態を一括制御
+/**
+ * ポインター表示状態を一括制御する。
+ */
 function updatePointerVisibility() {
     // Right cursor: Visible only when X button is pressed
     const rightVisible = isRightXPressed;
@@ -303,7 +311,9 @@ window.addEventListener('resize', () => {
     resetCursor('cursorRight');
 });
 
-// カーソルの描画ループ
+/**
+ * カーソルの描画ループを実行する。
+ */
 function renderLoop() {
     if (typeof windowWidth !== 'number' || typeof windowHeight !== 'number' || windowWidth <= 0 || windowHeight <= 0) {
         windowWidth = window.innerWidth;
@@ -352,6 +362,10 @@ document.addEventListener('DOMContentLoaded', () => {
         cursorElements.cursorRight.style.visibility = 'hidden';
     }
     // --- IPCでcursorMapConfigをmainプロセスへ送信（確実に送るためリトライ付き） ---
+    /**
+     * カーソルマップ設定をリトライ付きで送信する。
+     * @param retry リトライ回数
+     */
     function sendCursorMapConfigWithRetry(retry = 0) {
         if (window.electronAPI && window.electronAPI.sendCursorMapConfig) {
             window.electronAPI.sendCursorMapConfig(cursorMapConfig);

@@ -1,17 +1,27 @@
 // powerpoint-control.ts
 import winax from 'winax';
 
+/**
+ * PowerPoint を COM 経由で操作する。
+ */
 class PowerPointControl {
     ppApp: any = null;
     isWindows: boolean = process.platform === 'win32';
     targetPresentationIdentifier?: string;
 
+    /**
+     * PowerPoint 制御を初期化する。
+     */
     constructor() {
         if (!this.isWindows) {
             console.warn('[PowerPointControl] PowerPoint automation is only supported on Windows.');
         }
     }
 
+    /**
+     * PowerPoint アプリケーションに接続する。
+     * @returns 接続成功かどうか
+     */
     connect(): boolean {
         if (!this.isWindows) return false;
         if (this.ppApp && !this.ppApp.isNull) return true;
@@ -28,6 +38,10 @@ class PowerPointControl {
         }
     }
 
+    /**
+     * 開いているプレゼンテーション一覧を取得する。
+     * @returns プレゼンテーション一覧
+     */
     getOpenPresentations(): Array<{ id: string; name: string; isRunning: boolean }> {
         const presentations: Array<{ id: string; name: string; isRunning: boolean }> = [];
         if (!this.connect()) return presentations;
@@ -63,11 +77,19 @@ class PowerPointControl {
         return presentations;
     }
 
+    /**
+     * 操作対象のプレゼンテーションを設定する。
+     * @param identifier プレゼンテーション識別子
+     */
     setTarget(identifier: string) {
         this.targetPresentationIdentifier = identifier;
         this.activateTarget();
     }
 
+    /**
+     * 操作対象のプレゼンテーションをアクティブ化する。
+     * @returns アクティブ化に成功したかどうか
+     */
     activateTarget(): boolean {
         if (!this.isWindows || !this.targetPresentationIdentifier) return false;
         if (!this.connect()) return false;
@@ -103,6 +125,10 @@ class PowerPointControl {
         return false;
     }
 
+    /**
+     * 現在のスライドショー表示を取得する。
+     * @returns スライドショービュー
+     */
     _getSlideShowView(): any | null {
         if (!this.isWindows || !this.targetPresentationIdentifier) return null;
         if (!this.connect()) return null;
@@ -129,6 +155,10 @@ class PowerPointControl {
         return null;
     }
 
+    /**
+     * 対象のスライドショーを開始する。
+     * @returns スライドショービュー
+     */
     _startSlideShow(): any | null {
         if (!this.isWindows || !this.targetPresentationIdentifier) return null;
         if (!this.connect()) return null;
@@ -174,6 +204,10 @@ class PowerPointControl {
         return null;
     }
 
+    /**
+     * 次のスライドへ進める。
+     * @returns 実行成功かどうか
+     */
     next(): boolean {
         if (!this.isWindows) return false;
         let view = this._getSlideShowView();
@@ -195,6 +229,10 @@ class PowerPointControl {
         return false;
     }
 
+    /**
+     * 前のスライドへ戻る。
+     * @returns 実行成功かどうか
+     */
     previous(): boolean {
         if (!this.isWindows) return false;
         let view = this._getSlideShowView();

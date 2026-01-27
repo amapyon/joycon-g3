@@ -15,7 +15,10 @@ const calibrateButton = document.getElementById('calibrate-button') as HTMLButto
 const calibrationStatus = document.getElementById('calibration-status') as HTMLElement;
 const countdownInitialValueInput = document.getElementById('countdown-initial-value') as HTMLInputElement; // New
 
-// PowerPointプレゼンテーションをロードしてUIを更新する関数
+/**
+ * PowerPoint プレゼンテーションをロードして UI を更新する。
+ * @returns 処理完了を示す Promise
+ */
 async function loadPowerPointPresentations() {
     pptSelect.innerHTML = '<option value="">-- Loading Presentations --</option>';
     pptSelect.disabled = true;
@@ -280,6 +283,11 @@ togglePresetEditBtn.addEventListener('click', () => {
 // Load presets from localStorage or use defaults
 let currentPresets: number[] = JSON.parse(localStorage.getItem('timerPresets') || '[10, 60, 120, 180, 300]');
 
+/**
+ * メイン画面のプリセット表示ラベルを生成する。
+ * @param seconds 秒数
+ * @returns 表示ラベル
+ */
 function formatMainPresetLabel(seconds: number): string {
     if (seconds < 60) return `${seconds}s`;
     const mins = Math.floor(seconds / 60);
@@ -287,6 +295,9 @@ function formatMainPresetLabel(seconds: number): string {
     return secs === 0 ? `${mins}m` : `${mins}m${secs}s`;
 }
 
+/**
+ * プリセットボタンを描画する。
+ */
 function renderPresets() {
     presetButtonsContainer.innerHTML = '';
     currentPresets.forEach(time => {
@@ -304,6 +315,9 @@ function renderPresets() {
     });
 }
 
+/**
+ * プリセット編集 UI を描画する。
+ */
 function renderPresetConfig() {
     presetInputsList.innerHTML = '';
     currentPresets.forEach((time, index) => {
@@ -386,6 +400,10 @@ interface NotificationConfig {
     absolutePath: string;
 }
 
+/**
+ * メディアファイル一覧を読み込み、セレクトボックスを更新する。
+ * @returns 処理完了を示す Promise
+ */
 async function loadMediaFiles() {
     const files = await window.electronAPI.getMediaFiles();
     const dropdowns = [sound1Select, sound2Select];
@@ -408,6 +426,9 @@ async function loadMediaFiles() {
     restoreNotificationSettings();
 }
 
+/**
+ * 通知設定をローカルストレージから復元する。
+ */
 function restoreNotificationSettings() {
     // Load from localStorage
     const saved = localStorage.getItem('timerNotifications');
@@ -425,6 +446,11 @@ function restoreNotificationSettings() {
     broadcastNotificationUpdate();
 }
 
+/**
+ * セレクトボックスの値を安全に反映する。
+ * @param select 対象セレクト
+ * @param val 設定する値
+ */
 function setSelectValue(select: HTMLSelectElement, val: string) {
     for (let i = 0; i < select.options.length; i++) {
         if (select.options[i].value === val) {
@@ -434,6 +460,10 @@ function setSelectValue(select: HTMLSelectElement, val: string) {
     }
 }
 
+/**
+ * 通知設定の更新を全ウィンドウへ通知する。
+ * @returns 処理完了を示す Promise
+ */
 async function broadcastNotificationUpdate() {
     const basePath = await window.electronAPI.getMediaBasePath();
     const configs: NotificationConfig[] = [
@@ -460,6 +490,11 @@ async function broadcastNotificationUpdate() {
 const sound1PlayBtn = document.getElementById('sound1-play-btn') as HTMLButtonElement;
 const sound2PlayBtn = document.getElementById('sound2-play-btn') as HTMLButtonElement;
 
+/**
+ * サウンドファイルをプレビュー再生する。
+ * @param filename ファイル名
+ * @returns 処理完了を示す Promise
+ */
 async function previewSound(filename: string) {
     if (!filename) return;
     const basePath = await window.electronAPI.getMediaBasePath();
@@ -509,6 +544,11 @@ if (toggleTimerWindowBtn) {
 
 const mainCountdownDisplay = document.getElementById('main-countdown-display') as HTMLElement;
 
+/**
+ * 秒数を表示用の文字列に整形する。
+ * @param seconds 秒数
+ * @returns 表示用文字列
+ */
 function formatTimeForDisplay(seconds: number): string {
     const m = Math.floor(seconds / 60);
     const s = seconds % 60;
@@ -594,6 +634,10 @@ if (messageInput && toggleMessageButton) {
     const swatches = document.querySelectorAll('.color-swatch');
     
     // Helper to apply formatting to the saved selection
+    /**
+     * 選択範囲の文字色を適用する。
+     * @param color 色コード
+     */
     function applyColor(color: string) {
         messageInput.focus();
         
