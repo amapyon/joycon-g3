@@ -92,11 +92,6 @@ class IMUProcessor extends EventEmitter {
         const state = this.states[imuData.id];
         if (!state) return;
 
-        console.log(`[IMU][${imuData.id}] === Update Cycle ===`);
-        console.log(`[IMU][${imuData.id}] Raw Accel: X=${imuData.accel.x}, Y=${imuData.accel.y}, Z=${imuData.accel.z}`);
-        console.log(`[IMU][${imuData.id}] Raw Gyro: X=${imuData.gyro.x}, Y=${imuData.gyro.y}, Z=${imuData.gyro.z}`);
-        console.log(`[IMU][${imuData.id}] Current Gyro Bias (from state): X=${state.gyroBiasX.toFixed(2)}, Y=${state.gyroBiasY.toFixed(2)}, Z=${state.gyroBiasZ.toFixed(2)}`);
-
         // 最新のジャイロ値を保存
         this.lastRawGyro[imuData.id] = { ...imuData.gyro };
         const now = performance.now();
@@ -104,10 +99,7 @@ class IMUProcessor extends EventEmitter {
         const dt = state.lastTimestamp > 0 && now - state.lastTimestamp < 1000 ? (now - state.lastTimestamp) / 1000.0 : 0.0166;
         state.lastTimestamp = now;
 
-        console.log(`[IMU][${imuData.id}] Delta Time (dt): ${dt.toFixed(4)}s`);
-
         if (dt <= 0 || Number.isNaN(dt)) {
-            console.warn(`[IMU][${imuData.id}] Skipping update due to invalid dt: ${dt}`);
             return;
         }
 
@@ -128,10 +120,7 @@ class IMUProcessor extends EventEmitter {
         const gy_raw_cal = imuData.gyro.y - biasY;
         const gz_raw_cal = imuData.gyro.z - biasZ;
 
-        console.log(`[IMU][${imuData.id}] Calibrated Gyro: X=${gx_raw_cal.toFixed(2)}, Y=${gy_raw_cal.toFixed(2)}, Z=${gz_raw_cal.toFixed(2)}`);
-
         if ([gx_raw_cal, gy_raw_cal, gz_raw_cal].some(Number.isNaN)) {
-            console.warn(`[IMU][${imuData.id}] Skipping update due to NaN in calibrated gyro.`);
             return;
         }
 
@@ -143,11 +132,7 @@ class IMUProcessor extends EventEmitter {
         const gy = gy_raw_cal * GYRO_SCALE_DPS;
         const gz = gz_raw_cal * GYRO_SCALE_DPS;
         
-        console.log(`[IMU][${imuData.id}] Scaled Accel: X=${ax.toFixed(2)}, Y=${ay.toFixed(2)}, Z=${az.toFixed(2)}`);
-        console.log(`[IMU][${imuData.id}] Scaled Gyro: X=${gx.toFixed(2)}, Y=${gy.toFixed(2)}, Z=${gz.toFixed(2)}`);
-
         if ([ax, ay, az, gx, gy, gz].some(Number.isNaN)) {
-            console.warn(`[IMU][${imuData.id}] Skipping update due to NaN in scaled IMU data.`);
             return;
         }
 
@@ -165,11 +150,7 @@ class IMUProcessor extends EventEmitter {
         const pitchGyroDelta = gy * dt;
         const yawGyroDelta = gx * dt;
 
-        console.log(`[IMU][${imuData.id}] Accel Pitch/Roll: P=${pitchAcc.toFixed(2)}, R=${rollAcc.toFixed(2)}`);
-        console.log(`[IMU][${imuData.id}] Gyro Delta (from integral): P=${pitchGyroDelta.toFixed(2)}, R=${rollGyroDelta.toFixed(2)}, Y=${yawGyroDelta.toFixed(2)}`);
-
         if ([rollGyroDelta, pitchGyroDelta, yawGyroDelta].some(Number.isNaN)) {
-            console.warn(`[IMU][${imuData.id}] Skipping update due to NaN in gyro delta.`);
             return;
         }
 
@@ -179,7 +160,6 @@ class IMUProcessor extends EventEmitter {
         const alpha = state.alpha;
 
         if ([alpha, previousPitch, pitchGyroDelta, pitchAcc, previousRoll, rollGyroDelta, rollAcc].some(Number.isNaN)) {
-            console.warn(`[IMU][${imuData.id}] Skipping update due to NaN in complementary filter inputs.`);
             return;
         }
 
@@ -188,11 +168,7 @@ class IMUProcessor extends EventEmitter {
         state.roll = alpha * (previousRoll + rollGyroDelta) + (1 - alpha) * rollAcc;
         state.yaw += yawGyroDelta;
 
-        console.log(`[IMU][${imuData.id}] Current State (before offset): P=${state.pitch.toFixed(2)}, R=${state.roll.toFixed(2)}, Y=${state.yaw.toFixed(2)}`);
-        console.log(`[IMU][${imuData.id}] Current Offsets: P=${state.pitchOffset.toFixed(2)}, R=${state.rollOffset.toFixed(2)}, Y=${state.yawOffset.toFixed(2)}`);
-
         if (Number.isNaN(state.pitch) || Number.isNaN(state.roll)) {
-            console.warn(`[IMU][${imuData.id}] Skipping update due to NaN in final state pitch/roll.`);
             return;
         }
 
@@ -200,14 +176,6 @@ class IMUProcessor extends EventEmitter {
         const finalRoll = state.roll - state.rollOffset;
         const finalPitch = state.pitch - state.pitchOffset;
 
-        console.log(`[IMU][${imuData.id}] Final Attitude (emitted): P=${finalPitch.toFixed(2)}, R=${finalRoll.toFixed(2)}, Y=${(state.yaw - state.yawOffset).toFixed(2)}`);
-
-        // デバッグログ: エミット前の最終姿勢値を出力（開発時のみ有効）
-        try {
-            // console.log(`[IMUProcessor] Attitude emit for ${imuData.id}: roll=${finalRoll.toFixed(2)}, pitch=${finalPitch.toFixed(2)}, yaw=${(state.yaw - state.yawOffset).toFixed(2)}`);
-        } catch (e) {
-            // ignore logging errors
-        }
         // 姿勢更新イベントを発火
         this.emit('attitude-update', {
             id: imuData.id,

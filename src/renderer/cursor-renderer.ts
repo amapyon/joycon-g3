@@ -28,6 +28,7 @@ interface CursorData {
     blink: boolean;
     pendingX: number | null;
     pendingY: number | null;
+    lastExternalUpdate: number;
 }
 
 // カーソルDOM要素の参照
@@ -63,6 +64,7 @@ const cursors: Record<'cursorLeft' | 'cursorRight', CursorData> = {
         blink: true,
         pendingX: null,
         pendingY: null,
+        lastExternalUpdate: 0,
     },
     cursorRight: {
         x: windowWidth / 2 || 100,
@@ -78,6 +80,7 @@ const cursors: Record<'cursorLeft' | 'cursorRight', CursorData> = {
         blink: true,
         pendingX: null,
         pendingY: null,
+        lastExternalUpdate: 0,
     },
 };
 
@@ -96,6 +99,7 @@ window.electronAPI.onUpdatePointer((pos: { id: 'cursorLeft' | 'cursorRight', x: 
     if (!cursorData) return;
 
     if (cursorData.isVisible) {
+        cursorData.lastExternalUpdate = performance.now();
         cursorData.targetX = pos.x;
         cursorData.targetY = pos.y;
         cursorData.isVisible = true;
@@ -108,7 +112,7 @@ window.electronAPI.onUpdatePointer((pos: { id: 'cursorLeft' | 'cursorRight', x: 
 
 // カーソルを画面中央にリセット
 function resetCursor(cursorId: 'cursorLeft' | 'cursorRight') {
-    console.log(`[cursor-renderer] resetCursor called for ${cursorId}`); // 追加ログ
+    // console.log(`[cursor-renderer] resetCursor called for ${cursorId}`); // 追加ログ
     const cursorData = cursors[cursorId];
     if (!cursorData) {
         console.error(`[${cursorId}] Cannot reset cursor: cursorData is null.`);
@@ -153,6 +157,7 @@ function updateCursorElementPosition(cursorId: 'cursorLeft' | 'cursorRight') {
         if (!Number.isNaN(halfWidth) && !Number.isNaN(halfHeight) && halfWidth >= 0 && halfHeight >= 0) {
             element.style.left = `${cursorData.x - halfWidth}px`;
             element.style.top = `${cursorData.y - halfHeight}px`;
+            // debug render logs removed
         } else {
             console.warn(`[${cursorId}] Invalid element dimensions.`);
         }
@@ -175,6 +180,9 @@ window.electronAPI.onJoyConAttitude((data: { id: 'cursorLeft' | 'cursorRight'; r
     }
     const cursorData = cursors[cursorId];
     if (!cursorData) return;
+    if (performance.now() - cursorData.lastExternalUpdate < 250) {
+        return;
+    }
 
     const roll = data.roll;
     const pitch = data.pitch;
