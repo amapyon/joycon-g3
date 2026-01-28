@@ -10,6 +10,7 @@
     "watch": "npm run copy-renderer && tsc -w",
     "start": "electron .",
     "test": "jest",
+    "test:coverage": "jest --coverage",
     "test:watch": "jest --watch",
     "rebuild": "electron-rebuild -f -w node-hid,winax",
     "package-win": "electron-packager . \"JoyCon Clicker\" --platform=win32 --arch=x64 --out=dist_packager --overwrite --icon=assets/icon.ico --ignore=\"^/dist_.*\" --ignore=\"^/node_modules/(electron|electron-packager|electron-rebuild|\\.bin)(/|$)\" --ignore=\"^/\\.git$\" --ignore=\"^/\\.vscode$\" --ignore=\"^/assets$\""

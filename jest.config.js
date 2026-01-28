@@ -3,6 +3,13 @@ module.exports = {
     preset: 'ts-jest',
     testEnvironment: 'node',
     testMatch: ['<rootDir>/src/**/__tests__/**/*.test.ts'],
+    collectCoverageFrom: [
+        '<rootDir>/src/**/*.ts',
+        '!<rootDir>/src/**/__tests__/**',
+        '!<rootDir>/src_legacy/**',
+        '!<rootDir>/dist/**',
+    ],
+    coverageDirectory: '<rootDir>/coverage',
     moduleFileExtensions: ['ts', 'js', 'json'],
     modulePathIgnorePatterns: ['<rootDir>/src_legacy/', '<rootDir>/dist_packager/'],
 };

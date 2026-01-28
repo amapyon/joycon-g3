@@ -2,5 +2,6 @@
 /dist_packager/
 /dist/
 /src_legacy/
+/coverage/
 *.mp3
 *.wav
