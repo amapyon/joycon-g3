@@ -1,6 +1,5 @@
 // main.ts
-import { app, BrowserWindow, ipcMain, screen } from 'electron';
-import path from 'path';
+import { app, BrowserWindow, ipcMain, screen, IpcMainEvent } from 'electron';
 import JoyConManager from './joycon';
 import powerpointControl from './powerpoint-control';
 import WindowManager from './window-manager';
@@ -8,19 +7,25 @@ import * as IpcHandler from './ipc-handler';
 import imuProcessor from './imu-processor';
 import { getScreenSize, setScreenSize } from './screen-state';
 
+type CursorId = 'cursorLeft' | 'cursorRight';
+type Vector3 = { x: number; y: number; z: number };
+type ImuData = { id: string; accel: Vector3; gyro: Vector3 };
+type PointerPositions = { [key in CursorId]: { x: number; y: number } };
+type CursorMapConfig = Partial<Record<CursorId, { xSign: number; ySign: number }>>;
+type TimerNotificationConfig = Record<string, unknown>;
+type JoyConEventData = { id?: string } & Record<string, unknown>;
+type JoyConStatus = Record<string, unknown>;
+type AttitudeData = Record<string, unknown>;
+type CalibrationStatus = Record<string, unknown>;
+type BatteryStatus = Record<string, unknown>;
+
 // --- IMU Pointer Control Variables ---
-let isCalibrating = false;
-const CALIBRATION_SAMPLE_COUNT = 100;
-let calibrationSamples: { x: number; y: number; z: number }[] = [];
-let biasX = 0, biasY = 0, biasZ = 0;
-let isCursorVisible: { cursorLeft: boolean, cursorRight: boolean } = { cursorLeft: false, cursorRight: false }; // Track visibility per cursor
-let currentPointerPosition = { x: 600, y: 300 }; // Keep this, it's still used for initial position
+const isCursorVisible: { cursorLeft: boolean; cursorRight: boolean } = { cursorLeft: false, cursorRight: false }; // Track visibility per cursor
 let countdownInitialValue: number = 10; // Default value
 let isRStickPressed: boolean = false; // Track R-stick press state
-let lastAnalogData: { x: number, y: number } | null = null; // Store last analog stick data
+let lastAnalogData: { x: number; y: number } | null = null; // Store last analog stick data
 const FONT_SIZE_CHANGE_AMOUNT = 2; // Pixels to change font size
 const FONT_SIZE_CHANGE_INTERVAL = 100; // Milliseconds between font size changes
-const MENU_NAV_INTERVAL = 250; // Milliseconds between menu navigation steps (ignored in flick mode)
 let lastFontSizeChangeTime = 0; // Timestamp of the last font size change
 let isTimerMenuNavActive = false; // Track if stick is currently tilted for menu navigation
 let isTimerCounting = false; // Track if timer is active
@@ -44,7 +49,7 @@ function getPhysicalScreenSize() {
 const joyconManager = new JoyConManager();
 
 // --- カーソルマップ設定を保持する変数 ---
-let cursorMapConfig: { [key in 'cursorLeft' | 'cursorRight']?: { xSign: number, ySign: number } } = {};
+let cursorMapConfig: CursorMapConfig = {};
 
 app.whenReady().then(() => {
     // 物理ピクセルでの画面サイズを初期化
@@ -61,35 +66,39 @@ app.whenReady().then(() => {
     /**
      * タイマーウィンドウの表示状態を切り替える。
      */
+    /**
+     * タイマーウィンドウの表示/非表示を切り替える。
+     */
     function toggleTimerWindowVisibility() {
         console.log('[Main] toggleTimerWindowVisibility called.');
-        let targetWindow = WindowManager.getTimerWindow();
+        const existingWindow = WindowManager.getTimerWindow();
+        let targetWindow = existingWindow;
         
         if (!targetWindow || targetWindow.isDestroyed()) {
-             console.log('[Main] Timer window does not exist or is destroyed. Creating new window.');
-             // When creating, ensure it's on the main display
-             const mainWin = WindowManager.getMainWindow(); // Get mainWin here
-             const mainWinBounds = mainWin ? mainWin.getBounds() : screen.getPrimaryDisplay().bounds; // Fallback to primary if mainWin not available yet
-             const mainDisplay = screen.getDisplayNearestPoint({ x: mainWinBounds.x, y: mainWinBounds.y });
-             targetWindow = WindowManager.createTimerWindow(mainDisplay);
-             if (!targetWindow) {
-                 console.error('[Main] Failed to create timer window.');
-                 return;
-             }
-             targetWindow.webContents.once('did-finish-load', () => {
-                 if (targetWindow && !targetWindow.isDestroyed()) {
-                     console.log('[Main] Timer window did-finish-load. Showing window.');
-                     targetWindow.show();
-                     if (!isTimerCounting) {
-                         targetWindow.webContents.send('set-timer-mode', 'setup');
-                     } else {
-                         targetWindow.webContents.send('set-timer-mode', 'timer');
-                     }
-                 } else {
-                     console.warn('[Main] Timer window was destroyed before did-finish-load.');
-                 }
-             });
-             return; // Exit after initiating creation
+            console.log('[Main] Timer window does not exist or is destroyed. Creating new window.');
+            // When creating, ensure it's on the main display
+            const mainWin = WindowManager.getMainWindow(); // Get mainWin here
+            const mainWinBounds = mainWin ? mainWin.getBounds() : screen.getPrimaryDisplay().bounds; // Fallback to primary if mainWin not available yet
+            const mainDisplay = screen.getDisplayNearestPoint({ x: mainWinBounds.x, y: mainWinBounds.y });
+            targetWindow = WindowManager.createTimerWindow(mainDisplay);
+            if (!targetWindow) {
+                console.error('[Main] Failed to create timer window.');
+                return;
+            }
+            targetWindow.webContents.once('did-finish-load', () => {
+                if (targetWindow && !targetWindow.isDestroyed()) {
+                    console.log('[Main] Timer window did-finish-load. Showing window.');
+                    targetWindow.show();
+                    if (!isTimerCounting) {
+                        targetWindow.webContents.send('set-timer-mode', 'setup');
+                    } else {
+                        targetWindow.webContents.send('set-timer-mode', 'timer');
+                    }
+                } else {
+                    console.warn('[Main] Timer window was destroyed before did-finish-load.');
+                }
+            });
+            return; // Exit after initiating creation
         }
 
         console.log('[Main] Timer window exists. Checking visibility.');
@@ -136,7 +145,7 @@ app.whenReady().then(() => {
 
     // --- IPCでcursorMapConfigを受信 ---
     if (!ipcMain.listenerCount('cursor-map-config')) {
-        ipcMain.on('cursor-map-config', (event: any, config: any) => {
+        ipcMain.on('cursor-map-config', (event: IpcMainEvent, config: CursorMapConfig) => {
             cursorMapConfig = config;
             console.log('[main.ts] Received cursorMapConfig from renderer:', cursorMapConfig);
         });
@@ -144,14 +153,14 @@ app.whenReady().then(() => {
 
     // Add IPC listener for cursor visibility updates
     if (!ipcMain.listenerCount('cursor-visibility-update')) {
-        ipcMain.on('cursor-visibility-update', (event: any, data: { id: 'cursorLeft' | 'cursorRight', isVisible: boolean }) => {
+        ipcMain.on('cursor-visibility-update', (event: IpcMainEvent, data: { id: CursorId; isVisible: boolean }) => {
             isCursorVisible[data.id] = data.isVisible;
             // console.log(`[main.ts] Cursor ${data.id} visibility updated to ${data.isVisible}`);
         });
     }
     // --- IPCでcountdown-initial-valueを受信 ---
     if (!ipcMain.listenerCount('countdown-initial-value')) {
-        ipcMain.on('countdown-initial-value', (event: any, value: number) => {
+        ipcMain.on('countdown-initial-value', (event: IpcMainEvent, value: number) => {
             countdownInitialValue = value;
             console.log(`[main.ts] Received countdown initial value: ${countdownInitialValue}`);
             // Broadcast to all windows
@@ -163,7 +172,7 @@ app.whenReady().then(() => {
 
     // --- IPCでtimer presetsを受信 ---
     if (!ipcMain.listenerCount('update-timer-presets')) {
-        ipcMain.on('update-timer-presets', (event: any, presets: number[]) => {
+        ipcMain.on('update-timer-presets', (event: IpcMainEvent, presets: number[]) => {
             console.log(`[main.ts] Received timer presets: ${presets}`);
             // Broadcast to all windows
             [WindowManager.getCursorWindow(), WindowManager.getTimerWindow(), WindowManager.getMainWindow()].forEach(win => {
@@ -174,8 +183,8 @@ app.whenReady().then(() => {
 
     // --- IPCでtimer notificationsを受信 ---
     if (!ipcMain.listenerCount('update-timer-notifications')) {
-        ipcMain.on('update-timer-notifications', (event: any, configs: any[]) => {
-            console.log(`[main.ts] Received timer notifications update:`, configs);
+        ipcMain.on('update-timer-notifications', (event: IpcMainEvent, configs: TimerNotificationConfig[]) => {
+            console.log('[main.ts] Received timer notifications update:', configs);
             // Broadcast to all windows
             [WindowManager.getCursorWindow(), WindowManager.getTimerWindow(), WindowManager.getMainWindow()].forEach(win => {
                 if (win && !win.isDestroyed()) win.webContents.send('update-timer-notifications', configs);
@@ -185,17 +194,17 @@ app.whenReady().then(() => {
 
     // --- IPC for Timer Status ---
     if (!ipcMain.listenerCount('timer-status-update')) {
-        ipcMain.on('timer-status-update', (event: any, isCountingUpdate: boolean) => {
+        ipcMain.on('timer-status-update', (event: IpcMainEvent, isCountingUpdate: boolean) => {
             console.log(`[main.ts] Timer status update: ${isCountingUpdate}`);
             isTimerCounting = isCountingUpdate;
         });
     }
     if (!ipcMain.listenerCount('hide-timer-window')) {
         ipcMain.on('hide-timer-window', () => {
-             const timerWindow = WindowManager.getTimerWindow();
-             if (timerWindow && !timerWindow.isDestroyed()) {
-                 timerWindow.hide();
-             }
+            const timerWindow = WindowManager.getTimerWindow();
+            if (timerWindow && !timerWindow.isDestroyed()) {
+                timerWindow.hide();
+            }
         });
     }
 
@@ -209,7 +218,7 @@ app.whenReady().then(() => {
 
     // Add IPC listener for timer countdown updates from timer-renderer
     if (!ipcMain.listenerCount('timer-countdown-update')) {
-        ipcMain.on('timer-countdown-update', (event: any, remainingTime: number) => {
+        ipcMain.on('timer-countdown-update', (event: IpcMainEvent, remainingTime: number) => {
             // console.log(`[Main] Received timer countdown update: ${remainingTime}`);
             const mainWindow = WindowManager.getMainWindow();
             if (mainWindow && !mainWindow.isDestroyed()) {
@@ -224,7 +233,7 @@ app.whenReady().then(() => {
      * IMU データを受け取り、ポインター座標を更新する。
      * @param data IMU データ
      */
-    function handleImuData(data: { id: string, accel: { x: number, y: number, z: number }, gyro: { x: number, y: number, z: number } }) {
+    function handleImuData(data: ImuData) {
         const cursorId = (data.id === 'R' || data.id === 'cursorRight') ? 'cursorRight' : 'cursorLeft';
         
         // Feed data to imuProcessor for calibration and attitude calculation
@@ -236,11 +245,6 @@ app.whenReady().then(() => {
 
         if (imuProcessor.isCalibrating[cursorId]) {
             return; // Don't move pointer during calibration
-        }
-
-        if (isCalibrating) {
-            // ... logic to handle main.ts local calibration if still needed ...
-            // For now, let's keep it just in case, but imuProcessor handles its own.
         }
 
         if (!isCursorVisible[cursorId]) { // Check visibility for the specific cursor
@@ -263,10 +267,8 @@ app.whenReady().then(() => {
 
         // --- JoyConごとにポインター座標を分離 ---
         const id = data.id === 'R' || data.id === 'cursorRight' ? 'cursorRight' : 'cursorLeft';
-        // ポインターごとの座標を保持（型定義を追加して型エラー回避）
-        type PointerPositions = { cursorLeft: { x: number, y: number }, cursorRight: { x: number, y: number } };
-        type CursorMapConfig = { [key in 'cursorLeft' | 'cursorRight']: { xSign: number, ySign: number } };
-        const g = globalThis as typeof globalThis & { pointerPositions?: PointerPositions, cursorMapConfig?: CursorMapConfig };
+        // ポインターごとの座標を保持
+        const g = globalThis as typeof globalThis & { pointerPositions?: PointerPositions; cursorMapConfig?: CursorMapConfig };
         if (!g.pointerPositions) g.pointerPositions = { cursorLeft: { x: 600, y: 300 }, cursorRight: { x: 600, y: 300 } };
         const pointerPosition = g.pointerPositions[id];
 
@@ -294,33 +296,33 @@ app.whenReady().then(() => {
             pointerWindow.webContents.send('update-pointer', { id, x: pointerPosition.x, y: pointerPosition.y });
         }
     }
-    imuProcessor.on('attitude-update', (attitudeData: any) => {
+    imuProcessor.on('attitude-update', (attitudeData: AttitudeData) => {
         const targetWindow = WindowManager.getCursorWindow();
         if (targetWindow && !targetWindow.isDestroyed()) {
             targetWindow.webContents.send('joycon-attitude', attitudeData);
         }
     });
-    joyconManager.on('status-update', (status: any) => {
+    joyconManager.on('status-update', (status: JoyConStatus) => {
         const targetWindow = WindowManager.getMainWindow();
         if (targetWindow && !targetWindow.isDestroyed()) {
             targetWindow.webContents.send('joycon-status-update', status);
         }
     });
     ['button-x', 'button-down', 'button-plus'].forEach((eventName) => {
-        joyconManager.on(eventName, (data: any) => {
+        joyconManager.on(eventName, (data: JoyConEventData) => {
             // console.log(`[Main] Event forwarded from JoyCon: ${eventName}`, data);
             const targetWindow = WindowManager.getCursorWindow();
             if (targetWindow && !targetWindow.isDestroyed()) {
-                targetWindow.webContents.send(
-                    eventName === 'button-x' ? 'joycon-button-x' :
-                    eventName === 'button-down' ? 'joycon-button-down' :
-                    'joycon-button-plus', // New event name
-                    data
-                );
+                const channel = eventName === 'button-x'
+                    ? 'joycon-button-x'
+                    : eventName === 'button-down'
+                        ? 'joycon-button-down'
+                        : 'joycon-button-plus'; // New event name
+                targetWindow.webContents.send(channel, data);
             }
         });
     });
-    joyconManager.on('button-x-pressed', (data: any) => {
+    joyconManager.on('button-x-pressed', (data: JoyConEventData) => {
         console.log(`[Main] button-x-pressed received for ${data?.id}`);
         imuProcessor.recenter(data.id);
         const targetWindow = WindowManager.getCursorWindow();
@@ -329,7 +331,7 @@ app.whenReady().then(() => {
         }
     });
 
-    joyconManager.on('button-plus-pressed', (data: any) => {
+    joyconManager.on('button-plus-pressed', (data: JoyConEventData) => {
         console.log(`[Main] button-plus-pressed received for ${data?.id}. Toggle logic.`);
         toggleTimerWindowVisibility();
 
@@ -339,39 +341,39 @@ app.whenReady().then(() => {
             targetWindow.webContents.send('button-plus-pressed', data);
         }
     });
-    joyconManager.on('button-minus-pressed', (data: any) => {
+    joyconManager.on('button-minus-pressed', (data: JoyConEventData) => {
         console.log(`[Main] button-minus-pressed received from JoyConManager for ${data?.id}`);
-        let timerWindow = WindowManager.getTimerWindow();
+        const timerWindow = WindowManager.getTimerWindow();
         if (timerWindow && !timerWindow.isDestroyed()) {
             timerWindow.show();
             if (timerWindow.webContents.isLoading()) {
                 timerWindow.webContents.once('did-finish-load', () => {
-                   if (timerWindow && !timerWindow.isDestroyed()) {
+                    if (timerWindow && !timerWindow.isDestroyed()) {
                         timerWindow.webContents.send('button-minus-pressed', data);
-                   }
+                    }
                 });
             } else {
-               timerWindow.webContents.send('button-minus-pressed', data);
+                timerWindow.webContents.send('button-minus-pressed', data);
             }
         }
     });
-    joyconManager.on('button-sr-pressed', (data: any) => {
+    joyconManager.on('button-sr-pressed', (data: JoyConEventData) => {
         console.log(`[Main] button-sr-pressed received from JoyConManager for ${data?.id}`);
-        let timerWindow = WindowManager.getTimerWindow();
+        const timerWindow = WindowManager.getTimerWindow();
         if (timerWindow && !timerWindow.isDestroyed()) {
             timerWindow.show();
             if (timerWindow.webContents.isLoading()) {
                 timerWindow.webContents.once('did-finish-load', () => {
-                   if (timerWindow && !timerWindow.isDestroyed()) {
+                    if (timerWindow && !timerWindow.isDestroyed()) {
                         timerWindow.webContents.send('button-sr-pressed', data);
-                   }
+                    }
                 });
             } else {
-               timerWindow.webContents.send('button-sr-pressed', data);
+                timerWindow.webContents.send('button-sr-pressed', data);
             }
         }
     });
-    joyconManager.on('button-down-pressed', (data: any) => {
+    joyconManager.on('button-down-pressed', (data: JoyConEventData) => {
         console.log(`[Main] button-down-pressed received for ${data?.id} -> calling imuProcessor.recenter`);
         imuProcessor.recenter(data.id);
         const targetWindow = WindowManager.getCursorWindow();
@@ -384,12 +386,12 @@ app.whenReady().then(() => {
         isRStickPressed = data.pressed;
 
         if (isRStickPressed) {
-             console.log('[Main] R-stick pressed (Click)');
-             // Send select event to Timer Window
-             const timerWindow = WindowManager.getTimerWindow();
-             if (timerWindow && !timerWindow.isDestroyed()) {
-                 timerWindow.webContents.send('timer-menu-select');
-             }
+            console.log('[Main] R-stick pressed (Click)');
+            // Send select event to Timer Window
+            const timerWindow = WindowManager.getTimerWindow();
+            if (timerWindow && !timerWindow.isDestroyed()) {
+                timerWindow.webContents.send('timer-menu-select');
+            }
         }
 
         // If stick is pressed and we have previous analog data, immediately process it (existing logic for font size)
@@ -486,19 +488,19 @@ app.whenReady().then(() => {
     joyconManager.on('ppt-prev', () => {
         powerpointControl.previous();
     });
-    imuProcessor.on('attitude-update', (attitudeData: any) => {
+    imuProcessor.on('attitude-update', (attitudeData: AttitudeData) => {
         const targetWindow = WindowManager.getCursorWindow();
         if (targetWindow && !targetWindow.isDestroyed()) {
             targetWindow.webContents.send('joycon-attitude', attitudeData);
         }
     });
-    imuProcessor.on('calibration-status', (statusInfo: any) => {
+    imuProcessor.on('calibration-status', (statusInfo: CalibrationStatus) => {
         const targetWindow = WindowManager.getMainWindow();
         if (targetWindow && !targetWindow.isDestroyed()) {
             targetWindow.webContents.send('calibration-status-update', statusInfo);
         }
     });
-    joyconManager.on('battery-status-update', (status: any) => {
+    joyconManager.on('battery-status-update', (status: BatteryStatus) => {
         const targetWindow = WindowManager.getMainWindow();
         if (targetWindow && !targetWindow.isDestroyed()) {
             targetWindow.webContents.send('joycon-battery-status-update', status);
