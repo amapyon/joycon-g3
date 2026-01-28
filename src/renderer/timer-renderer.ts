@@ -1,346 +1,361 @@
-{
-    const countdownTimerElement: HTMLElement | null = document.getElementById('countdownTimer');
-    const countdownMenuElement: HTMLElement | null = document.getElementById('countdownMenu');
-    const countdownMenuValueElement: HTMLElement | null = document.getElementById('countdownMenuValue');
+export {};
 
-    let countdownInterval: NodeJS.Timeout | null = null;
-    let countdownValue: number = 10;
-    let currentCountdownInitialValue: number = parseInt(localStorage.getItem('countdownInitialValue') || '10');
-    let currentFontSize: number = parseInt(localStorage.getItem('timerFontSize') || '100'); // Load saved size
-    let isCountdownMenuVisible = false;
-    let selectedPresetIndex: number = -1; 
-    let currentPresetValues: number[] = JSON.parse(localStorage.getItem('timerPresets') || '[10, 60, 120, 180, 300]'); 
-    const timerPresetsContainer: HTMLElement | null = document.getElementById('timer-presets-container');
+type TimerMode = 'timer' | 'setup';
+type TimerNotificationConfig = {
+    time: number;
+    filename: string;
+    absolutePath: string;
+};
+type ElectronAPI = {
+    onUpdateTimerNotifications: (callback: (configs: TimerNotificationConfig[]) => void) => void;
+    sendTimerStatus: (isCounting: boolean) => void;
+    sendTimerCountdownUpdate: (remainingTime: number) => void;
+    onChangeFontSize: (callback: (delta: number) => void) => void;
+    onUpdateCountdownInitialValue: (callback: (value: number) => void) => void;
+    onUpdateTimerPresets: (callback: (presets: number[]) => void) => void;
+    onSetTimerMode: (callback: (mode: TimerMode) => void) => void;
+    onStartCountdown: (callback: (duration: number) => void) => void;
+    onJoyConButtonSrPressed: (callback: () => void) => void;
+    onTimerMenuNavigate: (callback: (direction: number) => void) => void;
+    onTimerMenuSelect: (callback: () => void) => void;
+};
 
-    /**
-     * タイマーのフォントサイズを更新する。
-     * @param delta 増減量
-     */
-    function updateTimerFontSize(delta: number) {
-        currentFontSize += delta;
-        if (currentFontSize < 20) currentFontSize = 20;
-        if (currentFontSize > 500) currentFontSize = 500;
-        
-        if (countdownTimerElement) {
-            countdownTimerElement.style.fontSize = `${currentFontSize}px`;
-        }
-        localStorage.setItem('timerFontSize', String(currentFontSize));
-    }
+const electronAPI = (window as unknown as { electronAPI: ElectronAPI }).electronAPI;
+const countdownTimerElement = document.getElementById('countdownTimer') as HTMLElement | null;
+const countdownMenuElement = document.getElementById('countdownMenu') as HTMLElement | null;
+const countdownMenuValueElement = document.getElementById('countdownMenuValue') as HTMLElement | null;
+const timerPresetsContainer = document.getElementById('timer-presets-container') as HTMLElement | null;
+const wheelZone = document.getElementById('wheel-zone') as HTMLElement | null;
+const storedCountdownInitialValue = localStorage.getItem('countdownInitialValue');
+const storedTimerFontSize = localStorage.getItem('timerFontSize');
+const storedTimerPresets = localStorage.getItem('timerPresets');
+const storedOpacity = localStorage.getItem('timerWindowOpacity');
+const storedNotifications = localStorage.getItem('timerNotifications');
 
-    // Initial application of font size
+let countdownInterval: ReturnType<typeof setInterval> | null = null;
+let countdownValue = 10;
+let currentCountdownInitialValue = storedCountdownInitialValue ? Number.parseInt(storedCountdownInitialValue, 10) : 10;
+let currentFontSize = storedTimerFontSize ? Number.parseInt(storedTimerFontSize, 10) : 100; // 保存値を反映
+let isCountdownMenuVisible = false;
+let selectedPresetIndex = -1;
+let currentPresetValues: number[] = JSON.parse(storedTimerPresets || '[10, 60, 120, 180, 300]');
+let currentOpacity = storedOpacity ? Number.parseFloat(storedOpacity) : 0.9; // 背景の初期透明度
+let timerNotificationConfigs: TimerNotificationConfig[] = JSON.parse(storedNotifications || '[]');
+
+/**
+ * タイマーのフォントサイズを更新する。
+ * @param delta 増減量
+ */
+function updateTimerFontSize(delta: number) {
+    currentFontSize += delta;
+    if (currentFontSize < 20) currentFontSize = 20;
+    if (currentFontSize > 500) currentFontSize = 500;
+    
     if (countdownTimerElement) {
         countdownTimerElement.style.fontSize = `${currentFontSize}px`;
     }
+    localStorage.setItem('timerFontSize', String(currentFontSize));
+}
 
-    /**
-     * タイマーウィンドウのプリセット表示ラベルを生成する。
-     * @param seconds 秒数
-     * @returns 表示ラベル
-     */
-    function formatTimerWindowPresetLabel(seconds: number): string {
-        if (seconds < 60) return `${seconds}s`;
-        const mins = Math.floor(seconds / 60);
-        const secs = seconds % 60;
-        return secs === 0 ? `${mins}m` : `${mins}m${secs}s`;
-    }
+/**
+ * タイマーウィンドウのプリセット表示ラベルを生成する。
+ * @param seconds 秒数
+ * @returns 表示ラベル
+ */
+function formatTimerWindowPresetLabel(seconds: number): string {
+    if (seconds < 60) return `${seconds}s`;
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return secs === 0 ? `${mins}m` : `${mins}m${secs}s`;
+}
 
-    /**
-     * タイマーウィンドウのプリセットを描画する。
-     */
-    function renderTimerPresets() {
-        if (!timerPresetsContainer) return;
-        timerPresetsContainer.innerHTML = '';
-        currentPresetValues.forEach((time, index) => {
-            const btn = document.createElement('div');
-            btn.className = 'menu-preset-btn';
-            if (index === selectedPresetIndex) btn.classList.add('focused');
-            btn.dataset.time = String(time);
-            btn.textContent = formatTimerWindowPresetLabel(time);
-            btn.addEventListener('click', () => {
-                 if (isCountdownMenuVisible) {
-                     setCountdownMenuVisible(false);
-                 }
-                 startCountdown(time);
-            });
-            timerPresetsContainer.appendChild(btn);
-        });
-    }
+/**
+ * 秒数を M:SS 形式に整形する。
+ * @param seconds 秒数
+ * @returns 表示用文字列
+ */
+function formatTime(seconds: number): string {
+    const m = Math.floor(seconds / 60);
+    const s = seconds % 60;
+    return `${m}:${String(s).padStart(2, '0')}`;
+}
 
-    // Helper to format text as M:SS
-    /**
-     * 秒数を M:SS 形式に整形する。
-     * @param seconds 秒数
-     * @returns 表示用文字列
-     */
-    function formatTime(seconds: number): string {
-        const m = Math.floor(seconds / 60);
-        const s = seconds % 60;
-        return `${m}:${String(s).padStart(2, '0')}`;
-    }
+/**
+ * カウントダウン値を範囲内に収める。
+ * @param value カウントダウン値
+ * @returns 補正後の値
+ */
+function clampCountdownValue(value: number) {
+    return Math.max(1, Math.min(3600, value));
+}
 
-    /**
-     * カウントダウン値を範囲内に収める。
-     * @param value カウントダウン値
-     * @returns 補正後の値
-     */
-    function clampCountdownValue(value: number) {
-        return Math.max(1, Math.min(3600, value));
-    }
-
-    /**
-     * カウントダウンメニュー表示を更新する。
-     */
-    function updateCountdownMenuDisplay() {
-        if (countdownMenuValueElement) {
-            countdownMenuValueElement.textContent = formatTime(currentCountdownInitialValue);
-        }
-    }
-
-    /**
-     * カウントダウンメニューの表示状態を切り替える。
-     * @param visible 表示するかどうか
-     */
-    function setCountdownMenuVisible(visible: boolean) {
-        isCountdownMenuVisible = visible;
-        if (countdownMenuElement) {
-            countdownMenuElement.style.visibility = visible ? 'visible' : 'hidden';
-        }
-        if (visible) {
-            updateCountdownMenuDisplay();
-            stopCountdown();
-            if (countdownTimerElement) {
-                countdownTimerElement.style.visibility = 'hidden';
-                countdownTimerElement.textContent = formatTime(currentCountdownInitialValue);
-            }
-            renderTimerPresets(); // Re-render when menu opens
-        } else {
-            // Switching back to Timer UI
-            if (countdownTimerElement) {
-                countdownTimerElement.style.visibility = 'visible';
-                // Ensure color is reset if we stopped a finished timer
-                if (!countdownInterval) {
-                     countdownTimerElement.style.color = '#ffffff';
-                }
-            }
-        }
-    }
-
-    /**
-     * カウントダウンを停止する。
-     */
-    function stopCountdown() {
-        if (countdownInterval) {
-            clearInterval(countdownInterval);
-            countdownInterval = null;
-            window.electronAPI.sendTimerStatus(false);
-        }
-    }
-
-    let timerNotificationConfigs: any[] = JSON.parse(localStorage.getItem('timerNotifications') || '[]');
-
-    window.electronAPI.onUpdateTimerNotifications((configs: any[]) => {
-        console.log(`[TimerRenderer] Notifications updated:`, configs);
-        timerNotificationConfigs = configs;
-        localStorage.setItem('timerNotifications', JSON.stringify(configs));
-    });
-
-    /**
-     * カウントダウンを開始する。
-     * @param duration 秒数
-     */
-    function startCountdown(duration: number) {
-        if (!countdownTimerElement) return;
-
-        stopCountdown();
-        currentCountdownInitialValue = duration;
-        countdownValue = duration;
-        
-        // Track which sounds have already played this cycle to avoid repeats
-        const playedIndices = new Set<number>();
-
-        countdownTimerElement.style.visibility = 'visible';
-        countdownTimerElement.style.color = '#ffffff'; 
-        countdownTimerElement.textContent = formatTime(countdownValue);
-        
-        console.log(`[TimerRenderer] Starting countdown: ${duration}s`);
-        window.electronAPI.sendTimerStatus(true);
-
-        countdownInterval = setInterval(() => {
-            // Check for notifications ANY time the value matches (including start)
-            timerNotificationConfigs.forEach((config, index) => {
-                if (!playedIndices.has(index) && config.absolutePath && countdownValue === config.time) {
-                    console.log(`[TimerRenderer] Alert trigger at ${config.time}s: ${config.absolutePath}`);
-                    try {
-                        let audioUrl = config.absolutePath;
-                        if (!audioUrl.startsWith('file://') && !audioUrl.startsWith('http')) {
-                            audioUrl = 'file://' + config.absolutePath.replace(/\\/g, '/');
-                        }
-                        const audio = new Audio(audioUrl);
-                        audio.play().catch(e => console.error('Audio play failed:', e));
-                        playedIndices.add(index);
-                    } catch (err) {
-                        console.error('Error playing notification sound:', err);
-                    }
-                }
-            });
-
-            if (countdownValue > 0) {
-                countdownValue--;
-                countdownTimerElement!.textContent = formatTime(countdownValue);
-                window.electronAPI.sendTimerCountdownUpdate(countdownValue); // メインプロセスに残り時間を送信
-            } else {
-                stopCountdown();
-                countdownTimerElement!.style.color = '#888888'; 
-                countdownTimerElement!.textContent = formatTime(currentCountdownInitialValue); 
-                window.electronAPI.sendTimerCountdownUpdate(countdownValue); // 0 になったことを送信
-            }
-        }, 1000);
-    }
-
-    // Event Listeners
-
-    window.electronAPI.onChangeFontSize((delta: number) => {
-        console.log(`[TimerRenderer] Change font size via Joy-Con: ${delta}`);
-        updateTimerFontSize(delta * 2); 
-    });
-
-    // Load and apply initial transparency
-    let currentOpacity = parseFloat(localStorage.getItem('timerWindowOpacity') || '0.9'); // Initial default for countdownTimer background
-
-    // Function to apply opacity to the countdownTimer
-    /**
-     * タイマー表示の透明度を適用する。
-     * @param opacity 透明度
-     */
-    function applyCountdownTimerOpacity(opacity: number) {
-        if (countdownTimerElement) {
-            // Assuming the base color is 100, 100, 100 as per style.css
-            countdownTimerElement.style.background = `rgba(100, 100, 100, ${opacity})`;
-        }
-    }
-    applyCountdownTimerOpacity(currentOpacity); // Apply on load
-
-    /**
-     * 透明度を更新する。
-     * @param delta 増減量
-     */
-    function updateTransparency(delta: number) {
-        currentOpacity += delta;
-        if (currentOpacity < 0.1) currentOpacity = 0.1; // Minimum transparency
-        if (currentOpacity > 1.0) currentOpacity = 1.0; // Maximum transparency
-
-        applyCountdownTimerOpacity(currentOpacity);
-        localStorage.setItem('timerWindowOpacity', String(currentOpacity));
-    }
-
-    const wheelZone = document.getElementById('wheel-zone');
-    if (wheelZone) {
-        wheelZone.addEventListener('wheel', (e: WheelEvent) => {
-            e.preventDefault(); // Prevent default scroll behavior
-
-            if (e.shiftKey) {
-                // Adjust transparency
-                const delta = e.deltaY < 0 ? 0.05 : -0.05; // Scroll up increases opacity, down decreases
-                updateTransparency(delta);
-            } else {
-                // Adjust font size (existing logic)
-                const delta = e.deltaY < 0 ? 5 : -5;
-                console.log(`[TimerRenderer] Wheel detected on zone. Delta: ${delta}, Current: ${currentFontSize}`);
-                updateTimerFontSize(delta);
-            }
-        }, { passive: false });
-    }
-
-    window.electronAPI.onUpdateCountdownInitialValue((value: number) => {
-        currentCountdownInitialValue = value;
-        localStorage.setItem('countdownInitialValue', String(value));
-        if (countdownTimerElement && !countdownInterval) {
-            countdownTimerElement.textContent = formatTime(currentCountdownInitialValue);
-        }
-        if (isCountdownMenuVisible) {
-            updateCountdownMenuDisplay();
-        }
-    });
-
-    window.electronAPI.onUpdateTimerPresets((presets: number[]) => {
-        console.log('[TimerRenderer] Received presets update:', presets);
-        currentPresetValues = presets;
-        localStorage.setItem('timerPresets', JSON.stringify(presets));
-        if (isCountdownMenuVisible) {
-            renderTimerPresets();
-        }
-    });
-
-    window.electronAPI.onSetTimerMode((mode: 'timer' | 'setup') => {
-        console.log(`[TimerRenderer] Setting mode to: ${mode}`);
-        if (mode === 'setup') {
-            setCountdownMenuVisible(true);
-        } else {
-            setCountdownMenuVisible(false);
-        }
-        // Re-apply font size on mode switch just in case
-        if (countdownTimerElement) {
-            countdownTimerElement.style.fontSize = `${currentFontSize}px`;
-        }
-    });
-
-    // IPC Listener for immediate start
-    window.electronAPI.onStartCountdown((duration: number) => {
-        console.log(`[TimerRenderer] Received start-countdown IPC: ${duration}s`);
-        if (isCountdownMenuVisible) {
-            setCountdownMenuVisible(false);
-        }
-        startCountdown(duration);
-    });
-
-    window.electronAPI.onJoyConButtonSrPressed(() => {
-        setCountdownMenuVisible(!isCountdownMenuVisible);
-    });
-
-    /**
-     * プリセットのフォーカス状態を更新する。
-     */
-    function updatePresetFocus() {
-        const btns = timerPresetsContainer?.querySelectorAll('.menu-preset-btn');
-        if (!btns) return;
-        btns.forEach((btn, index) => {
-            if (index === selectedPresetIndex) {
-                btn.classList.add('focused');
-                const time = currentPresetValues[index];
-                currentCountdownInitialValue = time;
-                updateCountdownMenuDisplay();
-            } else {
-                btn.classList.remove('focused');
-            }
-        });
-    }
-
-    window.electronAPI.onTimerMenuNavigate((direction: number) => {
-        if (!isCountdownMenuVisible) return;
-        
-        if (selectedPresetIndex === -1) {
-            selectedPresetIndex = 0;
-        } else {
-            selectedPresetIndex += direction;
-            if (selectedPresetIndex < 0) selectedPresetIndex = 0;
-            if (selectedPresetIndex >= currentPresetValues.length) selectedPresetIndex = currentPresetValues.length - 1;
-        }
-        updatePresetFocus();
-    });
-
-    window.electronAPI.onTimerMenuSelect(() => {
-        if (!isCountdownMenuVisible) return;
-        if (selectedPresetIndex !== -1) {
-             setCountdownMenuVisible(false); 
-             startCountdown(currentCountdownInitialValue); 
-        }
-    });
-
-    console.log('[TimerRenderer] Initialized.');
-    renderTimerPresets();
-    // Final apply for start
-    if (countdownTimerElement) {
-        countdownTimerElement.style.fontSize = `${currentFontSize}px`;
+/**
+ * カウントダウンメニュー表示を更新する。
+ */
+function updateCountdownMenuDisplay() {
+    if (countdownMenuValueElement) {
+        countdownMenuValueElement.textContent = formatTime(currentCountdownInitialValue);
     }
 }
+
+/**
+ * カウントダウンメニューの表示状態を切り替える。
+ * @param visible 表示するかどうか
+ */
+function setCountdownMenuVisible(visible: boolean) {
+    isCountdownMenuVisible = visible;
+    if (countdownMenuElement) {
+        countdownMenuElement.style.visibility = visible ? 'visible' : 'hidden';
+    }
+    if (visible) {
+        updateCountdownMenuDisplay();
+        stopCountdown();
+        if (countdownTimerElement) {
+            countdownTimerElement.style.visibility = 'hidden';
+            countdownTimerElement.textContent = formatTime(currentCountdownInitialValue);
+        }
+        renderTimerPresets(); // メニュー表示時に再描画
+    } else {
+        // タイマー表示に戻す
+        if (countdownTimerElement) {
+            countdownTimerElement.style.visibility = 'visible';
+            // 停止後の色が残らないように戻す
+            if (!countdownInterval) {
+                countdownTimerElement.style.color = '#ffffff';
+            }
+        }
+    }
+}
+
+/**
+ * カウントダウンを停止する。
+ */
+function stopCountdown() {
+    if (countdownInterval) {
+        clearInterval(countdownInterval);
+        countdownInterval = null;
+        electronAPI.sendTimerStatus(false);
+    }
+}
+
+/**
+ * タイマーウィンドウのプリセットを描画する。
+ */
+function renderTimerPresets() {
+    if (!timerPresetsContainer) return;
+    timerPresetsContainer.innerHTML = '';
+    currentPresetValues.forEach((time, index) => {
+        const btn = document.createElement('div');
+        btn.className = 'menu-preset-btn';
+        if (index === selectedPresetIndex) btn.classList.add('focused');
+        btn.dataset.time = String(time);
+        btn.textContent = formatTimerWindowPresetLabel(time);
+        btn.addEventListener('click', () => {
+            if (isCountdownMenuVisible) {
+                setCountdownMenuVisible(false);
+            }
+            startCountdown(time);
+        });
+        timerPresetsContainer.appendChild(btn);
+    });
+}
+
+/**
+ * タイマー表示の透明度を適用する。
+ * @param opacity 透明度
+ */
+function applyCountdownTimerOpacity(opacity: number) {
+    if (countdownTimerElement) {
+        // ベース色は style.css の定義に合わせる
+        countdownTimerElement.style.background = `rgba(100, 100, 100, ${opacity})`;
+    }
+}
+
+/**
+ * 透明度を更新する。
+ * @param delta 増減量
+ */
+function updateTransparency(delta: number) {
+    currentOpacity += delta;
+    if (currentOpacity < 0.1) currentOpacity = 0.1; // 最小透明度
+    if (currentOpacity > 1.0) currentOpacity = 1.0; // 最大透明度
+
+    applyCountdownTimerOpacity(currentOpacity);
+    localStorage.setItem('timerWindowOpacity', String(currentOpacity));
+}
+
+/**
+ * プリセットのフォーカス状態を更新する。
+ */
+function updatePresetFocus() {
+    const btns = timerPresetsContainer?.querySelectorAll('.menu-preset-btn');
+    if (!btns) return;
+    btns.forEach((btn, index) => {
+        if (index === selectedPresetIndex) {
+            btn.classList.add('focused');
+            const time = currentPresetValues[index];
+            currentCountdownInitialValue = clampCountdownValue(time);
+            updateCountdownMenuDisplay();
+        } else {
+            btn.classList.remove('focused');
+        }
+    });
+}
+
+/**
+ * カウントダウンを開始する。
+ * @param duration 秒数
+ */
+function startCountdown(duration: number) {
+    if (!countdownTimerElement) return;
+
+    stopCountdown();
+    currentCountdownInitialValue = clampCountdownValue(duration);
+    countdownValue = currentCountdownInitialValue;
+    
+    // 再生済みの通知を記録して重複を防ぐ
+    const playedIndices = new Set<number>();
+
+    countdownTimerElement.style.visibility = 'visible';
+    countdownTimerElement.style.color = '#ffffff';
+    countdownTimerElement.textContent = formatTime(countdownValue);
+    
+    console.log(`[TimerRenderer] Starting countdown: ${currentCountdownInitialValue}s`);
+    electronAPI.sendTimerStatus(true);
+
+    countdownInterval = setInterval(() => {
+        // カウントが一致したタイミングで通知を再生する
+        timerNotificationConfigs.forEach((config, index) => {
+            if (!playedIndices.has(index) && config.absolutePath && countdownValue === config.time) {
+                console.log(`[TimerRenderer] Alert trigger at ${config.time}s: ${config.absolutePath}`);
+                try {
+                    let audioUrl = config.absolutePath;
+                    if (!audioUrl.startsWith('file://') && !audioUrl.startsWith('http')) {
+                        audioUrl = 'file://' + config.absolutePath.replace(/\\/g, '/');
+                    }
+                    const audio = new Audio(audioUrl);
+                    audio.play().catch(e => console.error('Audio play failed:', e));
+                    playedIndices.add(index);
+                } catch (err) {
+                    console.error('Error playing notification sound:', err);
+                }
+            }
+        });
+
+        if (countdownValue > 0) {
+            countdownValue--;
+            countdownTimerElement.textContent = formatTime(countdownValue);
+            electronAPI.sendTimerCountdownUpdate(countdownValue); // メインプロセスに残り時間を送信
+        } else {
+            stopCountdown();
+            countdownTimerElement.style.color = '#888888';
+            countdownTimerElement.textContent = formatTime(currentCountdownInitialValue);
+            electronAPI.sendTimerCountdownUpdate(countdownValue); // 0 になったことを送信
+        }
+    }, 1000);
+}
+
+electronAPI.onUpdateTimerNotifications((configs) => {
+    console.log('[TimerRenderer] Notifications updated:', configs);
+    timerNotificationConfigs = configs;
+    localStorage.setItem('timerNotifications', JSON.stringify(configs));
+});
+
+electronAPI.onChangeFontSize((delta) => {
+    console.log(`[TimerRenderer] Change font size via Joy-Con: ${delta}`);
+    updateTimerFontSize(delta * 2);
+});
+
+if (wheelZone) {
+    wheelZone.addEventListener('wheel', (e: WheelEvent) => {
+        e.preventDefault(); // 既定のスクロール動作を抑止
+
+        if (e.shiftKey) {
+            // 透明度を調整
+            const delta = e.deltaY < 0 ? 0.05 : -0.05; // 上スクロールで不透明、下で透明
+            updateTransparency(delta);
+        } else {
+            // フォントサイズを調整（既存仕様）
+            const delta = e.deltaY < 0 ? 5 : -5;
+            console.log(`[TimerRenderer] Wheel detected on zone. Delta: ${delta}, Current: ${currentFontSize}`);
+            updateTimerFontSize(delta);
+        }
+    }, { passive: false });
+}
+
+electronAPI.onUpdateCountdownInitialValue((value) => {
+    currentCountdownInitialValue = clampCountdownValue(value);
+    localStorage.setItem('countdownInitialValue', String(currentCountdownInitialValue));
+    if (countdownTimerElement && !countdownInterval) {
+        countdownTimerElement.textContent = formatTime(currentCountdownInitialValue);
+    }
+    if (isCountdownMenuVisible) {
+        updateCountdownMenuDisplay();
+    }
+});
+
+electronAPI.onUpdateTimerPresets((presets) => {
+    console.log('[TimerRenderer] Received presets update:', presets);
+    currentPresetValues = presets;
+    localStorage.setItem('timerPresets', JSON.stringify(presets));
+    if (isCountdownMenuVisible) {
+        renderTimerPresets();
+    }
+});
+
+electronAPI.onSetTimerMode((mode) => {
+    console.log(`[TimerRenderer] Setting mode to: ${mode}`);
+    if (mode === 'setup') {
+        setCountdownMenuVisible(true);
+    } else {
+        setCountdownMenuVisible(false);
+    }
+    // モード切替時にフォントサイズを再適用する
+    if (countdownTimerElement) {
+        countdownTimerElement.style.fontSize = `${currentFontSize}px`;
+    }
+});
+
+// 即時開始のIPCを受信
+electronAPI.onStartCountdown((duration) => {
+    console.log(`[TimerRenderer] Received start-countdown IPC: ${duration}s`);
+    if (isCountdownMenuVisible) {
+        setCountdownMenuVisible(false);
+    }
+    startCountdown(duration);
+});
+
+electronAPI.onJoyConButtonSrPressed(() => {
+    setCountdownMenuVisible(!isCountdownMenuVisible);
+});
+
+electronAPI.onTimerMenuNavigate((direction) => {
+    if (!isCountdownMenuVisible) return;
+    
+    if (selectedPresetIndex === -1) {
+        selectedPresetIndex = 0;
+    } else {
+        selectedPresetIndex += direction;
+        if (selectedPresetIndex < 0) selectedPresetIndex = 0;
+        if (selectedPresetIndex >= currentPresetValues.length) selectedPresetIndex = currentPresetValues.length - 1;
+    }
+    updatePresetFocus();
+});
+
+electronAPI.onTimerMenuSelect(() => {
+    if (!isCountdownMenuVisible) return;
+    if (selectedPresetIndex !== -1) {
+        setCountdownMenuVisible(false);
+        startCountdown(currentCountdownInitialValue);
+    }
+});
+
+// 初期フォントサイズを反映
+if (countdownTimerElement) {
+    countdownTimerElement.style.fontSize = `${currentFontSize}px`;
+}
+applyCountdownTimerOpacity(currentOpacity); // 初期値を適用
+
+console.log('[TimerRenderer] Initialized.');
+renderTimerPresets();
 

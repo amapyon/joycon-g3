@@ -1,9 +1,9 @@
-interface Window {
-    electronAPI: any;
-}
-
 // cursor-renderer.ts
 // Joy-Con姿勢データでカーソルを制御するレンダラースクリプト
+
+export {};
+
+type CursorId = 'cursorLeft' | 'cursorRight';
 
 // カーソルのマッピング設定
 interface CursorMap {
@@ -31,8 +31,28 @@ interface CursorData {
     lastExternalUpdate: number;
 }
 
+type CursorMapConfig = { [key in CursorId]: { xSign: number; ySign: number } };
+type UpdatePointerData = { id: CursorId; x: number; y: number };
+type JoyConAttitudeData = { id: CursorId; roll: number; pitch: number; yaw?: number };
+type ButtonStateData = { pressed: boolean };
+type ButtonPressData = { id: CursorId };
+type ElectronAPI = {
+    onUpdatePointer: (callback: (pos: UpdatePointerData) => void) => void;
+    onJoyConAttitude: (callback: (data: JoyConAttitudeData) => void) => void;
+    onJoyConButtonX: (callback: (data: ButtonStateData) => void) => void;
+    onJoyConButtonDown: (callback: (data: ButtonStateData) => void) => void;
+    onJoyConButtonXPressed: (callback: (data: ButtonPressData) => void) => void;
+    onJoyConButtonDownPressed: (callback: (data: ButtonPressData) => void) => void;
+    sendCursorVisibilityUpdate: (id: CursorId, isVisible: boolean) => void;
+    sendCursorMapConfig: (config: CursorMapConfig) => void;
+    send?: (channel: string, ...args: unknown[]) => void;
+};
+type WindowWithIpcRenderer = Window & { ipcRenderer?: { send: (channel: string, ...args: unknown[]) => void } };
+
+const electronAPI = (window as unknown as { electronAPI: ElectronAPI }).electronAPI;
+
 // カーソルDOM要素の参照
-const cursorElements: Record<'cursorLeft' | 'cursorRight', HTMLElement | null> = {
+const cursorElements: Record<CursorId, HTMLElement | null> = {
     cursorLeft: document.getElementById('cursorLeft'), // 左JoyCon
     cursorRight: document.getElementById('cursorRight'), // 右JoyCon
 };
@@ -45,11 +65,8 @@ const defaultSensitivityX = 36;
 const defaultSensitivityY = 36;
 const defaultSmoothingFactor = 0.7;
 
-// cursorRightの最後の位置を保存（再表示時に復元）
-let lastCursorRightPosition: { x: number; y: number } | null = null; // This line seems unused and can be removed.
-
 // カーソルごとの状態管理
-const cursors: Record<'cursorLeft' | 'cursorRight', CursorData> = {
+const cursors: Record<CursorId, CursorData> = {
     cursorLeft: {
         x: windowWidth / 2 || 100,
         y: windowHeight / 2 || 100,
@@ -85,15 +102,15 @@ const cursors: Record<'cursorLeft' | 'cursorRight', CursorData> = {
 };
 
 // --- main.tsから参照できるように符号情報をglobalThisにエクスポート ---
-type CursorMapConfig = { [key in 'cursorLeft' | 'cursorRight']: { xSign: number, ySign: number } };
 const cursorMapConfig: CursorMapConfig = {
     cursorLeft: { xSign: cursors.cursorLeft.map.xSign, ySign: cursors.cursorLeft.map.ySign },
     cursorRight: { xSign: cursors.cursorRight.map.xSign, ySign: cursors.cursorRight.map.ySign },
 };
-(globalThis as any).cursorMapConfig = cursorMapConfig;
+const globalConfigTarget = globalThis as typeof globalThis & { cursorMapConfig?: CursorMapConfig };
+globalConfigTarget.cursorMapConfig = cursorMapConfig;
 
 // --- update-pointerイベント受信: main.tsからの座標でidごとにポインターを動かす ---
-window.electronAPI.onUpdatePointer((pos: { id: 'cursorLeft' | 'cursorRight', x: number, y: number }) => {
+electronAPI.onUpdatePointer((pos: UpdatePointerData) => {
     const cursorId = pos.id;
     const cursorData = cursors[cursorId];
     if (!cursorData) return;
@@ -178,7 +195,7 @@ let isLeftDownPressed = false;
 
 
 // Joy-Conの姿勢データ受信時の処理
-window.electronAPI.onJoyConAttitude((data: { id: 'cursorLeft' | 'cursorRight'; roll: number; pitch: number; yaw?: number }) => {
+electronAPI.onJoyConAttitude((data: JoyConAttitudeData) => {
     const cursorId = data.id;
     // 右はXボタン押下中、左はDownボタン押下中のみ反映
     if ((cursorId === 'cursorRight' && !isRightXPressed) || (cursorId === 'cursorLeft' && !isLeftDownPressed)) {
@@ -214,13 +231,13 @@ window.electronAPI.onJoyConAttitude((data: { id: 'cursorLeft' | 'cursorRight'; r
 });
 
 // Joy-Con Xボタンの押下/離上イベント（右JoyCon）
-window.electronAPI.onJoyConButtonX((data: { pressed: boolean }) => {
+electronAPI.onJoyConButtonX((data: ButtonStateData) => {
     isRightXPressed = data.pressed;
     updatePointerVisibility();
 });
 
 // Joy-Con Downボタンの押下/離上イベント（左JoyCon）
-window.electronAPI.onJoyConButtonDown((data: { pressed: boolean }) => {
+electronAPI.onJoyConButtonDown((data: ButtonStateData) => {
     isLeftDownPressed = data.pressed;
     updatePointerVisibility();
 });
@@ -247,7 +264,7 @@ function updatePointerVisibility() {
             cursorRightData.pendingY = null;
             updateCursorElementPosition('cursorRight'); // Update element position immediately
         }
-        window.electronAPI.sendCursorVisibilityUpdate('cursorRight', true); // Send update
+        electronAPI.sendCursorVisibilityUpdate('cursorRight', true); // Send update
     } else if (!rightVisible && cursorRightData.isVisible) { // Becoming hidden
         if (cursorRightElement) cursorRightElement.style.visibility = 'hidden';
         cursorRightData.isVisible = false;
@@ -256,7 +273,7 @@ function updatePointerVisibility() {
             cursorRightData.pendingX = Math.round(cursorRightData.x); // Round x
             cursorRightData.pendingY = Math.round(cursorRightData.y); // Round y
         }
-        window.electronAPI.sendCursorVisibilityUpdate('cursorRight', false); // Send update
+        electronAPI.sendCursorVisibilityUpdate('cursorRight', false); // Send update
     }
 
     // Left cursor: Visible only when Down button is pressed
@@ -277,7 +294,7 @@ function updatePointerVisibility() {
             cursorLeftData.pendingY = null;
             updateCursorElementPosition('cursorLeft'); // Update element position immediately
         }
-        window.electronAPI.sendCursorVisibilityUpdate('cursorLeft', true); // Send update
+        electronAPI.sendCursorVisibilityUpdate('cursorLeft', true); // Send update
     } else if (!leftVisible && cursorLeftData.isVisible) { // Becoming hidden
         if (cursorLeftElement) cursorLeftElement.style.visibility = 'hidden';
         cursorLeftData.isVisible = false;
@@ -286,18 +303,18 @@ function updatePointerVisibility() {
             cursorLeftData.pendingX = Math.round(cursorLeftData.x); // Round x
             cursorLeftData.pendingY = Math.round(cursorLeftData.y); // Round y
         }
-        window.electronAPI.sendCursorVisibilityUpdate('cursorLeft', false); // Send update
+        electronAPI.sendCursorVisibilityUpdate('cursorLeft', false); // Send update
     }
 }
 
 // Joy-Con Xボタン押下時のカーソルリセット（右）
-window.electronAPI.onJoyConButtonXPressed((data: { id: 'cursorLeft' | 'cursorRight' }) => {
+electronAPI.onJoyConButtonXPressed((data: ButtonPressData) => {
     console.log(`X Button press trigger for ${data.id}. Resetting.`);
     // resetCursor(data.id); // Removed resetCursor call
 });
 
 // Joy-Con Downボタン押下時のカーソルリセット（左）
-window.electronAPI.onJoyConButtonDownPressed((data: { id: 'cursorLeft' | 'cursorRight' }) => {
+electronAPI.onJoyConButtonDownPressed((data: ButtonPressData) => {
     console.log(`Down Button press trigger for ${data.id}. Resetting.`);
     // resetCursor(data.id); // Removed resetCursor call
 });
@@ -367,16 +384,19 @@ document.addEventListener('DOMContentLoaded', () => {
      * @param retry リトライ回数
      */
     function sendCursorMapConfigWithRetry(retry = 0) {
-        if (window.electronAPI && window.electronAPI.sendCursorMapConfig) {
-            window.electronAPI.sendCursorMapConfig(cursorMapConfig);
+        if (electronAPI.sendCursorMapConfig) {
+            electronAPI.sendCursorMapConfig(cursorMapConfig);
             console.log('[cursor-renderer] Sent cursorMapConfig to main:', cursorMapConfig, `(retry=${retry})`);
-        } else if (window.electronAPI && window.electronAPI.send) {
-            window.electronAPI.send('cursor-map-config', cursorMapConfig);
+        } else if (electronAPI.send) {
+            electronAPI.send('cursor-map-config', cursorMapConfig);
             console.log('[cursor-renderer] Sent cursorMapConfig to main (fallback):', cursorMapConfig, `(retry=${retry})`);
-        } else if ((window as any).ipcRenderer) {
-            (window as any).ipcRenderer.send('cursor-map-config', cursorMapConfig);
-            console.log('[cursor-renderer] Sent cursorMapConfig to main (ipcRenderer):', cursorMapConfig, `(retry=${retry})`);
         } else {
+            const windowWithIpc = window as WindowWithIpcRenderer;
+            if (windowWithIpc.ipcRenderer) {
+                windowWithIpc.ipcRenderer.send('cursor-map-config', cursorMapConfig);
+                console.log('[cursor-renderer] Sent cursorMapConfig to main (ipcRenderer):', cursorMapConfig, `(retry=${retry})`);
+                return;
+            }
             if (retry < 10) {
                 setTimeout(() => sendCursorMapConfigWithRetry(retry + 1), 200);
                 console.warn(`[cursor-renderer] IPC bridge not ready, retrying... (${retry + 1})`);

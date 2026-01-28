@@ -5,7 +5,6 @@ import { performance } from 'perf_hooks';
 // 定数定義
 const M_PI = Math.PI;
 const RAD_TO_DEG = 180 / M_PI;
-const DEG_TO_RAD = M_PI / 180;
 const ACCEL_SCALE_G = 1 / 16384;
 const GYRO_SCALE_DPS = 2000 / 32768;
 

@@ -19,6 +19,15 @@ type AttitudeData = Record<string, unknown>;
 type CalibrationStatus = Record<string, unknown>;
 type BatteryStatus = Record<string, unknown>;
 
+/**
+ * カーソル ID かどうかを判定する。
+ * @param value 判定対象
+ * @returns カーソル ID の場合は true
+ */
+function isCursorId(value: unknown): value is CursorId {
+    return value === 'cursorLeft' || value === 'cursorRight';
+}
+
 // --- IMU Pointer Control Variables ---
 const isCursorVisible: { cursorLeft: boolean; cursorRight: boolean } = { cursorLeft: false, cursorRight: false }; // Track visibility per cursor
 let countdownInitialValue: number = 10; // Default value
@@ -324,7 +333,10 @@ app.whenReady().then(() => {
     });
     joyconManager.on('button-x-pressed', (data: JoyConEventData) => {
         console.log(`[Main] button-x-pressed received for ${data?.id}`);
-        imuProcessor.recenter(data.id);
+        const cursorId = isCursorId(data.id) ? data.id : null;
+        if (cursorId) {
+            imuProcessor.recenter(cursorId);
+        }
         const targetWindow = WindowManager.getCursorWindow();
         if (targetWindow && !targetWindow.isDestroyed()) {
             targetWindow.webContents.send('button-x-pressed', data);
@@ -375,7 +387,10 @@ app.whenReady().then(() => {
     });
     joyconManager.on('button-down-pressed', (data: JoyConEventData) => {
         console.log(`[Main] button-down-pressed received for ${data?.id} -> calling imuProcessor.recenter`);
-        imuProcessor.recenter(data.id);
+        const cursorId = isCursorId(data.id) ? data.id : null;
+        if (cursorId) {
+            imuProcessor.recenter(cursorId);
+        }
         const targetWindow = WindowManager.getCursorWindow();
         if (targetWindow && !targetWindow.isDestroyed()) {
             targetWindow.webContents.send('button-down-pressed', data);

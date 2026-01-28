@@ -1,5 +1,5 @@
 // ipc-handler.ts
-import { ipcMain, screen, dialog } from 'electron';
+import { ipcMain, screen, IpcMainEvent } from 'electron';
 import fs from 'fs';
 import path from 'path';
 import WindowManager from './window-manager';
@@ -16,7 +16,7 @@ import { setScreenSize } from './screen-state';
 export function setupIpcHandlers(windowManagerInstance = WindowManager, joyconManager: JoyConManager) {
     console.log('Setting up IPC Handlers...');
 
-    ipcMain.on('launch-cursor-window', (event, displayId) => {
+    ipcMain.on('launch-cursor-window', (event: IpcMainEvent, displayId: string) => {
         console.log(`IPC Handler: Received 'launch-cursor-window' for display ID: ${displayId}`);
         try {
             const targetId = parseInt(displayId, 10);
@@ -33,9 +33,10 @@ export function setupIpcHandlers(windowManagerInstance = WindowManager, joyconMa
             } else {
                 windowManagerInstance.sendLaunchErrorToMain(`Display ${targetId} not found.`);
             }
-        } catch (e: any) {
+        } catch (e: unknown) {
+            const message = e instanceof Error ? e.message : String(e);
             console.error('IPC launch-cursor-window error:', e);
-            windowManagerInstance.sendLaunchErrorToMain(`Launch Error: ${e.message}`);
+            windowManagerInstance.sendLaunchErrorToMain(`Launch Error: ${message}`);
         }
     });
 
@@ -53,7 +54,7 @@ export function setupIpcHandlers(windowManagerInstance = WindowManager, joyconMa
         }
     });
 
-    ipcMain.on('set-target-presentation', (event, identifier) => {
+    ipcMain.on('set-target-presentation', (event: IpcMainEvent, identifier: string) => {
         console.log(`[IPC Handler] Received 'set-target-presentation': ${identifier}`);
         powerpointControl.setTarget(identifier);
     });
@@ -73,7 +74,7 @@ export function setupIpcHandlers(windowManagerInstance = WindowManager, joyconMa
         }
     });
 
-    ipcMain.on('recenter-imu', (event, id: 'cursorLeft' | 'cursorRight') => {
+    ipcMain.on('recenter-imu', (event: IpcMainEvent, id: 'cursorLeft' | 'cursorRight') => {
         console.log(`[IPC Handler] Received 'recenter-imu' request for ${id}.`);
         imuProcessor.recenter(id);
     });
@@ -83,33 +84,34 @@ export function setupIpcHandlers(windowManagerInstance = WindowManager, joyconMa
         try {
             const presentations = powerpointControl.getOpenPresentations();
             return presentations;
-        } catch (e: any) {
-            console.error('[IPC Handler] Error getting open PowerPoint presentations:', e.message);
+        } catch (e: unknown) {
+            const message = e instanceof Error ? e.message : String(e);
+            console.error('[IPC Handler] Error getting open PowerPoint presentations:', message);
             return [];
         }
     });
 
-    ipcMain.on('start-countdown-timer', (event, duration: number) => {
+    ipcMain.on('start-countdown-timer', (event: IpcMainEvent, duration: number) => {
         console.log(`[IPC Handler] Received 'start-countdown-timer': ${duration}s`);
         // Route to Timer Window
         const timerWin = windowManagerInstance.getTimerWindow();
         if (timerWin && !timerWin.isDestroyed()) {
-             // Timer Window should be visible when starting via button
-             timerWin.show();
-             timerWin.webContents.send('start-countdown', duration);
+            // Timer Window should be visible when starting via button
+            timerWin.show();
+            timerWin.webContents.send('start-countdown', duration);
         } else {
-             // Try to create it if missing (should exist from startup, but for safety)
-             const newTimerWin = windowManagerInstance.createTimerWindow();
-             if (newTimerWin) {
-                 newTimerWin.show();
-                 newTimerWin.webContents.send('start-countdown', duration);
-             } else {
-                 console.warn('[IPC Handler] Failed to find or create Timer window.');
-             }
+            // Try to create it if missing (should exist from startup, but for safety)
+            const newTimerWin = windowManagerInstance.createTimerWindow();
+            if (newTimerWin) {
+                newTimerWin.show();
+                newTimerWin.webContents.send('start-countdown', duration);
+            } else {
+                console.warn('[IPC Handler] Failed to find or create Timer window.');
+            }
         }
     });
 
-    ipcMain.on('set-target-display', (event, displayId: number | string) => {
+    ipcMain.on('set-target-display', (event: IpcMainEvent, displayId: number | string) => {
         console.log(`[IPC Handler] Received 'set-target-display': ${displayId}`);
         const id = typeof displayId === 'string' ? parseInt(displayId, 10) : displayId;
         if (!process.platform || !Number.isNaN(id)) { // Basic check
@@ -123,7 +125,7 @@ export function setupIpcHandlers(windowManagerInstance = WindowManager, joyconMa
         }
     });
 
-    ipcMain.on('connect-joycon', (event, isLeft: boolean) => {
+    ipcMain.on('connect-joycon', (event: IpcMainEvent, isLeft: boolean) => {
         console.log(`[IPC Handler] Received 'connect-joycon' request for ${isLeft ? 'L' : 'R'}.`);
         if (isLeft) joyconManager.autoConnectL = true;
         else joyconManager.autoConnectR = true;
@@ -131,7 +133,7 @@ export function setupIpcHandlers(windowManagerInstance = WindowManager, joyconMa
         event.reply('joycon-status-update', joyconManager.getConnectionStatus());
     });
 
-    ipcMain.on('shutdown-joycon', (event, isLeft: boolean) => {
+    ipcMain.on('shutdown-joycon', (event: IpcMainEvent, isLeft: boolean) => {
         console.log(`[IPC Handler] Received 'shutdown-joycon' request for ${isLeft ? 'L' : 'R'}.`);
         joyconManager.shutdownJoyCon(isLeft);
         event.reply('joycon-status-update', joyconManager.getConnectionStatus());
@@ -162,7 +164,7 @@ export function setupIpcHandlers(windowManagerInstance = WindowManager, joyconMa
 
     // --- Message Window Handlers ---
     let lastMessageText = '';
-    ipcMain.on('send-message-text', (event, text) => {
+    ipcMain.on('send-message-text', (event: IpcMainEvent, text: string) => {
         lastMessageText = text;
         const msgWin = windowManagerInstance.getMessageWindow();
         if (msgWin && !msgWin.isDestroyed()) {

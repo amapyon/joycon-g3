@@ -1,9 +1,57 @@
 // main-renderer.ts
 // TypeScript化: DOM型・window.electronAPI型を明示
 
-interface Window {
-    electronAPI: any;
-}
+export {};
+
+type DisplayInfo = {
+    id: number;
+    label?: string;
+    size: { width: number; height: number };
+    scaleFactor?: number;
+};
+type PresentationInfo = { id: string; name: string; isRunning: boolean };
+type JoyConStatus = { leftConnected: boolean; rightConnected: boolean };
+type BatteryStatus = { isLeft: boolean; level: number };
+type CalibrationStatus = { id: string; status: string };
+type NotificationConfig = {
+    time: number;
+    filename: string;
+    absolutePath: string;
+};
+type ElectronAPI = {
+    getOpenPowerPointPresentations: () => Promise<PresentationInfo[]>;
+    setTargetPresentation: (identifier: string) => void;
+    onAvailablePresentations: (callback: (presentations: PresentationInfo[]) => void) => void;
+    onAvailableDisplays: (callback: (displays: DisplayInfo[]) => void) => void;
+    setTargetDisplay: (displayId: number) => void;
+    launchCursorWindow: (displayId: number | string) => void;
+    closeCursorWindow: () => void;
+    onCursorWindowOpened: (callback: () => void) => void;
+    onCursorWindowClosed: (callback: () => void) => void;
+    onLaunchError: (callback: (message: string) => void) => void;
+    onJoyConStatusUpdate: (callback: (status: JoyConStatus) => void) => void;
+    connectJoyCon: (isLeft: boolean) => void;
+    shutdownJoyCon: (isLeft: boolean) => void;
+    onJoyConBatteryStatusUpdate: (callback: (status: BatteryStatus) => void) => void;
+    startCalibration: () => void;
+    onCalibrationStatusUpdate: (callback: (statusInfo: CalibrationStatus) => void) => void;
+    sendCountdownInitialValue: (value: number) => void;
+    onUpdateCountdownInitialValue: (callback: (value: number) => void) => void;
+    startCountdownTimer: (duration: number) => void;
+    updateTimerPresets: (presets: number[]) => void;
+    onUpdateTimerPresets: (callback: (presets: number[]) => void) => void;
+    getMediaFiles: () => Promise<string[]>;
+    getMediaBasePath: () => Promise<string>;
+    updateTimerNotifications: (configs: NotificationConfig[]) => void;
+    onUpdateTimerNotifications: (callback: (configs: NotificationConfig[]) => void) => void;
+    toggleTimerWindow: () => void;
+    onMainTimerUpdate: (callback: (remainingTime: number) => void) => void;
+    requestJoyConStatus: () => void;
+    sendMessageText: (text: string) => void;
+    toggleMessageWindow: () => void;
+};
+
+const electronAPI = (window as unknown as { electronAPI: ElectronAPI }).electronAPI;
 
 const displaySelect = document.getElementById('display-select') as HTMLSelectElement;
 const cursorToggleBtn = document.getElementById('cursor-toggle-btn') as HTMLButtonElement;
@@ -23,10 +71,10 @@ async function loadPowerPointPresentations() {
     pptSelect.innerHTML = '<option value="">-- Loading Presentations --</option>';
     pptSelect.disabled = true;
     try {
-        const presentations = await window.electronAPI.getOpenPowerPointPresentations();
+        const presentations = await electronAPI.getOpenPowerPointPresentations();
         pptSelect.innerHTML = ''; // Clear loading message
         if (presentations && presentations.length > 0) {
-            presentations.forEach((ppt: { id: string; name: string; isRunning: boolean }) => {
+            presentations.forEach((ppt) => {
                 const option = document.createElement('option');
                 option.value = ppt.id;
                 option.text = ppt.name + (ppt.isRunning ? ' (Running)' : '');
@@ -36,7 +84,7 @@ async function loadPowerPointPresentations() {
             // 最初のプレゼンテーションを自動選択し、ターゲットとして設定
             if (presentations.length > 0) {
                 pptSelect.value = presentations[0].id;
-                window.electronAPI.setTargetPresentation(presentations[0].id);
+                electronAPI.setTargetPresentation(presentations[0].id);
             }
         } else {
             const option = document.createElement('option');
@@ -55,7 +103,7 @@ async function loadPowerPointPresentations() {
     }
 }
 
-window.electronAPI.onAvailableDisplays((displays: any[]) => {
+electronAPI.onAvailableDisplays((displays) => {
     console.log('Available displays:', displays);
     displaySelect.innerHTML = '';
     if (displays && displays.length > 0) {
@@ -69,7 +117,7 @@ window.electronAPI.onAvailableDisplays((displays: any[]) => {
 
         displays.forEach((display) => {
             const option = document.createElement('option');
-            option.value = display.id;
+            option.value = String(display.id);
             // 物理ピクセルで表示
             const physicalWidth = display.size.width * (display.scaleFactor || 1);
             const physicalHeight = display.size.height * (display.scaleFactor || 1);
@@ -79,7 +127,7 @@ window.electronAPI.onAvailableDisplays((displays: any[]) => {
         displaySelect.disabled = false;
         cursorToggleBtn.disabled = false;
         displaySelect.value = String(defaultDisplayId);
-        window.electronAPI.setTargetDisplay(defaultDisplayId);
+        electronAPI.setTargetDisplay(defaultDisplayId);
     } else {
         const option = document.createElement('option');
         option.value = '';
@@ -91,7 +139,7 @@ window.electronAPI.onAvailableDisplays((displays: any[]) => {
 });
 
 // onAvailablePresentationsはメインプロセスからのプッシュ通知用として残しておく
-window.electronAPI.onAvailablePresentations((presentations: any[]) => {
+electronAPI.onAvailablePresentations((presentations) => {
     console.log('Received updated available presentations:', presentations);
     // ここではUIを直接更新せず、loadPowerPointPresentationsを呼び出すことで一貫性を保つ
     loadPowerPointPresentations();
@@ -100,7 +148,7 @@ window.electronAPI.onAvailablePresentations((presentations: any[]) => {
 pptSelect.addEventListener('change', () => {
     const selectedId = pptSelect.value;
     if (selectedId) {
-        window.electronAPI.setTargetPresentation(selectedId);
+        electronAPI.setTargetPresentation(selectedId);
     }
 });
 
@@ -108,7 +156,7 @@ displaySelect.addEventListener('change', () => {
     const selectedDisplayId = parseInt(displaySelect.value, 10);
     if (!isNaN(selectedDisplayId)) {
         console.log(`[main-renderer] Display selected: ${selectedDisplayId}`);
-        window.electronAPI.setTargetDisplay(selectedDisplayId);
+        electronAPI.setTargetDisplay(selectedDisplayId);
         localStorage.setItem('lastDisplayId', String(selectedDisplayId));
     }
 });
@@ -118,12 +166,12 @@ cursorToggleBtn.addEventListener('click', () => {
     if (isRunning) {
         // Stop
         errorMessageDiv.textContent = 'Closing cursor window...';
-        window.electronAPI.closeCursorWindow();
+        electronAPI.closeCursorWindow();
     } else {
         // Start
         const selectedDisplayId = displaySelect.value;
         if (selectedDisplayId) {
-            window.electronAPI.launchCursorWindow(selectedDisplayId);
+            electronAPI.launchCursorWindow(selectedDisplayId);
             cursorToggleBtn.disabled = true;
             displaySelect.disabled = true;
             errorMessageDiv.textContent = '';
@@ -131,7 +179,7 @@ cursorToggleBtn.addEventListener('click', () => {
     }
 });
 
-window.electronAPI.onCursorWindowOpened(() => {
+electronAPI.onCursorWindowOpened(() => {
     cursorToggleBtn.textContent = 'OFF';
     cursorToggleBtn.style.background = '#dc3545';
     cursorToggleBtn.disabled = false;
@@ -139,7 +187,7 @@ window.electronAPI.onCursorWindowOpened(() => {
     errorMessageDiv.textContent = '';
 });
 
-window.electronAPI.onCursorWindowClosed(() => {
+electronAPI.onCursorWindowClosed(() => {
     errorMessageDiv.textContent = 'Cursor window closed. Ready to launch again.';
     displaySelect.disabled = false;
     cursorToggleBtn.disabled = false;
@@ -147,7 +195,7 @@ window.electronAPI.onCursorWindowClosed(() => {
     cursorToggleBtn.style.background = '#28a745';
 });
 
-window.electronAPI.onLaunchError((message: string) => {
+electronAPI.onLaunchError((message) => {
     errorMessageDiv.textContent = `Error: ${message}`;
     cursorToggleBtn.disabled = false;
     displaySelect.disabled = false;
@@ -160,7 +208,7 @@ const mainStatusRightText = document.getElementById('main-status-right-text') as
 const joyconLeftActionBtn = document.getElementById('joycon-left-action-btn') as HTMLButtonElement;
 const joyconRightActionBtn = document.getElementById('joycon-right-action-btn') as HTMLButtonElement;
 
-window.electronAPI.onJoyConStatusUpdate((status: { leftConnected: boolean; rightConnected: boolean }) => {
+electronAPI.onJoyConStatusUpdate((status) => {
     console.log('JoyCon status update in renderer:', status);
     
     // Update Left
@@ -191,51 +239,51 @@ window.electronAPI.onJoyConStatusUpdate((status: { leftConnected: boolean; right
 joyconLeftActionBtn.addEventListener('click', () => {
     const isConnected = mainStatusLeftText.classList.contains('connected');
     if (isConnected) {
-        window.electronAPI.shutdownJoyCon(true);
+        electronAPI.shutdownJoyCon(true);
     } else {
-        window.electronAPI.connectJoyCon(true);
+        electronAPI.connectJoyCon(true);
     }
 });
 
 joyconRightActionBtn.addEventListener('click', () => {
     const isConnected = mainStatusRightText.classList.contains('connected');
     if (isConnected) {
-        window.electronAPI.shutdownJoyCon(false);
+        electronAPI.shutdownJoyCon(false);
     } else {
-        window.electronAPI.connectJoyCon(false);
+        electronAPI.connectJoyCon(false);
     }
 });
 
-window.electronAPI.onJoyConBatteryStatusUpdate(({ isLeft, level }: { isLeft: boolean; level: number }) => {
+electronAPI.onJoyConBatteryStatusUpdate(({ isLeft, level }) => {
     // Convert level (0-4) to battery icon
     // 0 = Empty, 1 = 25%, 2 = 50%, 3 = 75%, 4 = 100%
     let icon = '';
     let percentage = 0;
     
-    switch(level) {
-        case 0:
-            icon = '🪫'; // Empty battery
-            percentage = 0;
-            break;
-        case 1:
-            icon = '🔋'; // Low battery (25%)
-            percentage = 25;
-            break;
-        case 2:
-            icon = '🔋'; // Medium-low battery (50%)
-            percentage = 50;
-            break;
-        case 3:
-            icon = '🔋'; // Medium-high battery (75%)
-            percentage = 75;
-            break;
-        case 4:
-            icon = '🔋'; // Full battery (100%)
-            percentage = 100;
-            break;
-        default:
-            icon = '❓';
-            percentage = 0;
+    switch (level) {
+    case 0:
+        icon = '🪫'; // Empty battery
+        percentage = 0;
+        break;
+    case 1:
+        icon = '🔋'; // Low battery (25%)
+        percentage = 25;
+        break;
+    case 2:
+        icon = '🔋'; // Medium-low battery (50%)
+        percentage = 50;
+        break;
+    case 3:
+        icon = '🔋'; // Medium-high battery (75%)
+        percentage = 75;
+        break;
+    case 4:
+        icon = '🔋'; // Full battery (100%)
+        percentage = 100;
+        break;
+    default:
+        icon = '❓';
+        percentage = 0;
     }
     
     const displayText = `${icon} ${percentage}%`;
@@ -250,10 +298,10 @@ window.electronAPI.onJoyConBatteryStatusUpdate(({ isLeft, level }: { isLeft: boo
 calibrateButton.addEventListener('click', () => {
     calibrationStatus.textContent = 'Calibrating... Keep Joy-Cons still!';
     calibrateButton.disabled = true;
-    window.electronAPI.startCalibration();
+    electronAPI.startCalibration();
 });
 
-window.electronAPI.onCalibrationStatusUpdate((statusInfo: { id: string; status: string }) => {
+electronAPI.onCalibrationStatusUpdate((statusInfo) => {
     let message = `Calibration ${statusInfo.status}.`;
     if (statusInfo.status === 'complete') {
         message = 'Calibration complete!';
@@ -306,10 +354,10 @@ function renderPresets() {
         btn.dataset.time = String(time);
         btn.textContent = formatMainPresetLabel(time);
         btn.addEventListener('click', () => {
-             countdownInitialValueInput.value = String(time);
-             window.electronAPI.sendCountdownInitialValue(time);
-             localStorage.setItem('countdownInitialValue', String(time));
-             window.electronAPI.startCountdownTimer(time);
+            countdownInitialValueInput.value = String(time);
+            electronAPI.sendCountdownInitialValue(time);
+            localStorage.setItem('countdownInitialValue', String(time));
+            electronAPI.startCountdownTimer(time);
         });
         presetButtonsContainer.appendChild(btn);
     });
@@ -366,7 +414,7 @@ applyPresetsBtn.addEventListener('click', () => {
     renderPresetConfig();
     
     // Broadcast to other windows
-    window.electronAPI.updateTimerPresets(currentPresets);
+    electronAPI.updateTimerPresets(currentPresets);
 });
 
 // Initial render
@@ -374,7 +422,7 @@ renderPresets();
 renderPresetConfig();
 
 // Listen for updates from other windows if needed (for sync)
-window.electronAPI.onUpdateTimerPresets((presets: number[]) => {
+electronAPI.onUpdateTimerPresets((presets) => {
     currentPresets = presets;
     localStorage.setItem('timerPresets', JSON.stringify(currentPresets));
     renderPresets();
@@ -382,7 +430,7 @@ window.electronAPI.onUpdateTimerPresets((presets: number[]) => {
 });
 
 // Initial load broadcasts to others
-window.electronAPI.updateTimerPresets(currentPresets);
+electronAPI.updateTimerPresets(currentPresets);
 
 cursorToggleBtn.disabled = true;
 pptSelect.disabled = true;
@@ -394,18 +442,12 @@ const sound1TimeInput = document.getElementById('sound1-time') as HTMLInputEleme
 const sound2TimeInput = document.getElementById('sound2-time') as HTMLInputElement;
 const refreshSoundsBtn = document.getElementById('refresh-sounds-btn') as HTMLButtonElement;
 
-interface NotificationConfig {
-    time: number;
-    filename: string;
-    absolutePath: string;
-}
-
 /**
  * メディアファイル一覧を読み込み、セレクトボックスを更新する。
  * @returns 処理完了を示す Promise
  */
 async function loadMediaFiles() {
-    const files = await window.electronAPI.getMediaFiles();
+    const files = await electronAPI.getMediaFiles();
     const dropdowns = [sound1Select, sound2Select];
     
     dropdowns.forEach(select => {
@@ -465,7 +507,7 @@ function setSelectValue(select: HTMLSelectElement, val: string) {
  * @returns 処理完了を示す Promise
  */
 async function broadcastNotificationUpdate() {
-    const basePath = await window.electronAPI.getMediaBasePath();
+    const basePath = await electronAPI.getMediaBasePath();
     const configs: NotificationConfig[] = [
         {
             time: parseInt(sound1TimeInput.value, 10) || 0,
@@ -480,7 +522,7 @@ async function broadcastNotificationUpdate() {
     ];
 
     localStorage.setItem('timerNotifications', JSON.stringify(configs));
-    window.electronAPI.updateTimerNotifications(configs);
+    electronAPI.updateTimerNotifications(configs);
 }
 
 [sound1Select, sound2Select, sound1TimeInput, sound2TimeInput].forEach(el => {
@@ -497,7 +539,7 @@ const sound2PlayBtn = document.getElementById('sound2-play-btn') as HTMLButtonEl
  */
 async function previewSound(filename: string) {
     if (!filename) return;
-    const basePath = await window.electronAPI.getMediaBasePath();
+    const basePath = await electronAPI.getMediaBasePath();
     const absolutePath = (basePath + '/' + filename).replace(/\\/g, '/');
     const audioUrl = absolutePath.startsWith('file://') ? absolutePath : 'file://' + absolutePath;
     
@@ -525,7 +567,7 @@ if (refreshSoundsBtn) {
     refreshSoundsBtn.addEventListener('click', loadMediaFiles);
 }
 
-window.electronAPI.onUpdateTimerNotifications((configs: NotificationConfig[]) => {
+electronAPI.onUpdateTimerNotifications((configs) => {
     // Sync UI only if it differs significantly or is first load
     localStorage.setItem('timerNotifications', JSON.stringify(configs));
 });
@@ -538,7 +580,7 @@ const toggleTimerWindowBtn = document.getElementById('toggle-timer-window-btn') 
 if (toggleTimerWindowBtn) {
     toggleTimerWindowBtn.addEventListener('click', () => {
         console.log('[Main Renderer] Toggle timer window');
-        window.electronAPI.toggleTimerWindow();
+        electronAPI.toggleTimerWindow();
     });
 }
 
@@ -555,7 +597,7 @@ function formatTimeForDisplay(seconds: number): string {
     return `${m}:${String(s).padStart(2, '0')}`;
 }
 
-window.electronAPI.onMainTimerUpdate((remainingTime: number) => {
+electronAPI.onMainTimerUpdate((remainingTime) => {
     if (mainCountdownDisplay) {
         mainCountdownDisplay.textContent = formatTimeForDisplay(remainingTime);
         if (remainingTime <= 0) {
@@ -567,9 +609,9 @@ window.electronAPI.onMainTimerUpdate((remainingTime: number) => {
 });
 
 console.log('Main Renderer script loaded.');
-window.electronAPI.requestJoyConStatus();
+electronAPI.requestJoyConStatus();
 loadPowerPointPresentations(); 
-window.electronAPI.onUpdateCountdownInitialValue((value: number) => {
+electronAPI.onUpdateCountdownInitialValue((value) => {
     if (!Number.isNaN(value)) {
         countdownInitialValueInput.value = String(value);
         localStorage.setItem('countdownInitialValue', String(value));
@@ -578,7 +620,7 @@ window.electronAPI.onUpdateCountdownInitialValue((value: number) => {
 countdownInitialValueInput.addEventListener('change', () => {
     const value = parseInt(countdownInitialValueInput.value, 10);
     if (!isNaN(value) && value >= 1 && value <= 3600) {
-        window.electronAPI.sendCountdownInitialValue(value);
+        electronAPI.sendCountdownInitialValue(value);
         localStorage.setItem('countdownInitialValue', String(value));
     }
 });
@@ -589,7 +631,7 @@ if (savedInitialValue) {
     const val = parseInt(savedInitialValue, 10);
     if (!isNaN(val)) {
         countdownInitialValueInput.value = savedInitialValue;
-        window.electronAPI.sendCountdownInitialValue(val);
+        electronAPI.sendCountdownInitialValue(val);
     }
 }
 
@@ -604,11 +646,11 @@ if (messageInput && toggleMessageButton) {
         // Chromium adds a trailing <br> to contenteditable sometimes. Remove it.
         text = text.replace(/<br\s*\/?>$/i, '');
         
-        window.electronAPI.sendMessageText(text);
+        electronAPI.sendMessageText(text);
     });
 
     toggleMessageButton.addEventListener('click', () => {
-        window.electronAPI.toggleMessageWindow();
+        electronAPI.toggleMessageWindow();
     });
 
     // Handle Context Menu (Right Click)
@@ -633,35 +675,13 @@ if (messageInput && toggleMessageButton) {
     // Apply color when swatch is clicked
     const swatches = document.querySelectorAll('.color-swatch');
     
-    // Helper to apply formatting to the saved selection
-    /**
-     * 選択範囲の文字色を適用する。
-     * @param color 色コード
-     */
-    function applyColor(color: string) {
-        messageInput.focus();
-        
-        // Ensure we are working with the selection
-        const selection = window.getSelection();
-        if (selection && selection.rangeCount > 0) {
-             document.execCommand('foreColor', false, color);
-        } else {
-             // If no selection, just set color for future typing or select all
-             document.execCommand('selectAll', false);
-             document.execCommand('foreColor', false, color);
-        }
-        
-        // Trigger input event after formatting
-        messageInput.dispatchEvent(new Event('input'));
-    }
-
     swatches.forEach(swatch => {
         swatch.addEventListener('mousedown', (e: Event) => {
             // Use mousedown and preventDefault to avoid losing selection from the input
             e.preventDefault();
             const color = (swatch as HTMLElement).dataset.color;
             if (color) {
-                applyColor(color);
+                applyColorToMessageInput(messageInput, color);
             }
             if (colorContextMenu) colorContextMenu.style.display = 'none';
         });
@@ -681,4 +701,26 @@ if (messageInput && toggleMessageButton) {
             if (colorContextMenu) colorContextMenu.style.display = 'none';
         });
     });
+}
+
+/**
+ * 選択範囲の文字色を適用する。
+ * @param input 対象入力欄
+ * @param color 色コード
+ */
+function applyColorToMessageInput(input: HTMLDivElement, color: string) {
+    input.focus();
+
+    // 選択範囲があるか確認する
+    const selection = window.getSelection();
+    if (selection && selection.rangeCount > 0) {
+        document.execCommand('foreColor', false, color);
+    } else {
+        // 選択がない場合は全選択して色を適用する
+        document.execCommand('selectAll', false);
+        document.execCommand('foreColor', false, color);
+    }
+
+    // 変更通知のために入力イベントを発火する
+    input.dispatchEvent(new Event('input'));
 }

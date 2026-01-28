@@ -30,6 +30,12 @@ interface JoyConPaths {
     joyconRPath: string | null;
 }
 
+interface HidDeviceInfo {
+    vendorId?: number;
+    productId?: number;
+    path?: string;
+}
+
 /**
  * Joy-Con の接続・初期化・入力解析を管理し、イベントを発行する。
  */
@@ -102,12 +108,12 @@ export default class JoyConManager extends EventEmitter {
             const devices = HID.devices();
             let joyconLPath: string | null = null;
             let joyconRPath: string | null = null;
-            devices.forEach((device: any) => {
+            devices.forEach((device: HidDeviceInfo) => {
                 if (device.vendorId === VENDOR_ID) {
                     if (device.productId === PRODUCT_ID_L) {
-                        joyconLPath = device.path;
+                        joyconLPath = device.path || null;
                     } else if (device.productId === PRODUCT_ID_R) {
-                        joyconRPath = device.path;
+                        joyconRPath = device.path || null;
                     }
                 }
             });
@@ -299,8 +305,9 @@ export default class JoyConManager extends EventEmitter {
                     this.connectingR = false;
                 }
             });
-        } catch (err: any) {
-            console.error(`Connection failed (${path}):`, err.message);
+        } catch (err: unknown) {
+            const message = err instanceof Error ? err.message : String(err);
+            console.error(`Connection failed (${path}):`, message);
             this.closeHidDevice(hidDevice);
             if (isLeft) {
                 this.connectingL = false;
@@ -454,8 +461,8 @@ export default class JoyConManager extends EventEmitter {
                     gyro: { x: gyroX, y: gyroY, z: gyroZ },
                 });
 
-                let buttonByteIndex = isLeft ? 5 : 3;
-                let lastButtonState = isLeft ? this.lastButtonStateL : this.lastButtonStateR;
+                const buttonByteIndex = isLeft ? 5 : 3;
+                const lastButtonState = isLeft ? this.lastButtonStateL : this.lastButtonStateR;
 
                 if (data.length > buttonByteIndex) {
                     const buttonByte = data[buttonByteIndex];
