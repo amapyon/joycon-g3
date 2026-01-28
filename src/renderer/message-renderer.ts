@@ -1,10 +1,9 @@
-export {};
-
-type ElectronAPI = {
+(() => {
+type MessageRendererElectronAPI = {
     onUpdateMessageText: (callback: (text: string) => void) => void;
 };
 
-const electronAPI = (window as unknown as { electronAPI: ElectronAPI }).electronAPI;
+const electronAPI = (window as unknown as { electronAPI: MessageRendererElectronAPI }).electronAPI;
 const messageContent = document.getElementById('messageContent') as HTMLElement | null;
 const wheelZone = document.getElementById('wheel-zone') as HTMLElement | null;
 const storedFontSize = localStorage.getItem('messageFontSize');
@@ -75,3 +74,4 @@ electronAPI.onUpdateMessageText((text: string) => {
 });
 
 console.log('[MessageRenderer] Initialized.');
+})();

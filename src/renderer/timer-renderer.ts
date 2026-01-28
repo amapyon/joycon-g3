@@ -1,12 +1,11 @@
-export {};
-
+(() => {
 type TimerMode = 'timer' | 'setup';
 type TimerNotificationConfig = {
     time: number;
     filename: string;
     absolutePath: string;
 };
-type ElectronAPI = {
+type TimerRendererElectronAPI = {
     onUpdateTimerNotifications: (callback: (configs: TimerNotificationConfig[]) => void) => void;
     sendTimerStatus: (isCounting: boolean) => void;
     sendTimerCountdownUpdate: (remainingTime: number) => void;
@@ -20,7 +19,7 @@ type ElectronAPI = {
     onTimerMenuSelect: (callback: () => void) => void;
 };
 
-const electronAPI = (window as unknown as { electronAPI: ElectronAPI }).electronAPI;
+const electronAPI = (window as unknown as { electronAPI: TimerRendererElectronAPI }).electronAPI;
 const countdownTimerElement = document.getElementById('countdownTimer') as HTMLElement | null;
 const countdownMenuElement = document.getElementById('countdownMenu') as HTMLElement | null;
 const countdownMenuValueElement = document.getElementById('countdownMenuValue') as HTMLElement | null;
@@ -358,4 +357,5 @@ applyCountdownTimerOpacity(currentOpacity); // 初期値を適用
 
 console.log('[TimerRenderer] Initialized.');
 renderTimerPresets();
+})();
 

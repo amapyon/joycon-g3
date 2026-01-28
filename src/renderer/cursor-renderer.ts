@@ -1,8 +1,7 @@
 // cursor-renderer.ts
 // Joy-Con姿勢データでカーソルを制御するレンダラースクリプト
 
-export {};
-
+(() => {
 type CursorId = 'cursorLeft' | 'cursorRight';
 
 // カーソルのマッピング設定
@@ -36,7 +35,7 @@ type UpdatePointerData = { id: CursorId; x: number; y: number };
 type JoyConAttitudeData = { id: CursorId; roll: number; pitch: number; yaw?: number };
 type ButtonStateData = { pressed: boolean };
 type ButtonPressData = { id: CursorId };
-type ElectronAPI = {
+type CursorRendererElectronAPI = {
     onUpdatePointer: (callback: (pos: UpdatePointerData) => void) => void;
     onJoyConAttitude: (callback: (data: JoyConAttitudeData) => void) => void;
     onJoyConButtonX: (callback: (data: ButtonStateData) => void) => void;
@@ -49,7 +48,7 @@ type ElectronAPI = {
 };
 type WindowWithIpcRenderer = Window & { ipcRenderer?: { send: (channel: string, ...args: unknown[]) => void } };
 
-const electronAPI = (window as unknown as { electronAPI: ElectronAPI }).electronAPI;
+const electronAPI = (window as unknown as { electronAPI: CursorRendererElectronAPI }).electronAPI;
 
 // カーソルDOM要素の参照
 const cursorElements: Record<CursorId, HTMLElement | null> = {
@@ -409,3 +408,4 @@ document.addEventListener('DOMContentLoaded', () => {
     requestAnimationFrame(renderLoop);
     console.log('Cursor Renderer script initialized for attitude control.');
 });
+})();

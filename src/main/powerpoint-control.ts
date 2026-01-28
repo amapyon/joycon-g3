@@ -40,7 +40,7 @@ type PowerPointApp = {
  * @param error 例外オブジェクト
  * @returns メッセージ文字列
  */
-function getErrorMessage(error: unknown): string {
+export function getErrorMessage(error: unknown): string {
     if (error instanceof Error) {
         return error.message;
     }

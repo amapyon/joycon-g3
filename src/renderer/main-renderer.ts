@@ -1,7 +1,7 @@
 // main-renderer.ts
 // TypeScript化: DOM型・window.electronAPI型を明示
 
-export {};
+(() => {
 
 type DisplayInfo = {
     id: number;
@@ -18,7 +18,7 @@ type NotificationConfig = {
     filename: string;
     absolutePath: string;
 };
-type ElectronAPI = {
+type MainRendererElectronAPI = {
     getOpenPowerPointPresentations: () => Promise<PresentationInfo[]>;
     setTargetPresentation: (identifier: string) => void;
     onAvailablePresentations: (callback: (presentations: PresentationInfo[]) => void) => void;
@@ -51,7 +51,7 @@ type ElectronAPI = {
     toggleMessageWindow: () => void;
 };
 
-const electronAPI = (window as unknown as { electronAPI: ElectronAPI }).electronAPI;
+const electronAPI = (window as unknown as { electronAPI: MainRendererElectronAPI }).electronAPI;
 
 const displaySelect = document.getElementById('display-select') as HTMLSelectElement;
 const cursorToggleBtn = document.getElementById('cursor-toggle-btn') as HTMLButtonElement;
@@ -724,3 +724,4 @@ function applyColorToMessageInput(input: HTMLDivElement, color: string) {
     // 変更通知のために入力イベントを発火する
     input.dispatchEvent(new Event('input'));
 }
+})();
