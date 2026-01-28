@@ -1,6 +1,5 @@
 // joycon.ts
 // Joy-Conの接続、初期化、データ解析を行い、イベントを発行するモジュール
-// ★イベント名をシンプルなものに統一★
 
 import HID from 'node-hid';
 import { EventEmitter } from 'events';
@@ -19,9 +18,9 @@ interface ButtonState {
     xPressed: boolean;
     aPressed: boolean;
     yPressed: boolean;
-    plusPressed: boolean; // Added for '+' button
-    minusPressed: boolean; // Added for '-' button
-    rStickPressed: boolean; // Added for Right Joy-Con Stick Press
+    plusPressed: boolean;
+    minusPressed: boolean;
+    rStickPressed: boolean;
     homePressed: boolean;
 }
 
@@ -50,8 +49,8 @@ export default class JoyConManager extends EventEmitter {
     scanTimer: NodeJS.Timeout | null = null;
     connectingL = false;
     connectingR = false;
-    autoConnectL = true; // Added
-    autoConnectR = true; // Added
+    autoConnectL = true;
+    autoConnectR = true;
 
     /**
      * Joy-Con 管理クラスを生成する。
@@ -78,9 +77,9 @@ export default class JoyConManager extends EventEmitter {
             xPressed: false,
             aPressed: false,
             yPressed: false,
-            plusPressed: false, // Added for '+' button
-            minusPressed: false, // Added for '-' button
-            rStickPressed: false, // Added for Right Joy-Con Stick Press
+            plusPressed: false,
+            minusPressed: false,
+            rStickPressed: false,
             homePressed: false,
         };
     }

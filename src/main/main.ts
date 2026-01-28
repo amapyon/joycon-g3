@@ -73,9 +73,6 @@ app.whenReady().then(() => {
     IpcHandler.setupIpcHandlers(WindowManager, joyconManager);
 
     /**
-     * タイマーウィンドウの表示状態を切り替える。
-     */
-    /**
      * タイマーウィンドウの表示/非表示を切り替える。
      */
     function toggleTimerWindowVisibility() {
@@ -85,9 +82,8 @@ app.whenReady().then(() => {
         
         if (!targetWindow || targetWindow.isDestroyed()) {
             console.log('[Main] Timer window does not exist or is destroyed. Creating new window.');
-            // When creating, ensure it's on the main display
-            const mainWin = WindowManager.getMainWindow(); // Get mainWin here
-            const mainWinBounds = mainWin ? mainWin.getBounds() : screen.getPrimaryDisplay().bounds; // Fallback to primary if mainWin not available yet
+            const mainWin = WindowManager.getMainWindow();
+            const mainWinBounds = mainWin ? mainWin.getBounds() : screen.getPrimaryDisplay().bounds;
             const mainDisplay = screen.getDisplayNearestPoint({ x: mainWinBounds.x, y: mainWinBounds.y });
             targetWindow = WindowManager.createTimerWindow(mainDisplay);
             if (!targetWindow) {
@@ -117,9 +113,6 @@ app.whenReady().then(() => {
         } else {
             console.log('[Main] Showing timer window.');
             targetWindow.show();
-            // User requested: 
-            // - If not counting: show Setup UI
-            // - If counting: show Timer UI
             if (!isTimerCounting) {
                 targetWindow.webContents.send('set-timer-mode', 'setup');
             } else {
@@ -293,8 +286,8 @@ app.whenReady().then(() => {
             console.warn(`[main.ts] cursorMapConfig for ${id} is undefined. Using default signs.`);
         }
 
-        pointerPosition.x += effectiveGyroZ * moveSpeed * xSign; // Gyro Z for screen X
-        pointerPosition.y += effectiveGyroY * moveSpeed * ySign; // Gyro Y for screen Y, inverted
+        pointerPosition.x += effectiveGyroZ * moveSpeed * xSign;
+        pointerPosition.y += effectiveGyroY * moveSpeed * ySign;
 
         const { width: screenWidth, height: screenHeight } = getScreenSize();
         pointerPosition.x = Math.max(0, Math.min(screenWidth, pointerPosition.x));

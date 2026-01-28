@@ -256,8 +256,7 @@ export function createMessageWindow(targetDisplay?: Display) {
     });
 
     messageWindow.loadFile(path.join(__dirname, '..', 'renderer', 'message-window.html'));
-    messageWindow.show(); // Show the window immediately
-
+    messageWindow.show();
 
     const updateBounds = () => {
         if (messageWindow && !messageWindow.isDestroyed()) {
@@ -304,8 +303,6 @@ export function sendAvailableDisplays() {
         sendLaunchErrorToMain('Failed to get display list.');
     }
 }
-
-
 
 /**
  * カーソルウィンドウの起動完了を通知する。
