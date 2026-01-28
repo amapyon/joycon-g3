@@ -1,5 +1,5 @@
 // preload.ts
-import { contextBridge, ipcRenderer } from 'electron';
+import { contextBridge, ipcRenderer, IpcRendererEvent } from 'electron';
 
 type CursorId = 'cursorLeft' | 'cursorRight';
 type TimerMode = 'timer' | 'setup';
@@ -32,265 +32,330 @@ const electronAPI = {
      * 開いている PowerPoint プレゼンテーション一覧を取得する。
      * @returns プレゼンテーション一覧
      */
-    getOpenPowerPointPresentations: () => ipcRenderer.invoke('get-open-powerpoint-presentations'),
+    getOpenPowerPointPresentations: (): Promise<unknown> => ipcRenderer.invoke('get-open-powerpoint-presentations'),
     /**
      * Joy-Con を接続する。
      * @param isLeft 左 Joy-Con かどうか
      */
-    connectJoyCon: (isLeft: boolean) => ipcRenderer.send('connect-joycon', isLeft),
+    connectJoyCon: (isLeft: boolean): void => ipcRenderer.send('connect-joycon', isLeft),
     /**
      * Joy-Con を切断する。
      * @param isLeft 左 Joy-Con かどうか
      */
-    shutdownJoyCon: (isLeft: boolean) => ipcRenderer.send('shutdown-joycon', isLeft),
+    shutdownJoyCon: (isLeft: boolean): void => ipcRenderer.send('shutdown-joycon', isLeft),
     /**
      * メディアファイル一覧を取得する。
      * @returns メディアファイル一覧
      */
-    getMediaFiles: () => ipcRenderer.invoke('get-media-files'),
+    getMediaFiles: (): Promise<unknown> => ipcRenderer.invoke('get-media-files'),
     /**
      * メディアディレクトリのベースパスを取得する。
      * @returns ベースパス
      */
-    getMediaBasePath: () => ipcRenderer.invoke('get-media-base-path'),
+    getMediaBasePath: (): Promise<unknown> => ipcRenderer.invoke('get-media-base-path'),
 
     // --- Cursor Window Control ---
     /**
      * Joy-Con の接続状態更新を購読する。
      * @param callback コールバック
      */
-    onJoyConStatusUpdate: (callback: (status: JoyConStatus) => void) => ipcRenderer.on('joycon-status-update', (event, status: JoyConStatus) => callback(status)),
+    onJoyConStatusUpdate: (callback: (status: JoyConStatus) => void): void => {
+        ipcRenderer.on('joycon-status-update', (event: IpcRendererEvent, status: JoyConStatus) => callback(status));
+    },
     /**
      * Joy-Con の姿勢更新を購読する。
      * @param callback コールバック
      */
-    onJoyConAttitude: (callback: (data: JoyConAttitude) => void) => ipcRenderer.on('joycon-attitude', (event, data: JoyConAttitude) => callback(data)),
+    onJoyConAttitude: (callback: (data: JoyConAttitude) => void): void => {
+        ipcRenderer.on('joycon-attitude', (event: IpcRendererEvent, data: JoyConAttitude) => callback(data));
+    },
     /**
      * Joy-Con の X ボタン状態を購読する。
      * @param callback コールバック
      */
-    onJoyConButtonX: (callback: (data: JoyConButtonState) => void) => ipcRenderer.on('joycon-button-x', (event, data: JoyConButtonState) => callback(data)),
+    onJoyConButtonX: (callback: (data: JoyConButtonState) => void): void => {
+        ipcRenderer.on('joycon-button-x', (event: IpcRendererEvent, data: JoyConButtonState) => callback(data));
+    },
     /**
      * Joy-Con の Down ボタン状態を購読する。
      * @param callback コールバック
      */
-    onJoyConButtonDown: (callback: (data: JoyConButtonState) => void) => ipcRenderer.on('joycon-button-down', (event, data: JoyConButtonState) => callback(data)),
+    onJoyConButtonDown: (callback: (data: JoyConButtonState) => void): void => {
+        ipcRenderer.on('joycon-button-down', (event: IpcRendererEvent, data: JoyConButtonState) => callback(data));
+    },
     /**
      * Joy-Con の X ボタン押下を購読する。
      * @param callback コールバック
      */
-    onJoyConButtonXPressed: (callback: (data: JoyConButtonPress) => void) => ipcRenderer.on('button-x-pressed', (event, data: JoyConButtonPress) => callback(data)),
+    onJoyConButtonXPressed: (callback: (data: JoyConButtonPress) => void): void => {
+        ipcRenderer.on('button-x-pressed', (event: IpcRendererEvent, data: JoyConButtonPress) => callback(data));
+    },
     /**
      * Joy-Con の Down ボタン押下を購読する。
      * @param callback コールバック
      */
-    onJoyConButtonDownPressed: (callback: (data: JoyConButtonPress) => void) => ipcRenderer.on('button-down-pressed', (event, data: JoyConButtonPress) => callback(data)),
+    onJoyConButtonDownPressed: (callback: (data: JoyConButtonPress) => void): void => {
+        ipcRenderer.on('button-down-pressed', (event: IpcRendererEvent, data: JoyConButtonPress) => callback(data));
+    },
     /**
      * Joy-Con の Plus ボタン状態を購読する。
      * @param callback コールバック
      */
-    onJoyConButtonPlus: (callback: (data: JoyConButtonState) => void) => ipcRenderer.on('joycon-button-plus', (event, data: JoyConButtonState) => callback(data)),
+    onJoyConButtonPlus: (callback: (data: JoyConButtonState) => void): void => {
+        ipcRenderer.on('joycon-button-plus', (event: IpcRendererEvent, data: JoyConButtonState) => callback(data));
+    },
     /**
      * Joy-Con の Plus ボタン押下を購読する。
      * @param callback コールバック
      */
-    onJoyConButtonPlusPressed: (callback: (data: JoyConButtonPress) => void) => ipcRenderer.on('button-plus-pressed', (event, data: JoyConButtonPress) => callback(data)),
+    onJoyConButtonPlusPressed: (callback: (data: JoyConButtonPress) => void): void => {
+        ipcRenderer.on('button-plus-pressed', (event: IpcRendererEvent, data: JoyConButtonPress) => callback(data));
+    },
     /**
      * Joy-Con の Minus ボタン押下を購読する。
      * @param callback コールバック
      */
-    onJoyConButtonMinusPressed: (callback: (data: JoyConButtonPress) => void) => ipcRenderer.on('button-minus-pressed', (event, data: JoyConButtonPress) => callback(data)),
+    onJoyConButtonMinusPressed: (callback: (data: JoyConButtonPress) => void): void => {
+        ipcRenderer.on('button-minus-pressed', (event: IpcRendererEvent, data: JoyConButtonPress) => callback(data));
+    },
     /**
      * Joy-Con の SR ボタン押下を購読する。
      * @param callback コールバック
      */
-    onJoyConButtonSrPressed: (callback: (data: JoyConButtonPress) => void) => ipcRenderer.on('button-sr-pressed', (event, data: JoyConButtonPress) => callback(data)),
+    onJoyConButtonSrPressed: (callback: (data: JoyConButtonPress) => void): void => {
+        ipcRenderer.on('button-sr-pressed', (event: IpcRendererEvent, data: JoyConButtonPress) => callback(data));
+    },
 
     /**
      * 利用可能なディスプレイ一覧を購読する。
      * @param callback コールバック
      */
-    onAvailableDisplays: (callback: (displays: DisplayInfo[]) => void) => ipcRenderer.on('available-displays', (event, displays: DisplayInfo[]) => callback(displays)),
+    onAvailableDisplays: (callback: (displays: DisplayInfo[]) => void): void => {
+        ipcRenderer.on('available-displays', (event: IpcRendererEvent, displays: DisplayInfo[]) => callback(displays));
+    },
     /**
      * 表示対象ディスプレイを設定する。
      * @param displayId ディスプレイ ID
      */
-    setTargetDisplay: (displayId: number) => ipcRenderer.send('set-target-display', displayId),
+    setTargetDisplay: (displayId: number): void => ipcRenderer.send('set-target-display', displayId),
     /**
      * カーソルウィンドウを起動する。
      * @param displayId ディスプレイ ID
      */
-    launchCursorWindow: (displayId: number | string) => ipcRenderer.send('launch-cursor-window', displayId),
+    launchCursorWindow: (displayId: number | string): void => ipcRenderer.send('launch-cursor-window', displayId),
     /**
      * 起動エラーを購読する。
      * @param callback コールバック
      */
-    onLaunchError: (callback: (message: string) => void) => ipcRenderer.on('launch-error', (event, message: string) => callback(message)),
+    onLaunchError: (callback: (message: string) => void): void => {
+        ipcRenderer.on('launch-error', (event: IpcRendererEvent, message: string) => callback(message));
+    },
     /**
      * カーソルウィンドウを閉じる。
      */
-    closeCursorWindow: () => ipcRenderer.send('close-cursor-window'),
+    closeCursorWindow: (): void => ipcRenderer.send('close-cursor-window'),
     /**
      * カーソルウィンドウの起動完了を購読する。
      * @param callback コールバック
      */
-    onCursorWindowOpened: (callback: () => void) => ipcRenderer.on('cursor-window-opened', () => callback()),
+    onCursorWindowOpened: (callback: () => void): void => {
+        ipcRenderer.on('cursor-window-opened', (event: IpcRendererEvent) => {
+            void event;
+            callback();
+        });
+    },
     /**
      * カーソルウィンドウの終了を購読する。
      * @param callback コールバック
      */
-    onCursorWindowClosed: (callback: () => void) => ipcRenderer.on('cursor-window-closed', () => callback()),
+    onCursorWindowClosed: (callback: () => void): void => {
+        ipcRenderer.on('cursor-window-closed', (event: IpcRendererEvent) => {
+            void event;
+            callback();
+        });
+    },
     /**
      * プレゼンテーション一覧更新を購読する。
      * @param callback コールバック
      */
-    onAvailablePresentations: (callback: (presentations: PresentationInfo[]) => void) => ipcRenderer.on('available-presentations', (event, presentations: PresentationInfo[]) => callback(presentations)),
+    onAvailablePresentations: (callback: (presentations: PresentationInfo[]) => void): void => {
+        ipcRenderer.on('available-presentations', (event: IpcRendererEvent, presentations: PresentationInfo[]) => callback(presentations));
+    },
     /**
      * 対象プレゼンテーションを設定する。
      * @param identifier 識別子
      */
-    setTargetPresentation: (identifier: string) => ipcRenderer.send('set-target-presentation', identifier),
+    setTargetPresentation: (identifier: string): void => ipcRenderer.send('set-target-presentation', identifier),
     /**
      * キャリブレーションを開始する。
      */
-    startCalibration: () => ipcRenderer.send('start-calibration'),
+    startCalibration: (): void => ipcRenderer.send('start-calibration'),
     /**
      * キャリブレーション状態更新を購読する。
      * @param callback コールバック
      */
-    onCalibrationStatusUpdate: (callback: (statusInfo: { id: string; status: string }) => void) => ipcRenderer.on('calibration-status-update', (event, statusInfo: { id: string; status: string }) => callback(statusInfo)),
+    onCalibrationStatusUpdate: (callback: (statusInfo: { id: string; status: string }) => void): void => {
+        ipcRenderer.on('calibration-status-update', (event: IpcRendererEvent, statusInfo: { id: string; status: string }) => callback(statusInfo));
+    },
     /**
      * バッテリー状態更新を購読する。
      * @param callback コールバック
      */
-    onJoyConBatteryStatusUpdate: (callback: (status: BatteryStatus) => void) => ipcRenderer.on('joycon-battery-status-update', (event, status: BatteryStatus) => callback(status)),
+    onJoyConBatteryStatusUpdate: (callback: (status: BatteryStatus) => void): void => {
+        ipcRenderer.on('joycon-battery-status-update', (event: IpcRendererEvent, status: BatteryStatus) => callback(status));
+    },
     /**
      * Joy-Con の接続状態を要求する。
      */
-    requestJoyConStatus: () => ipcRenderer.send('request-joycon-status'),
+    requestJoyConStatus: (): void => ipcRenderer.send('request-joycon-status'),
     /**
      * IMU の基準位置をリセンターする。
      * @param id 対象カーソル ID
      */
-    recenterImu: (id: 'cursorLeft' | 'cursorRight') => ipcRenderer.send('recenter-imu', id),
+    recenterImu: (id: 'cursorLeft' | 'cursorRight'): void => ipcRenderer.send('recenter-imu', id),
     /**
      * ポインター更新を購読する。
      * @param callback コールバック
      */
-    onUpdatePointer: (callback: (pos: UpdatePointerData) => void) => ipcRenderer.on('update-pointer', (event, pos: UpdatePointerData) => callback(pos)),
+    onUpdatePointer: (callback: (pos: UpdatePointerData) => void): void => {
+        ipcRenderer.on('update-pointer', (event: IpcRendererEvent, pos: UpdatePointerData) => callback(pos));
+    },
 
     /**
      * カーソルマップ設定を送信する。
      * @param config 設定データ
      */
-    sendCursorMapConfig: (config: CursorMapConfig) => ipcRenderer.send('cursor-map-config', config),
+    sendCursorMapConfig: (config: CursorMapConfig): void => ipcRenderer.send('cursor-map-config', config),
     /**
      * カーソル表示状態を通知する。
      * @param id 対象カーソル ID
      * @param isVisible 表示状態
      */
-    sendCursorVisibilityUpdate: (id: 'cursorLeft' | 'cursorRight', isVisible: boolean) => ipcRenderer.send('cursor-visibility-update', { id, isVisible }),
+    sendCursorVisibilityUpdate: (id: 'cursorLeft' | 'cursorRight', isVisible: boolean): void => ipcRenderer.send('cursor-visibility-update', { id, isVisible }),
     /**
      * カウントダウン初期値を送信する。
      * @param value 初期値
      */
-    sendCountdownInitialValue: (value: number) => ipcRenderer.send('countdown-initial-value', value),
+    sendCountdownInitialValue: (value: number): void => ipcRenderer.send('countdown-initial-value', value),
     /**
      * カウントダウン初期値の更新を購読する。
      * @param callback コールバック
      */
-    onUpdateCountdownInitialValue: (callback: (value: number) => void) => ipcRenderer.on('update-countdown-initial-value', (event, value: number) => callback(value)),
+    onUpdateCountdownInitialValue: (callback: (value: number) => void): void => {
+        ipcRenderer.on('update-countdown-initial-value', (event: IpcRendererEvent, value: number) => callback(value));
+    },
     /**
      * フォントサイズ変更を購読する。
      * @param callback コールバック
      */
-    onChangeFontSize: (callback: (delta: number) => void) => ipcRenderer.on('change-font-size', (event, delta: number) => callback(delta)),
+    onChangeFontSize: (callback: (delta: number) => void): void => {
+        ipcRenderer.on('change-font-size', (event: IpcRendererEvent, delta: number) => callback(delta));
+    },
     
     // --- Timer Window Control ---
     /**
      * タイマーウィンドウの表示を切り替える。
      */
-    toggleTimerWindow: () => ipcRenderer.send('toggle-timer-window'),
+    toggleTimerWindow: (): void => ipcRenderer.send('toggle-timer-window'),
     /**
      * カウントダウンを開始する。
      * @param duration 秒数
      */
-    startCountdownTimer: (duration: number) => ipcRenderer.send('start-countdown-timer', duration),
+    startCountdownTimer: (duration: number): void => ipcRenderer.send('start-countdown-timer', duration),
     /**
      * カウントダウン開始を購読する。
      * @param callback コールバック
      */
-    onStartCountdown: (callback: (duration: number) => void) => ipcRenderer.on('start-countdown', (event, duration: number) => callback(duration)),
+    onStartCountdown: (callback: (duration: number) => void): void => {
+        ipcRenderer.on('start-countdown', (event: IpcRendererEvent, duration: number) => callback(duration));
+    },
     /**
      * タイマーメニューの移動を購読する。
      * @param callback コールバック
      */
-    onTimerMenuNavigate: (callback: (direction: number) => void) => ipcRenderer.on('timer-menu-navigate', (event, direction: number) => callback(direction)),
+    onTimerMenuNavigate: (callback: (direction: number) => void): void => {
+        ipcRenderer.on('timer-menu-navigate', (event: IpcRendererEvent, direction: number) => callback(direction));
+    },
     /**
      * タイマーメニューの決定を購読する。
      * @param callback コールバック
      */
-    onTimerMenuSelect: (callback: () => void) => ipcRenderer.on('timer-menu-select', () => callback()),
+    onTimerMenuSelect: (callback: () => void): void => {
+        ipcRenderer.on('timer-menu-select', (event: IpcRendererEvent) => {
+            void event;
+            callback();
+        });
+    },
     /**
      * タイマープリセットを更新する。
      * @param presets プリセット秒数配列
      */
-    updateTimerPresets: (presets: number[]) => ipcRenderer.send('update-timer-presets', presets),
+    updateTimerPresets: (presets: number[]): void => ipcRenderer.send('update-timer-presets', presets),
     /**
      * タイマープリセット更新を購読する。
      * @param callback コールバック
      */
-    onUpdateTimerPresets: (callback: (presets: number[]) => void) => ipcRenderer.on('update-timer-presets', (event, presets: number[]) => callback(presets)),
+    onUpdateTimerPresets: (callback: (presets: number[]) => void): void => {
+        ipcRenderer.on('update-timer-presets', (event: IpcRendererEvent, presets: number[]) => callback(presets));
+    },
     /**
      * タイマー状態を送信する。
      * @param isCounting 計測中かどうか
      */
-    sendTimerStatus: (isCounting: boolean) => ipcRenderer.send('timer-status-update', isCounting),
+    sendTimerStatus: (isCounting: boolean): void => ipcRenderer.send('timer-status-update', isCounting),
     /**
      * タイマーモード設定を購読する。
      * @param callback コールバック
      */
-    onSetTimerMode: (callback: (mode: TimerMode) => void) => ipcRenderer.on('set-timer-mode', (event, mode: TimerMode) => callback(mode)),
+    onSetTimerMode: (callback: (mode: TimerMode) => void): void => {
+        ipcRenderer.on('set-timer-mode', (event: IpcRendererEvent, mode: TimerMode) => callback(mode));
+    },
     /**
      * タイマーウィンドウを非表示にする。
      */
-    hideTimerWindow: () => ipcRenderer.send('hide-timer-window'),
+    hideTimerWindow: (): void => ipcRenderer.send('hide-timer-window'),
     /**
      * タイマーの残り時間を通知する。
      * @param remainingTime 残り時間
      */
-    sendTimerCountdownUpdate: (remainingTime: number) => ipcRenderer.send('timer-countdown-update', remainingTime),
+    sendTimerCountdownUpdate: (remainingTime: number): void => ipcRenderer.send('timer-countdown-update', remainingTime),
     /**
      * タイマー通知設定を更新する。
      * @param configs 通知設定
      */
-    updateTimerNotifications: (configs: TimerNotificationConfig[]) => ipcRenderer.send('update-timer-notifications', configs),
+    updateTimerNotifications: (configs: TimerNotificationConfig[]): void => ipcRenderer.send('update-timer-notifications', configs),
     /**
      * タイマー通知設定の更新を購読する。
      * @param callback コールバック
      */
-    onUpdateTimerNotifications: (callback: (configs: TimerNotificationConfig[]) => void) => ipcRenderer.on('update-timer-notifications', (event, configs: TimerNotificationConfig[]) => callback(configs)),
+    onUpdateTimerNotifications: (callback: (configs: TimerNotificationConfig[]) => void): void => {
+        ipcRenderer.on('update-timer-notifications', (event: IpcRendererEvent, configs: TimerNotificationConfig[]) => callback(configs));
+    },
 
     // --- Message Window Control ---
     /**
      * メッセージウィンドウの表示を切り替える。
      */
-    toggleMessageWindow: () => ipcRenderer.send('toggle-message-window'),
+    toggleMessageWindow: (): void => ipcRenderer.send('toggle-message-window'),
     /**
      * メッセージ本文を送信する。
      * @param text メッセージ本文
      */
-    sendMessageText: (text: string) => ipcRenderer.send('send-message-text', text),
+    sendMessageText: (text: string): void => ipcRenderer.send('send-message-text', text),
     /**
      * メッセージ本文の更新を購読する。
      * @param callback コールバック
      */
-    onUpdateMessageText: (callback: (text: string) => void) => ipcRenderer.on('update-message-text', (event, text) => callback(text)),
+    onUpdateMessageText: (callback: (text: string) => void): void => {
+        ipcRenderer.on('update-message-text', (event: IpcRendererEvent, text: string) => callback(text));
+    },
     /**
      * メインタイマー更新を購読する。
      * @param callback コールバック
      */
-    onMainTimerUpdate: (callback: (remainingTime: number) => void) => ipcRenderer.on('main-timer-update', (event, remainingTime) => callback(remainingTime)),
+    onMainTimerUpdate: (callback: (remainingTime: number) => void): void => {
+        ipcRenderer.on('main-timer-update', (event: IpcRendererEvent, remainingTime: number) => callback(remainingTime));
+    },
 };
 
 contextBridge.exposeInMainWorld('electronAPI', electronAPI);

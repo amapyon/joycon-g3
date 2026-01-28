@@ -53,7 +53,7 @@ export class IMUProcessor extends EventEmitter {
      * IMUProcessor を初期化する。
      * @param alpha コンプリメンタリフィルタの係数
      */
-    constructor(alpha = 0.95) {
+    constructor(alpha: number = 0.95) {
         super();
         // 各カーソルの初期状態を生成
         this.states = {
@@ -100,7 +100,7 @@ export class IMUProcessor extends EventEmitter {
      * IMU データを受け取り、姿勢を更新する。
      * @param imuData 受信した IMU データ
      */
-    update(imuData: IMUData) {
+    update(imuData: IMUData): void {
         const state = this.states[imuData.id];
         if (!state) return;
 
@@ -201,7 +201,7 @@ export class IMUProcessor extends EventEmitter {
      * 現在の姿勢を基準（オフセット）として再設定する。
      * @param id 対象カーソル ID
      */
-    recenter(id: CursorId) {
+    recenter(id: CursorId): void {
         const state = this.states[id];
         if (!state) return;
         state.rollOffset = state.roll;
@@ -215,7 +215,7 @@ export class IMUProcessor extends EventEmitter {
      * @param id 対象カーソル ID
      * @param durationMs 計測時間（ミリ秒）
      */
-    startGyroCalibration(id: CursorId, durationMs = 2000) {
+    startGyroCalibration(id: CursorId, durationMs: number = 2000): void {
         if (this.isCalibrating[id]) return;
         this.isCalibrating[id] = true;
         this.calibrationData[id] = { x: [], y: [], z: [] };
@@ -229,7 +229,7 @@ export class IMUProcessor extends EventEmitter {
      * ジャイロキャリブレーションを終了し、バイアスを計算する。
      * @param id 対象カーソル ID
      */
-    finishGyroCalibration(id: CursorId) {
+    finishGyroCalibration(id: CursorId): void {
         const data = this.calibrationData[id];
         if (!data || data.x.length === 0) {
             this.isCalibrating[id] = false;
@@ -237,7 +237,7 @@ export class IMUProcessor extends EventEmitter {
             return;
         }
         // 各軸の平均値をバイアスとして設定
-        const avg = (arr: number[]) => arr.reduce((a, b) => a + b, 0) / arr.length;
+        const avg = (arr: number[]): number => arr.reduce((a: number, b: number) => a + b, 0) / arr.length;
         this.states[id].gyroBiasX = avg(data.x);
         this.states[id].gyroBiasY = avg(data.y);
         this.states[id].gyroBiasZ = avg(data.z);
@@ -249,7 +249,7 @@ export class IMUProcessor extends EventEmitter {
      * 現在のジャイロ値をバイアスとして即時設定する。
      * @param id 対象カーソル ID
      */
-    calibrate(id: CursorId) {
+    calibrate(id: CursorId): void {
         const gyro = this.lastRawGyro[id];
         this.states[id].gyroBiasX = gyro.x;
         this.states[id].gyroBiasY = gyro.y;

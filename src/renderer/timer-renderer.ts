@@ -1,4 +1,4 @@
-(() => {
+((): void => {
 type TimerMode = 'timer' | 'setup';
 type TimerNotificationConfig = {
     time: number;
@@ -45,7 +45,7 @@ let timerNotificationConfigs: TimerNotificationConfig[] = JSON.parse(storedNotif
  * タイマーのフォントサイズを更新する。
  * @param delta 増減量
  */
-function updateTimerFontSize(delta: number) {
+function updateTimerFontSize(delta: number): void {
     currentFontSize += delta;
     if (currentFontSize < 20) currentFontSize = 20;
     if (currentFontSize > 500) currentFontSize = 500;
@@ -84,14 +84,14 @@ function formatTime(seconds: number): string {
  * @param value カウントダウン値
  * @returns 補正後の値
  */
-function clampCountdownValue(value: number) {
+function clampCountdownValue(value: number): number {
     return Math.max(1, Math.min(3600, value));
 }
 
 /**
  * カウントダウンメニュー表示を更新する。
  */
-function updateCountdownMenuDisplay() {
+function updateCountdownMenuDisplay(): void {
     if (countdownMenuValueElement) {
         countdownMenuValueElement.textContent = formatTime(currentCountdownInitialValue);
     }
@@ -101,7 +101,7 @@ function updateCountdownMenuDisplay() {
  * カウントダウンメニューの表示状態を切り替える。
  * @param visible 表示するかどうか
  */
-function setCountdownMenuVisible(visible: boolean) {
+function setCountdownMenuVisible(visible: boolean): void {
     isCountdownMenuVisible = visible;
     if (countdownMenuElement) {
         countdownMenuElement.style.visibility = visible ? 'visible' : 'hidden';
@@ -129,7 +129,7 @@ function setCountdownMenuVisible(visible: boolean) {
 /**
  * カウントダウンを停止する。
  */
-function stopCountdown() {
+function stopCountdown(): void {
     if (countdownInterval) {
         clearInterval(countdownInterval);
         countdownInterval = null;
@@ -140,16 +140,16 @@ function stopCountdown() {
 /**
  * タイマーウィンドウのプリセットを描画する。
  */
-function renderTimerPresets() {
+function renderTimerPresets(): void {
     if (!timerPresetsContainer) return;
     timerPresetsContainer.innerHTML = '';
-    currentPresetValues.forEach((time, index) => {
+    currentPresetValues.forEach((time: number, index: number): void => {
         const btn = document.createElement('div');
         btn.className = 'menu-preset-btn';
         if (index === selectedPresetIndex) btn.classList.add('focused');
         btn.dataset.time = String(time);
         btn.textContent = formatTimerWindowPresetLabel(time);
-        btn.addEventListener('click', () => {
+        btn.addEventListener('click', (): void => {
             if (isCountdownMenuVisible) {
                 setCountdownMenuVisible(false);
             }
@@ -163,7 +163,7 @@ function renderTimerPresets() {
  * タイマー表示の透明度を適用する。
  * @param opacity 透明度
  */
-function applyCountdownTimerOpacity(opacity: number) {
+function applyCountdownTimerOpacity(opacity: number): void {
     if (countdownTimerElement) {
         // ベース色は style.css の定義に合わせる
         countdownTimerElement.style.background = `rgba(100, 100, 100, ${opacity})`;
@@ -174,7 +174,7 @@ function applyCountdownTimerOpacity(opacity: number) {
  * 透明度を更新する。
  * @param delta 増減量
  */
-function updateTransparency(delta: number) {
+function updateTransparency(delta: number): void {
     currentOpacity += delta;
     if (currentOpacity < 0.1) currentOpacity = 0.1; // 最小透明度
     if (currentOpacity > 1.0) currentOpacity = 1.0; // 最大透明度
@@ -186,10 +186,10 @@ function updateTransparency(delta: number) {
 /**
  * プリセットのフォーカス状態を更新する。
  */
-function updatePresetFocus() {
+function updatePresetFocus(): void {
     const btns = timerPresetsContainer?.querySelectorAll('.menu-preset-btn');
     if (!btns) return;
-    btns.forEach((btn, index) => {
+    btns.forEach((btn: Element, index: number): void => {
         if (index === selectedPresetIndex) {
             btn.classList.add('focused');
             const time = currentPresetValues[index];
@@ -205,7 +205,7 @@ function updatePresetFocus() {
  * カウントダウンを開始する。
  * @param duration 秒数
  */
-function startCountdown(duration: number) {
+function startCountdown(duration: number): void {
     if (!countdownTimerElement) return;
 
     stopCountdown();
@@ -224,7 +224,7 @@ function startCountdown(duration: number) {
 
     countdownInterval = setInterval(() => {
         // カウントが一致したタイミングで通知を再生する
-        timerNotificationConfigs.forEach((config, index) => {
+        timerNotificationConfigs.forEach((config: TimerNotificationConfig, index: number): void => {
             if (!playedIndices.has(index) && config.absolutePath && countdownValue === config.time) {
                 console.log(`[TimerRenderer] Alert trigger at ${config.time}s: ${config.absolutePath}`);
                 try {
@@ -233,7 +233,7 @@ function startCountdown(duration: number) {
                         audioUrl = 'file://' + config.absolutePath.replace(/\\/g, '/');
                     }
                     const audio = new Audio(audioUrl);
-                    audio.play().catch(e => console.error('Audio play failed:', e));
+                    audio.play().catch((e: unknown): void => console.error('Audio play failed:', e));
                     playedIndices.add(index);
                 } catch (err) {
                     console.error('Error playing notification sound:', err);
@@ -254,19 +254,19 @@ function startCountdown(duration: number) {
     }, 1000);
 }
 
-electronAPI.onUpdateTimerNotifications((configs) => {
+electronAPI.onUpdateTimerNotifications((configs: TimerNotificationConfig[]): void => {
     console.log('[TimerRenderer] Notifications updated:', configs);
     timerNotificationConfigs = configs;
     localStorage.setItem('timerNotifications', JSON.stringify(configs));
 });
 
-electronAPI.onChangeFontSize((delta) => {
+electronAPI.onChangeFontSize((delta: number): void => {
     console.log(`[TimerRenderer] Change font size via Joy-Con: ${delta}`);
     updateTimerFontSize(delta * 2);
 });
 
 if (wheelZone) {
-    wheelZone.addEventListener('wheel', (e: WheelEvent) => {
+    wheelZone.addEventListener('wheel', (e: WheelEvent): void => {
         e.preventDefault(); // 既定のスクロール動作を抑止
 
         if (e.shiftKey) {
@@ -282,7 +282,7 @@ if (wheelZone) {
     }, { passive: false });
 }
 
-electronAPI.onUpdateCountdownInitialValue((value) => {
+electronAPI.onUpdateCountdownInitialValue((value: number): void => {
     currentCountdownInitialValue = clampCountdownValue(value);
     localStorage.setItem('countdownInitialValue', String(currentCountdownInitialValue));
     if (countdownTimerElement && !countdownInterval) {
@@ -293,7 +293,7 @@ electronAPI.onUpdateCountdownInitialValue((value) => {
     }
 });
 
-electronAPI.onUpdateTimerPresets((presets) => {
+electronAPI.onUpdateTimerPresets((presets: number[]): void => {
     console.log('[TimerRenderer] Received presets update:', presets);
     currentPresetValues = presets;
     localStorage.setItem('timerPresets', JSON.stringify(presets));
@@ -302,7 +302,7 @@ electronAPI.onUpdateTimerPresets((presets) => {
     }
 });
 
-electronAPI.onSetTimerMode((mode) => {
+electronAPI.onSetTimerMode((mode: TimerMode): void => {
     console.log(`[TimerRenderer] Setting mode to: ${mode}`);
     if (mode === 'setup') {
         setCountdownMenuVisible(true);
@@ -316,7 +316,7 @@ electronAPI.onSetTimerMode((mode) => {
 });
 
 // 即時開始のIPCを受信
-electronAPI.onStartCountdown((duration) => {
+electronAPI.onStartCountdown((duration: number): void => {
     console.log(`[TimerRenderer] Received start-countdown IPC: ${duration}s`);
     if (isCountdownMenuVisible) {
         setCountdownMenuVisible(false);
@@ -324,11 +324,11 @@ electronAPI.onStartCountdown((duration) => {
     startCountdown(duration);
 });
 
-electronAPI.onJoyConButtonSrPressed(() => {
+electronAPI.onJoyConButtonSrPressed((): void => {
     setCountdownMenuVisible(!isCountdownMenuVisible);
 });
 
-electronAPI.onTimerMenuNavigate((direction) => {
+electronAPI.onTimerMenuNavigate((direction: number): void => {
     if (!isCountdownMenuVisible) return;
     
     if (selectedPresetIndex === -1) {
@@ -341,7 +341,7 @@ electronAPI.onTimerMenuNavigate((direction) => {
     updatePresetFocus();
 });
 
-electronAPI.onTimerMenuSelect(() => {
+electronAPI.onTimerMenuSelect((): void => {
     if (!isCountdownMenuVisible) return;
     if (selectedPresetIndex !== -1) {
         setCountdownMenuVisible(false);

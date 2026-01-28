@@ -1,4 +1,4 @@
-(() => {
+((): void => {
 type MessageRendererElectronAPI = {
     onUpdateMessageText: (callback: (text: string) => void) => void;
 };
@@ -16,7 +16,7 @@ let currentOpacity = storedOpacity ? Number.parseFloat(storedOpacity) : 0.8; // 
  * メッセージのフォントサイズを更新する。
  * @param delta 増減量
  */
-function updateFontSize(delta: number) {
+function updateFontSize(delta: number): void {
     currentFontSize += delta;
     if (currentFontSize < 10) currentFontSize = 10;
     if (currentFontSize > 1000) currentFontSize = 1000;
@@ -33,7 +33,7 @@ function updateFontSize(delta: number) {
  * 透明度を更新する。
  * @param delta 増減量
  */
-function updateTransparency(delta: number) {
+function updateTransparency(delta: number): void {
     currentOpacity += delta;
     if (currentOpacity < 0.1) currentOpacity = 0.1; // Minimum transparency
     if (currentOpacity > 1.0) currentOpacity = 1.0; // Maximum transparency
@@ -50,7 +50,7 @@ if (messageContent) {
 // 初期の背景透明度を反映
 document.body.style.backgroundColor = `rgba(70, 70, 70, ${currentOpacity})`;
 
-window.addEventListener('wheel', (e: WheelEvent) => {
+window.addEventListener('wheel', (e: WheelEvent): void => {
     if (e.target === wheelZone || wheelZone?.contains(e.target as Node)) {
         e.preventDefault(); // 既定のスクロール動作を抑止
 
@@ -66,7 +66,7 @@ window.addEventListener('wheel', (e: WheelEvent) => {
     }
 });
 
-electronAPI.onUpdateMessageText((text: string) => {
+electronAPI.onUpdateMessageText((text: string): void => {
     console.log(`[MessageRenderer] Received text: ${text}`);
     if (messageContent) {
         messageContent.innerHTML = text || '';

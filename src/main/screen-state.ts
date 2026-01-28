@@ -6,7 +6,7 @@ let screenHeight = 600;
  * @param width 画面幅
  * @param height 画面高さ
  */
-export function setScreenSize(width: number, height: number) {
+export function setScreenSize(width: number, height: number): void {
     screenWidth = width;
     screenHeight = height;
 }
@@ -15,6 +15,6 @@ export function setScreenSize(width: number, height: number) {
  * 現在の画面サイズを取得する。
  * @returns 画面サイズ
  */
-export function getScreenSize() {
+export function getScreenSize(): { width: number; height: number } {
     return { width: screenWidth, height: screenHeight };
 }

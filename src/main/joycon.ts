@@ -88,7 +88,7 @@ export default class JoyConManager extends EventEmitter {
      * 現在の接続状態を取得する。
      * @returns 左右の接続状態
      */
-    getConnectionStatus() {
+    getConnectionStatus(): { leftConnected: boolean; rightConnected: boolean } {
         return {
             leftConnected: !!this.hidL,
             rightConnected: !!this.hidR,
@@ -154,8 +154,8 @@ export default class JoyConManager extends EventEmitter {
      * @returns 初期化成功かどうか
      */
     async initializeJoyCon(hidDevice: HID.HID, isLeft: boolean): Promise<boolean> {
-        const packetNumber = () => (isLeft ? this.globalPacketNumberL : this.globalPacketNumberR);
-        const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+        const packetNumber = (): number => (isLeft ? this.globalPacketNumberL : this.globalPacketNumberR);
+        const delay = (ms: number): Promise<void> => new Promise((resolve: () => void) => setTimeout(resolve, ms));
         console.log(`Initializing ${isLeft ? 'L' : 'R'} Joy-Con...`);
         try {
             const commands: number[][] = [
@@ -253,12 +253,12 @@ export default class JoyConManager extends EventEmitter {
             console.log(`Connected (${isLeft ? 'L' : 'R'}). Initializing...`);
 
             let isDeviceClosed = false;
-            const closedHandler = () => {
+            const closedHandler = (): void => {
                 isDeviceClosed = true;
             };
             hidDevice.once('close', closedHandler);
             this.initializeJoyCon(hidDevice, isLeft)
-                .then((success) => {
+                .then((success: boolean) => {
                     hidDevice?.removeListener('close', closedHandler);
                     if (success && hidDevice && !isDeviceClosed) {
                         hidDevice.on('data', (data: Buffer) => {
@@ -277,7 +277,7 @@ export default class JoyConManager extends EventEmitter {
                         this.closeJoyCon(isLeft);
                     }
                 })
-                .catch((initError) => {
+                .catch((initError: unknown) => {
                     hidDevice?.removeListener('close', closedHandler);
                     console.error(`Async Init Error (${isLeft ? 'L' : 'R'}):`, initError);
                     this.closeHidDevice(hidDevice);

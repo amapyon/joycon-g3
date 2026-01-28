@@ -1,5 +1,5 @@
 // ipc-handler.ts
-import { ipcMain, screen, IpcMainEvent } from 'electron';
+import { ipcMain, screen, IpcMainEvent, Display } from 'electron';
 import fs from 'fs';
 import path from 'path';
 import WindowManager from './window-manager';
@@ -13,7 +13,7 @@ import { setScreenSize } from './screen-state';
  * @param windowManagerInstance ウィンドウ管理インスタンス
  * @param joyconManager Joy-Con 管理インスタンス
  */
-export function setupIpcHandlers(windowManagerInstance = WindowManager, joyconManager: JoyConManager) {
+export function setupIpcHandlers(windowManagerInstance: typeof WindowManager = WindowManager, joyconManager: JoyConManager): void {
     console.log('Setting up IPC Handlers...');
 
     ipcMain.on('launch-cursor-window', (event: IpcMainEvent, displayId: string) => {
@@ -27,7 +27,7 @@ export function setupIpcHandlers(windowManagerInstance = WindowManager, joyconMa
             if (!displays) {
                 throw new Error('Screen API unavailable or returned invalid display list.');
             }
-            const selectedDisplay = displays.find((d) => d.id === targetId);
+            const selectedDisplay = displays.find((d: Display) => d.id === targetId);
             if (selectedDisplay) {
                 windowManagerInstance.createCursorWindow(selectedDisplay);
             } else {
@@ -116,7 +116,7 @@ export function setupIpcHandlers(windowManagerInstance = WindowManager, joyconMa
         const id = typeof displayId === 'string' ? parseInt(displayId, 10) : displayId;
         if (!process.platform || !Number.isNaN(id)) { // Basic check
             windowManagerInstance.setTargetDisplay(id);
-            const target = screen.getAllDisplays().find((display) => display.id === id);
+            const target = screen.getAllDisplays().find((display: Display) => display.id === id);
             if (target) {
                 const width = target.size.width * target.scaleFactor;
                 const height = target.size.height * target.scaleFactor;
@@ -151,7 +151,7 @@ export function setupIpcHandlers(windowManagerInstance = WindowManager, joyconMa
         }
         try {
             const files = fs.readdirSync(mediaDir);
-            return files.filter(f => /\.(mp3|wav|ogg)$/i.test(f));
+            return files.filter((f: string) => /\.(mp3|wav|ogg)$/i.test(f));
         } catch (e) {
             console.error('Failed to read media directory:', e);
             return [];

@@ -1,7 +1,7 @@
 // main-renderer.ts
 // TypeScript化: DOM型・window.electronAPI型を明示
 
-(() => {
+((): void => {
 
 type DisplayInfo = {
     id: number;
@@ -67,14 +67,14 @@ const countdownInitialValueInput = document.getElementById('countdown-initial-va
  * PowerPoint プレゼンテーションをロードして UI を更新する。
  * @returns 処理完了を示す Promise
  */
-async function loadPowerPointPresentations() {
+async function loadPowerPointPresentations(): Promise<void> {
     pptSelect.innerHTML = '<option value="">-- Loading Presentations --</option>';
     pptSelect.disabled = true;
     try {
         const presentations = await electronAPI.getOpenPowerPointPresentations();
         pptSelect.innerHTML = ''; // Clear loading message
         if (presentations && presentations.length > 0) {
-            presentations.forEach((ppt) => {
+            presentations.forEach((ppt: PresentationInfo): void => {
                 const option = document.createElement('option');
                 option.value = ppt.id;
                 option.text = ppt.name + (ppt.isRunning ? ' (Running)' : '');
@@ -103,19 +103,19 @@ async function loadPowerPointPresentations() {
     }
 }
 
-electronAPI.onAvailableDisplays((displays) => {
+electronAPI.onAvailableDisplays((displays: DisplayInfo[]): void => {
     console.log('Available displays:', displays);
     displaySelect.innerHTML = '';
     if (displays && displays.length > 0) {
         const storedDisplayIdRaw = localStorage.getItem('lastDisplayId');
         const storedDisplayId = storedDisplayIdRaw ? parseInt(storedDisplayIdRaw, 10) : null;
-        const displayIds = displays.map((display) => display.id);
-        const fallbackDisplayId = displayIds.reduce((min, id) => (id < min ? id : min), displayIds[0]);
+        const displayIds = displays.map((display: DisplayInfo): number => display.id);
+        const fallbackDisplayId = displayIds.reduce((min: number, id: number): number => (id < min ? id : min), displayIds[0]);
         const defaultDisplayId = storedDisplayId !== null && displayIds.includes(storedDisplayId)
             ? storedDisplayId
             : fallbackDisplayId;
 
-        displays.forEach((display) => {
+        displays.forEach((display: DisplayInfo): void => {
             const option = document.createElement('option');
             option.value = String(display.id);
             // 物理ピクセルで表示
@@ -139,20 +139,20 @@ electronAPI.onAvailableDisplays((displays) => {
 });
 
 // onAvailablePresentationsはメインプロセスからのプッシュ通知用として残しておく
-electronAPI.onAvailablePresentations((presentations) => {
+electronAPI.onAvailablePresentations((presentations: PresentationInfo[]): void => {
     console.log('Received updated available presentations:', presentations);
     // ここではUIを直接更新せず、loadPowerPointPresentationsを呼び出すことで一貫性を保つ
     loadPowerPointPresentations();
 });
 
-pptSelect.addEventListener('change', () => {
+pptSelect.addEventListener('change', (): void => {
     const selectedId = pptSelect.value;
     if (selectedId) {
         electronAPI.setTargetPresentation(selectedId);
     }
 });
 
-displaySelect.addEventListener('change', () => {
+displaySelect.addEventListener('change', (): void => {
     const selectedDisplayId = parseInt(displaySelect.value, 10);
     if (!isNaN(selectedDisplayId)) {
         console.log(`[main-renderer] Display selected: ${selectedDisplayId}`);
@@ -161,7 +161,7 @@ displaySelect.addEventListener('change', () => {
     }
 });
 
-cursorToggleBtn.addEventListener('click', () => {
+cursorToggleBtn.addEventListener('click', (): void => {
     const isRunning = cursorToggleBtn.textContent === 'OFF';
     if (isRunning) {
         // Stop
@@ -179,7 +179,7 @@ cursorToggleBtn.addEventListener('click', () => {
     }
 });
 
-electronAPI.onCursorWindowOpened(() => {
+electronAPI.onCursorWindowOpened((): void => {
     cursorToggleBtn.textContent = 'OFF';
     cursorToggleBtn.style.background = '#dc3545';
     cursorToggleBtn.disabled = false;
@@ -187,7 +187,7 @@ electronAPI.onCursorWindowOpened(() => {
     errorMessageDiv.textContent = '';
 });
 
-electronAPI.onCursorWindowClosed(() => {
+electronAPI.onCursorWindowClosed((): void => {
     errorMessageDiv.textContent = 'Cursor window closed. Ready to launch again.';
     displaySelect.disabled = false;
     cursorToggleBtn.disabled = false;
@@ -195,7 +195,7 @@ electronAPI.onCursorWindowClosed(() => {
     cursorToggleBtn.style.background = '#28a745';
 });
 
-electronAPI.onLaunchError((message) => {
+electronAPI.onLaunchError((message: string): void => {
     errorMessageDiv.textContent = `Error: ${message}`;
     cursorToggleBtn.disabled = false;
     displaySelect.disabled = false;
@@ -208,7 +208,7 @@ const mainStatusRightText = document.getElementById('main-status-right-text') as
 const joyconLeftActionBtn = document.getElementById('joycon-left-action-btn') as HTMLButtonElement;
 const joyconRightActionBtn = document.getElementById('joycon-right-action-btn') as HTMLButtonElement;
 
-electronAPI.onJoyConStatusUpdate((status) => {
+electronAPI.onJoyConStatusUpdate((status: JoyConStatus): void => {
     console.log('JoyCon status update in renderer:', status);
     
     // Update Left
@@ -236,7 +236,7 @@ electronAPI.onJoyConStatusUpdate((status) => {
     }
 });
 
-joyconLeftActionBtn.addEventListener('click', () => {
+joyconLeftActionBtn.addEventListener('click', (): void => {
     const isConnected = mainStatusLeftText.classList.contains('connected');
     if (isConnected) {
         electronAPI.shutdownJoyCon(true);
@@ -245,7 +245,7 @@ joyconLeftActionBtn.addEventListener('click', () => {
     }
 });
 
-joyconRightActionBtn.addEventListener('click', () => {
+joyconRightActionBtn.addEventListener('click', (): void => {
     const isConnected = mainStatusRightText.classList.contains('connected');
     if (isConnected) {
         electronAPI.shutdownJoyCon(false);
@@ -254,7 +254,7 @@ joyconRightActionBtn.addEventListener('click', () => {
     }
 });
 
-electronAPI.onJoyConBatteryStatusUpdate(({ isLeft, level }) => {
+electronAPI.onJoyConBatteryStatusUpdate(({ isLeft, level }: BatteryStatus): void => {
     // Convert level (0-4) to battery icon
     // 0 = Empty, 1 = 25%, 2 = 50%, 3 = 75%, 4 = 100%
     let icon = '';
@@ -295,13 +295,13 @@ electronAPI.onJoyConBatteryStatusUpdate(({ isLeft, level }) => {
     }
 });
 
-calibrateButton.addEventListener('click', () => {
+calibrateButton.addEventListener('click', (): void => {
     calibrationStatus.textContent = 'Calibrating... Keep Joy-Cons still!';
     calibrateButton.disabled = true;
     electronAPI.startCalibration();
 });
 
-electronAPI.onCalibrationStatusUpdate((statusInfo) => {
+electronAPI.onCalibrationStatusUpdate((statusInfo: CalibrationStatus): void => {
     let message = `Calibration ${statusInfo.status}.`;
     if (statusInfo.status === 'complete') {
         message = 'Calibration complete!';
@@ -321,7 +321,7 @@ const applyPresetsBtn = document.getElementById('apply-presets-btn') as HTMLButt
 const togglePresetEditBtn = document.getElementById('toggle-preset-edit-btn') as HTMLButtonElement;
 const presetEditContainer = document.getElementById('preset-edit-container') as HTMLElement;
 
-togglePresetEditBtn.addEventListener('click', () => {
+togglePresetEditBtn.addEventListener('click', (): void => {
     const isHidden = presetEditContainer.style.display === 'none';
     presetEditContainer.style.display = isHidden ? 'block' : 'none';
     togglePresetEditBtn.textContent = isHidden ? '✕ Close Edit' : '⚙ Edit Presets';
@@ -346,14 +346,14 @@ function formatMainPresetLabel(seconds: number): string {
 /**
  * プリセットボタンを描画する。
  */
-function renderPresets() {
+function renderPresets(): void {
     presetButtonsContainer.innerHTML = '';
-    currentPresets.forEach(time => {
+    currentPresets.forEach((time: number): void => {
         const btn = document.createElement('button');
         btn.className = 'preset-btn';
         btn.dataset.time = String(time);
         btn.textContent = formatMainPresetLabel(time);
-        btn.addEventListener('click', () => {
+        btn.addEventListener('click', (): void => {
             countdownInitialValueInput.value = String(time);
             electronAPI.sendCountdownInitialValue(time);
             localStorage.setItem('countdownInitialValue', String(time));
@@ -366,9 +366,9 @@ function renderPresets() {
 /**
  * プリセット編集 UI を描画する。
  */
-function renderPresetConfig() {
+function renderPresetConfig(): void {
     presetInputsList.innerHTML = '';
-    currentPresets.forEach((time, index) => {
+    currentPresets.forEach((time: number, index: number): void => {
         const item = document.createElement('div');
         item.style.display = 'flex';
         item.style.alignItems = 'center';
@@ -381,7 +381,7 @@ function renderPresetConfig() {
         input.max = '3600';
         input.style.width = '60px';
         input.style.marginRight = '5px';
-        input.addEventListener('change', () => {
+        input.addEventListener('change', (): void => {
             currentPresets[index] = parseInt(input.value, 10) || 10;
         });
 
@@ -390,7 +390,7 @@ function renderPresetConfig() {
         removeBtn.style.padding = '2px 8px';
         removeBtn.style.background = '#dc3545';
         removeBtn.style.color = 'white';
-        removeBtn.addEventListener('click', () => {
+        removeBtn.addEventListener('click', (): void => {
             currentPresets.splice(index, 1);
             renderPresetConfig();
         });
@@ -401,14 +401,14 @@ function renderPresetConfig() {
     });
 }
 
-addPresetConfigBtn.addEventListener('click', () => {
+addPresetConfigBtn.addEventListener('click', (): void => {
     currentPresets.push(60);
     renderPresetConfig();
 });
 
-applyPresetsBtn.addEventListener('click', () => {
+applyPresetsBtn.addEventListener('click', (): void => {
     // Sort and save
-    currentPresets.sort((a, b) => a - b);
+    currentPresets.sort((a: number, b: number): number => a - b);
     localStorage.setItem('timerPresets', JSON.stringify(currentPresets));
     renderPresets();
     renderPresetConfig();
@@ -422,7 +422,7 @@ renderPresets();
 renderPresetConfig();
 
 // Listen for updates from other windows if needed (for sync)
-electronAPI.onUpdateTimerPresets((presets) => {
+electronAPI.onUpdateTimerPresets((presets: number[]): void => {
     currentPresets = presets;
     localStorage.setItem('timerPresets', JSON.stringify(currentPresets));
     renderPresets();
@@ -446,16 +446,16 @@ const refreshSoundsBtn = document.getElementById('refresh-sounds-btn') as HTMLBu
  * メディアファイル一覧を読み込み、セレクトボックスを更新する。
  * @returns 処理完了を示す Promise
  */
-async function loadMediaFiles() {
+async function loadMediaFiles(): Promise<void> {
     const files = await electronAPI.getMediaFiles();
     const dropdowns = [sound1Select, sound2Select];
     
-    dropdowns.forEach(select => {
+    dropdowns.forEach((select: HTMLSelectElement): void => {
         if (!select) return;
         const currentVal = select.value;
         select.innerHTML = '<option value="">-- No Sound Selected --</option>';
         if (files && files.length > 0) {
-            files.forEach((file: string) => {
+            files.forEach((file: string): void => {
                 const option = document.createElement('option');
                 option.value = file;
                 option.text = file;
@@ -471,7 +471,7 @@ async function loadMediaFiles() {
 /**
  * 通知設定をローカルストレージから復元する。
  */
-function restoreNotificationSettings() {
+function restoreNotificationSettings(): void {
     // Load from localStorage
     const saved = localStorage.getItem('timerNotifications');
     if (saved) {
@@ -493,7 +493,7 @@ function restoreNotificationSettings() {
  * @param select 対象セレクト
  * @param val 設定する値
  */
-function setSelectValue(select: HTMLSelectElement, val: string) {
+function setSelectValue(select: HTMLSelectElement, val: string): void {
     for (let i = 0; i < select.options.length; i++) {
         if (select.options[i].value === val) {
             select.selectedIndex = i;
@@ -506,7 +506,7 @@ function setSelectValue(select: HTMLSelectElement, val: string) {
  * 通知設定の更新を全ウィンドウへ通知する。
  * @returns 処理完了を示す Promise
  */
-async function broadcastNotificationUpdate() {
+async function broadcastNotificationUpdate(): Promise<void> {
     const basePath = await electronAPI.getMediaBasePath();
     const configs: NotificationConfig[] = [
         {
@@ -525,8 +525,10 @@ async function broadcastNotificationUpdate() {
     electronAPI.updateTimerNotifications(configs);
 }
 
-[sound1Select, sound2Select, sound1TimeInput, sound2TimeInput].forEach(el => {
-    el?.addEventListener('change', broadcastNotificationUpdate);
+[sound1Select, sound2Select, sound1TimeInput, sound2TimeInput].forEach((el: HTMLInputElement | HTMLSelectElement): void => {
+    el?.addEventListener('change', (): void => {
+        void broadcastNotificationUpdate();
+    });
 });
 
 const sound1PlayBtn = document.getElementById('sound1-play-btn') as HTMLButtonElement;
@@ -537,7 +539,7 @@ const sound2PlayBtn = document.getElementById('sound2-play-btn') as HTMLButtonEl
  * @param filename ファイル名
  * @returns 処理完了を示す Promise
  */
-async function previewSound(filename: string) {
+async function previewSound(filename: string): Promise<void> {
     if (!filename) return;
     const basePath = await electronAPI.getMediaBasePath();
     const absolutePath = (basePath + '/' + filename).replace(/\\/g, '/');
@@ -545,20 +547,20 @@ async function previewSound(filename: string) {
     
     try {
         const audio = new Audio(audioUrl);
-        audio.play().catch(e => console.error('Preview play failed:', e));
+        audio.play().catch((e: unknown): void => console.error('Preview play failed:', e));
     } catch (err) {
         console.error('Error playing preview:', err);
     }
 }
 
 if (sound1PlayBtn) {
-    sound1PlayBtn.addEventListener('click', () => {
+    sound1PlayBtn.addEventListener('click', (): void => {
         previewSound(sound1Select.value);
     });
 }
 
 if (sound2PlayBtn) {
-    sound2PlayBtn.addEventListener('click', () => {
+    sound2PlayBtn.addEventListener('click', (): void => {
         previewSound(sound2Select.value);
     });
 }
@@ -567,7 +569,7 @@ if (refreshSoundsBtn) {
     refreshSoundsBtn.addEventListener('click', loadMediaFiles);
 }
 
-electronAPI.onUpdateTimerNotifications((configs) => {
+electronAPI.onUpdateTimerNotifications((configs: NotificationConfig[]): void => {
     // Sync UI only if it differs significantly or is first load
     localStorage.setItem('timerNotifications', JSON.stringify(configs));
 });
@@ -578,7 +580,7 @@ loadMediaFiles();
 // Timer window toggle
 const toggleTimerWindowBtn = document.getElementById('toggle-timer-window-btn') as HTMLButtonElement;
 if (toggleTimerWindowBtn) {
-    toggleTimerWindowBtn.addEventListener('click', () => {
+    toggleTimerWindowBtn.addEventListener('click', (): void => {
         console.log('[Main Renderer] Toggle timer window');
         electronAPI.toggleTimerWindow();
     });
@@ -597,7 +599,7 @@ function formatTimeForDisplay(seconds: number): string {
     return `${m}:${String(s).padStart(2, '0')}`;
 }
 
-electronAPI.onMainTimerUpdate((remainingTime) => {
+electronAPI.onMainTimerUpdate((remainingTime: number): void => {
     if (mainCountdownDisplay) {
         mainCountdownDisplay.textContent = formatTimeForDisplay(remainingTime);
         if (remainingTime <= 0) {
@@ -611,13 +613,13 @@ electronAPI.onMainTimerUpdate((remainingTime) => {
 console.log('Main Renderer script loaded.');
 electronAPI.requestJoyConStatus();
 loadPowerPointPresentations(); 
-electronAPI.onUpdateCountdownInitialValue((value) => {
+electronAPI.onUpdateCountdownInitialValue((value: number): void => {
     if (!Number.isNaN(value)) {
         countdownInitialValueInput.value = String(value);
         localStorage.setItem('countdownInitialValue', String(value));
     }
 });
-countdownInitialValueInput.addEventListener('change', () => {
+countdownInitialValueInput.addEventListener('change', (): void => {
     const value = parseInt(countdownInitialValueInput.value, 10);
     if (!isNaN(value) && value >= 1 && value <= 3600) {
         electronAPI.sendCountdownInitialValue(value);
@@ -641,7 +643,7 @@ const toggleMessageButton = document.getElementById('toggle-message-button') as 
 const colorContextMenu = document.getElementById('color-context-menu') as HTMLDivElement;
 
 if (messageInput && toggleMessageButton) {
-    messageInput.addEventListener('input', () => {
+    messageInput.addEventListener('input', (): void => {
         let text = messageInput.innerHTML;
         // Chromium adds a trailing <br> to contenteditable sometimes. Remove it.
         text = text.replace(/<br\s*\/?>$/i, '');
@@ -649,12 +651,12 @@ if (messageInput && toggleMessageButton) {
         electronAPI.sendMessageText(text);
     });
 
-    toggleMessageButton.addEventListener('click', () => {
+    toggleMessageButton.addEventListener('click', (): void => {
         electronAPI.toggleMessageWindow();
     });
 
     // Handle Context Menu (Right Click)
-    messageInput.addEventListener('contextmenu', (e: MouseEvent) => {
+    messageInput.addEventListener('contextmenu', (e: MouseEvent): void => {
         e.preventDefault();
         
         // Show menu at mouse position
@@ -666,7 +668,7 @@ if (messageInput && toggleMessageButton) {
     });
 
     // Hide context menu when clicking elsewhere
-    window.addEventListener('click', (e: MouseEvent) => {
+    window.addEventListener('click', (e: MouseEvent): void => {
         if (colorContextMenu && !colorContextMenu.contains(e.target as Node)) {
             colorContextMenu.style.display = 'none';
         }
@@ -675,8 +677,8 @@ if (messageInput && toggleMessageButton) {
     // Apply color when swatch is clicked
     const swatches = document.querySelectorAll('.color-swatch');
     
-    swatches.forEach(swatch => {
-        swatch.addEventListener('mousedown', (e: Event) => {
+    swatches.forEach((swatch: Element): void => {
+        swatch.addEventListener('mousedown', (e: Event): void => {
             // Use mousedown and preventDefault to avoid losing selection from the input
             e.preventDefault();
             const color = (swatch as HTMLElement).dataset.color;
@@ -689,8 +691,8 @@ if (messageInput && toggleMessageButton) {
 
     // Apply styles (Bold, Italic, Strike)
     const styleBtns = document.querySelectorAll('.style-btn');
-    styleBtns.forEach(btn => {
-        btn.addEventListener('mousedown', (e: Event) => {
+    styleBtns.forEach((btn: Element): void => {
+        btn.addEventListener('mousedown', (e: Event): void => {
             e.preventDefault();
             const cmd = (btn as HTMLElement).dataset.cmd;
             if (cmd) {
@@ -708,7 +710,7 @@ if (messageInput && toggleMessageButton) {
  * @param input 対象入力欄
  * @param color 色コード
  */
-function applyColorToMessageInput(input: HTMLDivElement, color: string) {
+function applyColorToMessageInput(input: HTMLDivElement, color: string): void {
     input.focus();
 
     // 選択範囲があるか確認する

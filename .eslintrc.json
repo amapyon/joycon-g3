@@ -13,6 +13,14 @@
         "es2021": true
     },
     "rules": {
+        "@typescript-eslint/explicit-function-return-type": "error",
+        "@typescript-eslint/typedef": [
+            "error",
+            {
+                "parameter": true,
+                "arrowParameter": true
+            }
+        ],
         "indent": [
             "error",
             4

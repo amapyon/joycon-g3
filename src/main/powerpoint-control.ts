@@ -133,7 +133,7 @@ class PowerPointControl {
      * 操作対象のプレゼンテーションを設定する。
      * @param identifier プレゼンテーション識別子
      */
-    setTarget(identifier: string) {
+    setTarget(identifier: string): void {
         this.targetPresentationIdentifier = identifier;
         this.activateTarget();
     }

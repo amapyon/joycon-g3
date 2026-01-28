@@ -50,7 +50,7 @@ export function createMainWindow(): BrowserWindow {
  * カーソル表示ウィンドウを生成する。
  * @param targetDisplay 対象ディスプレイ
  */
-export function createCursorWindow(targetDisplay: Display) {
+export function createCursorWindow(targetDisplay: Display): void {
     console.log(`[WindowManager] createCursorWindow called for display ID: ${targetDisplay.id}`); // 追加ログ
     if (!targetDisplay || typeof targetDisplay.id !== 'number') return;
     if (cursorWindow && !cursorWindow.isDestroyed()) {
@@ -64,7 +64,7 @@ export function createCursorWindow(targetDisplay: Display) {
  * カーソル表示ウィンドウの内部生成処理。
  * @param targetDisplay 対象ディスプレイ
  */
-function createCursorWindowInternal(targetDisplay: Display) {
+function createCursorWindowInternal(targetDisplay: Display): void {
     console.log(`[WindowManager] createCursorWindowInternal called for display ID: ${targetDisplay.id}`); // 追加ログ
     const bounds = targetDisplay.bounds;
     const width = Math.max(bounds.width, targetDisplay.size.width);
@@ -120,9 +120,9 @@ let storedTargetDisplay: Display | null = null;
  * カーソル表示対象ディスプレイを保存する。
  * @param displayId ディスプレイ ID
  */
-export function setTargetDisplay(displayId: number) {
+export function setTargetDisplay(displayId: number): void {
     const displays = screen.getAllDisplays();
-    const target = displays.find(d => d.id === displayId);
+    const target = displays.find((d: Display) => d.id === displayId);
     if (target) {
         storedTargetDisplay = target;
         console.log(`[WindowManager] Target display set to: ${target.id}`);
@@ -138,7 +138,7 @@ let storedTimerBounds: { x: number, y: number, width: number, height: number } |
  * @param targetDisplay 表示先ディスプレイ
  * @returns タイマーウィンドウ
  */
-export function createTimerWindow(targetDisplay?: Display) {
+export function createTimerWindow(targetDisplay?: Display): BrowserWindow | null {
     console.log('[WindowManager] Creating Timer Window...');
     // Use valid targetDisplay arg, OR storedTargetDisplay, OR primary display
     // (Note: storedTargetDisplay is separate from bounds, we might want to prioritize bounds' display if available, but keeping it simple)
@@ -193,7 +193,7 @@ export function createTimerWindow(targetDisplay?: Display) {
     // Uncomment for debugging
     // timerWindow.webContents.openDevTools({ mode: 'detach' });
 
-    const updateBounds = () => {
+    const updateBounds = (): void => {
         if (timerWindow && !timerWindow.isDestroyed()) {
             const bounds = timerWindow.getBounds();
             storedTimerBounds = bounds;
@@ -217,7 +217,7 @@ let storedMessageBounds: { x: number, y: number, width: number, height: number }
  * @param targetDisplay 表示先ディスプレイ
  * @returns メッセージウィンドウ
  */
-export function createMessageWindow(targetDisplay?: Display) {
+export function createMessageWindow(targetDisplay?: Display): BrowserWindow | null {
     if (messageWindow && !messageWindow.isDestroyed()) return messageWindow;
     
     const displayToUse = targetDisplay || storedTargetDisplay || screen.getPrimaryDisplay();
@@ -258,7 +258,7 @@ export function createMessageWindow(targetDisplay?: Display) {
     messageWindow.loadFile(path.join(__dirname, '..', 'renderer', 'message-window.html'));
     messageWindow.show();
 
-    const updateBounds = () => {
+    const updateBounds = (): void => {
         if (messageWindow && !messageWindow.isDestroyed()) {
             storedMessageBounds = messageWindow.getBounds();
         }
@@ -277,7 +277,7 @@ export function createMessageWindow(targetDisplay?: Display) {
  * メッセージウィンドウを取得する。
  * @returns メッセージウィンドウ
  */
-export function getMessageWindow() {
+export function getMessageWindow(): BrowserWindow | null {
     if (messageWindow && !messageWindow.isDestroyed()) return messageWindow;
     return null;
 }
@@ -286,7 +286,7 @@ export function getMessageWindow() {
  * タイマーウィンドウを取得する。
  * @returns タイマーウィンドウ
  */
-export function getTimerWindow() {
+export function getTimerWindow(): BrowserWindow | null {
     if (timerWindow && !timerWindow.isDestroyed()) return timerWindow;
     return null;
 }
@@ -294,7 +294,7 @@ export function getTimerWindow() {
 /**
  * 利用可能なディスプレイ一覧をメインウィンドウへ送信する。
  */
-export function sendAvailableDisplays() {
+export function sendAvailableDisplays(): void {
     if (!mainWindow || mainWindow.isDestroyed()) return;
     try {
         const displays = screen.getAllDisplays();
@@ -307,7 +307,7 @@ export function sendAvailableDisplays() {
 /**
  * カーソルウィンドウの起動完了を通知する。
  */
-export function sendCursorWindowOpenedToMain() {
+export function sendCursorWindowOpenedToMain(): void {
     if (mainWindow && !mainWindow.isDestroyed()) {
         mainWindow.webContents.send('cursor-window-opened');
     }
@@ -316,7 +316,7 @@ export function sendCursorWindowOpenedToMain() {
 /**
  * カーソルウィンドウの終了を通知する。
  */
-export function sendCursorWindowClosedToMain() {
+export function sendCursorWindowClosedToMain(): void {
     if (mainWindow && !mainWindow.isDestroyed()) {
         mainWindow.webContents.send('cursor-window-closed');
     }
@@ -326,7 +326,7 @@ export function sendCursorWindowClosedToMain() {
  * 起動エラーをメインウィンドウへ送信する。
  * @param message エラーメッセージ
  */
-export function sendLaunchErrorToMain(message: string) {
+export function sendLaunchErrorToMain(message: string): void {
     if (mainWindow && !mainWindow.isDestroyed()) {
         mainWindow.webContents.send('launch-error', message);
     }
@@ -336,7 +336,7 @@ export function sendLaunchErrorToMain(message: string) {
  * メインウィンドウを取得する。
  * @returns メインウィンドウ
  */
-export function getMainWindow() {
+export function getMainWindow(): BrowserWindow | null {
     if (mainWindow && !mainWindow.isDestroyed()) return mainWindow;
     return null;
 }
@@ -345,7 +345,7 @@ export function getMainWindow() {
  * カーソルウィンドウを取得する。
  * @returns カーソルウィンドウ
  */
-export function getCursorWindow() {
+export function getCursorWindow(): BrowserWindow | null {
     if (cursorWindow && !cursorWindow.isDestroyed()) return cursorWindow;
     return null;
 }
@@ -353,7 +353,7 @@ export function getCursorWindow() {
 /**
  * 全てのウィンドウを閉じる。
  */
-export function closeAllWindows() {
+export function closeAllWindows(): void {
     const mainWin = getMainWindow();
     const cursorWin = getCursorWindow();
     const timerWin = getTimerWindow();
@@ -367,7 +367,7 @@ export function closeAllWindows() {
 /**
  * カーソルウィンドウを閉じる。
  */
-export function closeCursorWindow() {
+export function closeCursorWindow(): void {
     if (cursorWindow && !cursorWindow.isDestroyed()) {
         console.log('[WindowManager] Closing cursor window due to external request.');
         cursorWindow.close();

@@ -5,7 +5,11 @@ import { IMUProcessor } from '../main/imu-processor';
  * @param id カーソル ID
  * @returns IMU データ
  */
-function createImuData(id: 'cursorLeft' | 'cursorRight') {
+function createImuData(id: 'cursorLeft' | 'cursorRight'): {
+    id: 'cursorLeft' | 'cursorRight';
+    accel: { x: number; y: number; z: number };
+    gyro: { x: number; y: number; z: number };
+} {
     return {
         id,
         accel: { x: 0, y: 0, z: 0 },
@@ -13,8 +17,8 @@ function createImuData(id: 'cursorLeft' | 'cursorRight') {
     };
 }
 
-describe('IMUProcessor', () => {
-    it('初期状態の生成が正しい', () => {
+describe('IMUProcessor', (): void => {
+    it('初期状態の生成が正しい', (): void => {
         const processor = new IMUProcessor(0.8);
         const stateLeft = processor.states.cursorLeft;
         const stateRight = processor.states.cursorRight;
@@ -26,7 +30,7 @@ describe('IMUProcessor', () => {
         expect(stateLeft.yaw).toBe(0);
     });
 
-    it('recenter がオフセットを更新する', () => {
+    it('recenter がオフセットを更新する', (): void => {
         const processor = new IMUProcessor(0.95);
         const state = processor.states.cursorLeft;
         state.roll = 10;
@@ -40,7 +44,7 @@ describe('IMUProcessor', () => {
         expect(state.yawOffset).toBe(3);
     });
 
-    it('キャリブレーション中はデータが蓄積される', () => {
+    it('キャリブレーション中はデータが蓄積される', (): void => {
         const processor = new IMUProcessor(0.95);
         const id = 'cursorRight';
         processor.isCalibrating[id] = true;

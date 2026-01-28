@@ -43,7 +43,7 @@ let isTimerCounting = false; // Track if timer is active
  * 物理ピクセルでの画面サイズを取得する。
  * @returns 画面サイズ
  */
-function getPhysicalScreenSize() {
+function getPhysicalScreenSize(): { width: number; height: number } {
     const primaryDisplay = screen.getPrimaryDisplay();
     if (primaryDisplay && primaryDisplay.size && primaryDisplay.scaleFactor) {
         return {
@@ -75,7 +75,7 @@ app.whenReady().then(() => {
     /**
      * タイマーウィンドウの表示/非表示を切り替える。
      */
-    function toggleTimerWindowVisibility() {
+    function toggleTimerWindowVisibility(): void {
         console.log('[Main] toggleTimerWindowVisibility called.');
         const existingWindow = WindowManager.getTimerWindow();
         let targetWindow = existingWindow;
@@ -166,7 +166,7 @@ app.whenReady().then(() => {
             countdownInitialValue = value;
             console.log(`[main.ts] Received countdown initial value: ${countdownInitialValue}`);
             // Broadcast to all windows
-            [WindowManager.getCursorWindow(), WindowManager.getTimerWindow(), WindowManager.getMainWindow()].forEach(win => {
+            [WindowManager.getCursorWindow(), WindowManager.getTimerWindow(), WindowManager.getMainWindow()].forEach((win: BrowserWindow | null) => {
                 if (win && !win.isDestroyed()) win.webContents.send('update-countdown-initial-value', countdownInitialValue);
             });
         });
@@ -177,7 +177,7 @@ app.whenReady().then(() => {
         ipcMain.on('update-timer-presets', (event: IpcMainEvent, presets: number[]) => {
             console.log(`[main.ts] Received timer presets: ${presets}`);
             // Broadcast to all windows
-            [WindowManager.getCursorWindow(), WindowManager.getTimerWindow(), WindowManager.getMainWindow()].forEach(win => {
+            [WindowManager.getCursorWindow(), WindowManager.getTimerWindow(), WindowManager.getMainWindow()].forEach((win: BrowserWindow | null) => {
                 if (win && !win.isDestroyed()) win.webContents.send('update-timer-presets', presets);
             });
         });
@@ -188,7 +188,7 @@ app.whenReady().then(() => {
         ipcMain.on('update-timer-notifications', (event: IpcMainEvent, configs: TimerNotificationConfig[]) => {
             console.log('[main.ts] Received timer notifications update:', configs);
             // Broadcast to all windows
-            [WindowManager.getCursorWindow(), WindowManager.getTimerWindow(), WindowManager.getMainWindow()].forEach(win => {
+            [WindowManager.getCursorWindow(), WindowManager.getTimerWindow(), WindowManager.getMainWindow()].forEach((win: BrowserWindow | null) => {
                 if (win && !win.isDestroyed()) win.webContents.send('update-timer-notifications', configs);
             });
         });
@@ -235,7 +235,7 @@ app.whenReady().then(() => {
      * IMU データを受け取り、ポインター座標を更新する。
      * @param data IMU データ
      */
-    function handleImuData(data: ImuData) {
+    function handleImuData(data: ImuData): void {
         const cursorId = (data.id === 'R' || data.id === 'cursorRight') ? 'cursorRight' : 'cursorLeft';
         
         // Feed data to imuProcessor for calibration and attitude calculation
@@ -310,7 +310,7 @@ app.whenReady().then(() => {
             targetWindow.webContents.send('joycon-status-update', status);
         }
     });
-    ['button-x', 'button-down', 'button-plus'].forEach((eventName) => {
+    ['button-x', 'button-down', 'button-plus'].forEach((eventName: string) => {
         joyconManager.on(eventName, (data: JoyConEventData) => {
             // console.log(`[Main] Event forwarded from JoyCon: ${eventName}`, data);
             const targetWindow = WindowManager.getCursorWindow();
