@@ -44,6 +44,17 @@ describe('R スティックのイベント処理', (): void => {
         ]);
     });
 
+    it('押下継続中はタイマーメニュー選択を送らない', (): void => {
+        const result = decideRStickPress({
+            pressed: true,
+            now: 1200,
+            state: createState({ isPressed: true }),
+            config,
+        });
+
+        expect(result.actions).toEqual([]);
+    });
+
     it('押下時に前回アナログ値があればフォントサイズを変更する', (): void => {
         const result = decideRStickPress({
             pressed: true,

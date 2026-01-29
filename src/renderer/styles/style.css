@@ -170,7 +170,23 @@ body {
     transition: all 0.2s;
 }
 
-.menu-preset-btn.focused {
+.menu-action-btn {
+    background: rgba(255, 255, 255, 0.12);
+    border: 1px solid rgba(255, 255, 255, 0.35);
+    border-radius: 4px;
+    padding: 4px 10px;
+    font-size: 14px;
+    color: #eee;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.menu-action-btn:hover {
+    background: rgba(255, 255, 255, 0.22);
+    border-color: #fff;
+}
+
+.menu-item-btn.focused {
     background: rgba(255, 255, 255, 0.3);
     border-color: #fff;
     transform: scale(1.05);

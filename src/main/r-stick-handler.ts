@@ -54,12 +54,14 @@ export function decideRStickPress(input: RStickPressInput): RStickDecision {
     const actions: RStickAction[] = [];
     let shouldEnsureTimerWindow = false;
 
-    if (input.pressed) {
+    const isPressEdge = input.pressed && !input.state.isPressed;
+
+    if (isPressEdge) {
         actions.push({ target: 'timer', channel: 'timer-menu-select' });
         shouldEnsureTimerWindow = true;
     }
 
-    if (input.pressed && input.state.lastAnalogData) {
+    if (isPressEdge && input.state.lastAnalogData) {
         const fontSizeResult = decideFontSizeChange({
             joystickY: input.state.lastAnalogData.y,
             now: input.now,

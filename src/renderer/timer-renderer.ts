@@ -23,6 +23,10 @@ type TimerRendererElectronAPI = {
     onTimerMenuSelect: (callback: () => void) => void;
 };
 
+type TimerMenuItem =
+    | { type: 'preset'; time: number; label: string }
+    | { type: 'add-minute'; label: string };
+
 /**
  * カウントダウンメニュー表示切替時の挙動を決定する。
  * @param visible 表示するかどうか
@@ -77,6 +81,7 @@ let currentFontSize = storedTimerFontSize ? Number.parseInt(storedTimerFontSize,
 let isCountdownMenuVisible = false;
 let selectedPresetIndex = -1;
 let currentPresetValues: number[] = JSON.parse(storedTimerPresets || '[10, 60, 120, 180, 300]');
+let currentMenuItems: TimerMenuItem[] = buildMenuItems(currentPresetValues);
 let currentOpacity = storedOpacity ? Number.parseFloat(storedOpacity) : 0.9; // 背景の初期透明度
 let timerNotificationConfigs: TimerNotificationConfig[] = JSON.parse(storedNotifications || '[]');
 
@@ -106,6 +111,22 @@ function formatTimerWindowPresetLabel(seconds: number): string {
 }
 
 /**
+ * メニュー項目を生成する。
+ * @param presets プリセット一覧
+ * @returns メニュー項目
+ */
+function buildMenuItems(presets: number[]): TimerMenuItem[] {
+    const items: TimerMenuItem[] = presets.map((time: number) => ({
+        type: 'preset',
+        time,
+        label: formatTimerWindowPresetLabel(time),
+    }));
+
+    items.push({ type: 'add-minute', label: '+1分' });
+    return items;
+}
+
+/**
  * 秒数を M:SS 形式に整形する。
  * @param seconds 秒数
  * @returns 表示用文字列
@@ -130,7 +151,7 @@ function clampCountdownValue(value: number): number {
  */
 function updateCountdownMenuDisplay(): void {
     if (countdownMenuValueElement) {
-        countdownMenuValueElement.textContent = formatTime(currentCountdownInitialValue);
+        countdownMenuValueElement.textContent = formatTime(getMenuDisplaySeconds());
     }
 }
 
@@ -184,23 +205,84 @@ function stopCountdown(): void {
 }
 
 /**
+ * メニュー表示用の秒数を取得する。
+ * @returns 秒数
+ */
+function getMenuDisplaySeconds(): number {
+    return countdownInterval ? countdownValue : currentCountdownInitialValue;
+}
+
+/**
+ * +1分の反映結果を計算する。
+ * @param isCounting カウント中かどうか
+ * @param currentRemaining 現在の残り秒数
+ * @param currentInitial 現在の初期値
+ * @returns 更新後の値
+ */
+function applyAddMinute(
+    isCounting: boolean,
+    currentRemaining: number,
+    currentInitial: number,
+): { nextRemaining: number; nextInitial: number } {
+    if (isCounting) {
+        return {
+            nextRemaining: clampCountdownValue(currentRemaining + 60),
+            nextInitial: currentInitial,
+        };
+    }
+
+    return {
+        nextRemaining: currentRemaining,
+        nextInitial: clampCountdownValue(currentInitial + 60),
+    };
+}
+
+/**
+ * +1分の処理を実行する。
+ */
+function handleAddMinuteAction(): void {
+    const isCounting = !!countdownInterval;
+    const result = applyAddMinute(isCounting, countdownValue, currentCountdownInitialValue);
+    countdownValue = result.nextRemaining;
+    currentCountdownInitialValue = result.nextInitial;
+    localStorage.setItem('countdownInitialValue', String(currentCountdownInitialValue));
+
+    if (countdownTimerElement) {
+        const displayValue = isCounting ? countdownValue : currentCountdownInitialValue;
+        countdownTimerElement.textContent = formatTime(displayValue);
+    }
+    if (isCounting) {
+        electronAPI.sendTimerCountdownUpdate(countdownValue);
+    }
+    if (isCountdownMenuVisible) {
+        updateCountdownMenuDisplay();
+    }
+}
+
+/**
  * タイマーウィンドウのプリセットを描画する。
  */
 function renderTimerPresets(): void {
     if (!timerPresetsContainer) return;
     timerPresetsContainer.innerHTML = '';
-    currentPresetValues.forEach((time: number, index: number): void => {
-        const btn = document.createElement('div');
-        btn.className = 'menu-preset-btn';
+    currentMenuItems.forEach((item: TimerMenuItem, index: number): void => {
+        const btn = document.createElement(item.type === 'preset' ? 'div' : 'button');
+        btn.className = item.type === 'preset' ? 'menu-preset-btn menu-item-btn' : 'menu-action-btn menu-item-btn';
         if (index === selectedPresetIndex) btn.classList.add('focused');
-        btn.dataset.time = String(time);
-        btn.textContent = formatTimerWindowPresetLabel(time);
-        btn.addEventListener('click', (): void => {
-            if (isCountdownMenuVisible) {
-                setCountdownMenuVisible(false);
-            }
-            startCountdown(time);
-        });
+        btn.textContent = item.label;
+        if (item.type === 'preset') {
+            btn.dataset.time = String(item.time);
+            btn.addEventListener('click', (): void => {
+                if (isCountdownMenuVisible) {
+                    setCountdownMenuVisible(false);
+                }
+                startCountdown(item.time);
+            });
+        } else {
+            btn.addEventListener('click', (): void => {
+                handleAddMinuteAction();
+            });
+        }
         timerPresetsContainer.appendChild(btn);
     });
 }
@@ -231,14 +313,16 @@ function updateTransparency(delta: number): void {
  * プリセットのフォーカス状態を更新する。
  */
 function updatePresetFocus(): void {
-    const btns = timerPresetsContainer?.querySelectorAll('.menu-preset-btn');
+    const btns = timerPresetsContainer?.querySelectorAll('.menu-item-btn');
     if (!btns) return;
     btns.forEach((btn: Element, index: number): void => {
         if (index === selectedPresetIndex) {
             btn.classList.add('focused');
-            const time = currentPresetValues[index];
-            currentCountdownInitialValue = clampCountdownValue(time);
-            updateCountdownMenuDisplay();
+            const item = currentMenuItems[index];
+            if (item && item.type === 'preset') {
+                currentCountdownInitialValue = clampCountdownValue(item.time);
+                updateCountdownMenuDisplay();
+            }
         } else {
             btn.classList.remove('focused');
         }
@@ -340,6 +424,7 @@ electronAPI.onUpdateCountdownInitialValue((value: number): void => {
 electronAPI.onUpdateTimerPresets((presets: number[]): void => {
     console.log('[TimerRenderer] Received presets update:', presets);
     currentPresetValues = presets;
+    currentMenuItems = buildMenuItems(currentPresetValues);
     localStorage.setItem('timerPresets', JSON.stringify(presets));
     if (isCountdownMenuVisible) {
         renderTimerPresets();
@@ -379,8 +464,8 @@ electronAPI.onTimerMenuNavigate((direction: number): void => {
         selectedPresetIndex = 0;
     } else {
         selectedPresetIndex += direction;
-        if (selectedPresetIndex < 0) selectedPresetIndex = 0;
-        if (selectedPresetIndex >= currentPresetValues.length) selectedPresetIndex = currentPresetValues.length - 1;
+        if (selectedPresetIndex < 0) selectedPresetIndex = currentMenuItems.length - 1;
+        if (selectedPresetIndex >= currentMenuItems.length) selectedPresetIndex = 0;
     }
     updatePresetFocus();
 });
@@ -388,8 +473,15 @@ electronAPI.onTimerMenuNavigate((direction: number): void => {
 electronAPI.onTimerMenuSelect((): void => {
     if (!isCountdownMenuVisible) return;
     if (selectedPresetIndex !== -1) {
-        setCountdownMenuVisible(false);
-        startCountdown(currentCountdownInitialValue);
+        const item = currentMenuItems[selectedPresetIndex];
+        if (item?.type === 'preset') {
+            setCountdownMenuVisible(false);
+            startCountdown(currentCountdownInitialValue);
+            return;
+        }
+        if (item?.type === 'add-minute') {
+            handleAddMinuteAction();
+        }
     }
 });
 
