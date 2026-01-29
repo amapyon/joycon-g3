@@ -116,6 +116,19 @@
     };
 
     /**
+     * メインメニューのタイマー操作ボタンを初期化する。
+     * @returns なし
+     */
+    const initTimerActionButtons = (): void => {
+        elements.toggleTimerPauseBtn.addEventListener('click', (): void => {
+            electronAPI.toggleTimerPause();
+        });
+        elements.addMinuteMainBtn.addEventListener('click', (): void => {
+            electronAPI.addMinuteTimer();
+        });
+    };
+
+    /**
      * セレクトボックスの値を安全に反映する。
      * @param select セレクトボックス
      * @param val 設定する値
@@ -251,6 +264,7 @@
         });
 
         renderPresets();
+        initTimerActionButtons();
         renderPresetConfig();
 
         electronAPI.onUpdateTimerPresets((presets: number[]): void => {

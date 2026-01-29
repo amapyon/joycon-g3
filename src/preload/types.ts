@@ -68,6 +68,11 @@ export type ElectronAPI = {
     onSetTimerMode: (callback: (mode: TimerMode) => void) => void;
     hideTimerWindow: () => void;
     sendTimerCountdownUpdate: (remainingTime: number) => void;
+    sendTimerPauseStatus: (isPaused: boolean) => void;
+    toggleTimerPause: () => void;
+    addMinuteTimer: () => void;
+    onToggleTimerPause: (callback: () => void) => void;
+    onAddMinuteTimer: (callback: () => void) => void;
     updateTimerNotifications: (configs: TimerNotificationConfig[]) => void;
     onUpdateTimerNotifications: (callback: (configs: TimerNotificationConfig[]) => void) => void;
     toggleMessageWindow: () => void;

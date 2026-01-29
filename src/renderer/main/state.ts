@@ -40,6 +40,8 @@ type ElectronAPI = {
     updateTimerNotifications: (configs: NotificationConfig[]) => void;
     onUpdateTimerNotifications: (callback: (configs: NotificationConfig[]) => void) => void;
     toggleTimerWindow: () => void;
+    toggleTimerPause: () => void;
+    addMinuteTimer: () => void;
     onMainTimerUpdate: (callback: (remainingTime: number) => void) => void;
     requestJoyConStatus: () => void;
     sendMessageText: (text: string) => void;
@@ -73,6 +75,8 @@ type MainRendererElements = {
     sound1PlayBtn: HTMLButtonElement;
     sound2PlayBtn: HTMLButtonElement;
     toggleTimerWindowBtn: HTMLButtonElement;
+    toggleTimerPauseBtn: HTMLButtonElement;
+    addMinuteMainBtn: HTMLButtonElement;
     mainCountdownDisplay: HTMLElement;
     messageInput: HTMLDivElement;
     toggleMessageButton: HTMLButtonElement;
@@ -123,6 +127,8 @@ type MainRendererContext = {
             sound1PlayBtn: document.getElementById('sound1-play-btn') as HTMLButtonElement,
             sound2PlayBtn: document.getElementById('sound2-play-btn') as HTMLButtonElement,
             toggleTimerWindowBtn: document.getElementById('toggle-timer-window-btn') as HTMLButtonElement,
+            toggleTimerPauseBtn: document.getElementById('toggle-timer-pause-btn') as HTMLButtonElement,
+            addMinuteMainBtn: document.getElementById('add-minute-main-btn') as HTMLButtonElement,
             mainCountdownDisplay: document.getElementById('main-countdown-display') as HTMLElement,
             messageInput: document.getElementById('message-input') as HTMLDivElement,
             toggleMessageButton: document.getElementById('toggle-message-button') as HTMLButtonElement,

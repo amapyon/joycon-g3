@@ -11,6 +11,7 @@ import {
     decideToggleTimerWindow,
     getTimerWindowMode,
     setTimerCounting,
+    setTimerPaused,
 } from './timer-state';
 import {
     CursorId,
@@ -271,6 +272,12 @@ app.whenReady().then(() => {
         ipcMain.on('timer-status-update', (event: IpcMainEvent, isCountingUpdate: boolean) => {
             console.log(`[main.ts] Timer status update: ${isCountingUpdate}`);
             timerState = setTimerCounting(timerState, isCountingUpdate);
+        });
+    }
+    if (!ipcMain.listenerCount('timer-pause-update')) {
+        ipcMain.on('timer-pause-update', (event: IpcMainEvent, isPausedUpdate: boolean) => {
+            console.log(`[main.ts] Timer pause update: ${isPausedUpdate}`);
+            timerState = setTimerPaused(timerState, isPausedUpdate);
         });
     }
     if (!ipcMain.listenerCount('hide-timer-window')) {

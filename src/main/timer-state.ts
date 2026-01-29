@@ -2,6 +2,7 @@ export type TimerWindowMode = 'setup' | 'timer';
 
 export type TimerState = {
     isCounting: boolean;
+    isPaused: boolean;
 };
 
 export type TimerWindowStatus = {
@@ -19,7 +20,7 @@ export type ToggleDecision = {
  * @returns 初期状態
  */
 export function createTimerState(): TimerState {
-    return { isCounting: false };
+    return { isCounting: false, isPaused: false };
 }
 
 /**
@@ -29,7 +30,23 @@ export function createTimerState(): TimerState {
  * @returns 更新後の状態
  */
 export function setTimerCounting(state: TimerState, isCounting: boolean): TimerState {
-    return { ...state, isCounting };
+    if (!isCounting) {
+        return { ...state, isCounting: false, isPaused: false };
+    }
+    return { ...state, isCounting: true, isPaused: false };
+}
+
+/**
+ * タイマーの一時停止状態を更新する。
+ * @param state 現在の状態
+ * @param isPaused 一時停止中かどうか
+ * @returns 更新後の状態
+ */
+export function setTimerPaused(state: TimerState, isPaused: boolean): TimerState {
+    if (!state.isCounting) {
+        return { ...state, isPaused: false };
+    }
+    return { ...state, isPaused };
 }
 
 /**
@@ -38,7 +55,7 @@ export function setTimerCounting(state: TimerState, isCounting: boolean): TimerS
  * @returns モード
  */
 export function getTimerWindowMode(state: TimerState): TimerWindowMode {
-    return state.isCounting ? 'timer' : 'setup';
+    return (state.isCounting || state.isPaused) ? 'timer' : 'setup';
 }
 
 /**

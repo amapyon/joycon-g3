@@ -111,6 +111,20 @@ export function setupIpcHandlers(windowManagerInstance: typeof WindowManager = W
         }
     });
 
+    ipcMain.on('toggle-timer-pause', () => {
+        const timerWin = windowManagerInstance.getTimerWindow();
+        if (timerWin && !timerWin.isDestroyed()) {
+            timerWin.webContents.send('timer-toggle-pause');
+        }
+    });
+
+    ipcMain.on('add-minute-timer', () => {
+        const timerWin = windowManagerInstance.getTimerWindow();
+        if (timerWin && !timerWin.isDestroyed()) {
+            timerWin.webContents.send('timer-add-minute');
+        }
+    });
+
     ipcMain.on('set-target-display', (event: IpcMainEvent, displayId: number | string) => {
         console.log(`[IPC Handler] Received 'set-target-display': ${displayId}`);
         const id = typeof displayId === 'string' ? parseInt(displayId, 10) : displayId;

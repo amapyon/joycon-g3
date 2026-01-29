@@ -13,6 +13,7 @@ type TimerRendererElectronAPI = {
     onUpdateTimerNotifications: (callback: (configs: TimerNotificationConfig[]) => void) => void;
     sendTimerStatus: (isCounting: boolean) => void;
     sendTimerCountdownUpdate: (remainingTime: number) => void;
+    sendTimerPauseStatus: (isPaused: boolean) => void;
     onChangeFontSize: (callback: (delta: number) => void) => void;
     onUpdateCountdownInitialValue: (callback: (value: number) => void) => void;
     onUpdateTimerPresets: (callback: (presets: number[]) => void) => void;
@@ -21,6 +22,8 @@ type TimerRendererElectronAPI = {
     onJoyConButtonSrPressed: (callback: () => void) => void;
     onTimerMenuNavigate: (callback: (direction: number) => void) => void;
     onTimerMenuSelect: (callback: () => void) => void;
+    onToggleTimerPause: (callback: () => void) => void;
+    onAddMinuteTimer: (callback: () => void) => void;
 };
 
 type TimerMenuItem =
@@ -76,6 +79,8 @@ const storedNotifications = localStorage.getItem('timerNotifications');
 
 let countdownInterval: ReturnType<typeof setInterval> | null = null;
 let countdownValue = 10;
+let isCountdownPaused = false;
+let playedNotificationIndices = new Set<number>();
 let currentCountdownInitialValue = storedCountdownInitialValue ? Number.parseInt(storedCountdownInitialValue, 10) : 10;
 let currentFontSize = storedTimerFontSize ? Number.parseInt(storedTimerFontSize, 10) : 100; // 保存値を反映
 let isCountdownMenuVisible = false;
@@ -202,6 +207,8 @@ function stopCountdown(): void {
         countdownInterval = null;
         electronAPI.sendTimerStatus(false);
     }
+    isCountdownPaused = false;
+    electronAPI.sendTimerPauseStatus(false);
 }
 
 /**
@@ -209,7 +216,7 @@ function stopCountdown(): void {
  * @returns 秒数
  */
 function getMenuDisplaySeconds(): number {
-    return countdownInterval ? countdownValue : currentCountdownInitialValue;
+    return (countdownInterval || isCountdownPaused) ? countdownValue : currentCountdownInitialValue;
 }
 
 /**
@@ -241,7 +248,7 @@ function applyAddMinute(
  * +1分の処理を実行する。
  */
 function handleAddMinuteAction(): void {
-    const isCounting = !!countdownInterval;
+    const isCounting = !!countdownInterval || isCountdownPaused;
     const result = applyAddMinute(isCounting, countdownValue, currentCountdownInitialValue);
     countdownValue = result.nextRemaining;
     currentCountdownInitialValue = result.nextInitial;
@@ -257,6 +264,61 @@ function handleAddMinuteAction(): void {
     if (isCountdownMenuVisible) {
         updateCountdownMenuDisplay();
     }
+}
+
+/**
+ * カウントダウンを一時停止する。
+ */
+function pauseCountdown(): void {
+    if (countdownInterval) {
+        clearInterval(countdownInterval);
+        countdownInterval = null;
+        isCountdownPaused = true;
+        if (countdownTimerElement) {
+            countdownTimerElement.style.color = '#ffd966';
+        }
+        electronAPI.sendTimerPauseStatus(true);
+    }
+}
+
+/**
+ * カウントダウンを再開する。
+ */
+function resumeCountdown(): void {
+    if (countdownInterval || !isCountdownPaused || !countdownTimerElement) return;
+    isCountdownPaused = false;
+    countdownTimerElement.style.color = '#ffffff';
+    electronAPI.sendTimerPauseStatus(false);
+    countdownInterval = setInterval((): void => {
+        // カウントが一致したタイミングで通知を再生する
+        timerNotificationConfigs.forEach((config: TimerNotificationConfig, index: number): void => {
+            if (!playedNotificationIndices.has(index) && config.absolutePath && countdownValue === config.time) {
+                console.log(`[TimerRenderer] Alert trigger at ${config.time}s: ${config.absolutePath}`);
+                try {
+                    let audioUrl = config.absolutePath;
+                    if (!audioUrl.startsWith('file://') && !audioUrl.startsWith('http')) {
+                        audioUrl = 'file://' + config.absolutePath.replace(/\\/g, '/');
+                    }
+                    const audio = new Audio(audioUrl);
+                    audio.play().catch((e: unknown): void => console.error('Audio play failed:', e));
+                    playedNotificationIndices.add(index);
+                } catch (err) {
+                    console.error('Error playing notification sound:', err);
+                }
+            }
+        });
+
+        if (countdownValue > 0) {
+            countdownValue--;
+            countdownTimerElement.textContent = formatTime(countdownValue);
+            electronAPI.sendTimerCountdownUpdate(countdownValue); // メインプロセスに残り時間を送信
+        } else {
+            stopCountdown();
+            countdownTimerElement.style.color = '#888888';
+            countdownTimerElement.textContent = formatTime(currentCountdownInitialValue);
+            electronAPI.sendTimerCountdownUpdate(countdownValue); // 0 になったことを送信
+        }
+    }, 1000);
 }
 
 /**
@@ -337,11 +399,13 @@ function startCountdown(duration: number): void {
     if (!countdownTimerElement) return;
 
     stopCountdown();
+    isCountdownPaused = false;
+    electronAPI.sendTimerPauseStatus(false);
     currentCountdownInitialValue = clampCountdownValue(duration);
     countdownValue = currentCountdownInitialValue;
     
     // 再生済みの通知を記録して重複を防ぐ
-    const playedIndices = new Set<number>();
+    playedNotificationIndices = new Set<number>();
 
     countdownTimerElement.style.visibility = 'visible';
     countdownTimerElement.style.color = '#ffffff';
@@ -353,7 +417,7 @@ function startCountdown(duration: number): void {
     countdownInterval = setInterval(() => {
         // カウントが一致したタイミングで通知を再生する
         timerNotificationConfigs.forEach((config: TimerNotificationConfig, index: number): void => {
-            if (!playedIndices.has(index) && config.absolutePath && countdownValue === config.time) {
+            if (!playedNotificationIndices.has(index) && config.absolutePath && countdownValue === config.time) {
                 console.log(`[TimerRenderer] Alert trigger at ${config.time}s: ${config.absolutePath}`);
                 try {
                     let audioUrl = config.absolutePath;
@@ -362,7 +426,7 @@ function startCountdown(duration: number): void {
                     }
                     const audio = new Audio(audioUrl);
                     audio.play().catch((e: unknown): void => console.error('Audio play failed:', e));
-                    playedIndices.add(index);
+                    playedNotificationIndices.add(index);
                 } catch (err) {
                     console.error('Error playing notification sound:', err);
                 }
@@ -413,7 +477,7 @@ if (wheelZone) {
 electronAPI.onUpdateCountdownInitialValue((value: number): void => {
     currentCountdownInitialValue = clampCountdownValue(value);
     localStorage.setItem('countdownInitialValue', String(currentCountdownInitialValue));
-    if (countdownTimerElement && !countdownInterval) {
+    if (countdownTimerElement && !countdownInterval && !isCountdownPaused) {
         countdownTimerElement.textContent = formatTime(currentCountdownInitialValue);
     }
     if (isCountdownMenuVisible) {
@@ -471,7 +535,16 @@ electronAPI.onTimerMenuNavigate((direction: number): void => {
 });
 
 electronAPI.onTimerMenuSelect((): void => {
-    if (!isCountdownMenuVisible) return;
+    if (!isCountdownMenuVisible) {
+        if (countdownInterval) {
+            pauseCountdown();
+            return;
+        }
+        if (isCountdownPaused) {
+            resumeCountdown();
+        }
+        return;
+    }
     if (selectedPresetIndex !== -1) {
         const item = currentMenuItems[selectedPresetIndex];
         if (item?.type === 'preset') {
@@ -483,6 +556,20 @@ electronAPI.onTimerMenuSelect((): void => {
             handleAddMinuteAction();
         }
     }
+});
+
+electronAPI.onToggleTimerPause((): void => {
+    if (countdownInterval) {
+        pauseCountdown();
+        return;
+    }
+    if (isCountdownPaused) {
+        resumeCountdown();
+    }
+});
+
+electronAPI.onAddMinuteTimer((): void => {
+    handleAddMinuteAction();
 });
 
 // 初期フォントサイズを反映

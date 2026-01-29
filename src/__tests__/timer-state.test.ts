@@ -3,10 +3,17 @@ import {
     decideToggleTimerWindow,
     getTimerWindowMode,
     setTimerCounting,
+    setTimerPaused,
     type TimerWindowStatus,
 } from '../main/timer-state';
 
 describe('タイマー状態', (): void => {
+    it('初期状態はカウント停止かつ未一時停止', (): void => {
+        const state = createTimerState();
+        expect(state.isCounting).toBe(false);
+        expect(state.isPaused).toBe(false);
+    });
+
     it('カウントしていない場合は setup を返す', (): void => {
         const state = createTimerState();
         expect(getTimerWindowMode(state)).toBe('setup');
@@ -15,6 +22,25 @@ describe('タイマー状態', (): void => {
     it('カウント中は timer を返す', (): void => {
         const state = setTimerCounting(createTimerState(), true);
         expect(getTimerWindowMode(state)).toBe('timer');
+        expect(state.isPaused).toBe(false);
+    });
+
+    it('一時停止中は timer を返す', (): void => {
+        const state = setTimerPaused(setTimerCounting(createTimerState(), true), true);
+        expect(getTimerWindowMode(state)).toBe('timer');
+        expect(state.isPaused).toBe(true);
+    });
+
+    it('停止中は一時停止を解除する', (): void => {
+        const paused = setTimerPaused(setTimerCounting(createTimerState(), true), true);
+        const stopped = setTimerCounting(paused, false);
+        expect(stopped.isCounting).toBe(false);
+        expect(stopped.isPaused).toBe(false);
+    });
+
+    it('非カウント中は一時停止を保持しない', (): void => {
+        const state = setTimerPaused(createTimerState(), true);
+        expect(state.isPaused).toBe(false);
     });
 
     it('ウィンドウが無い場合は create を返す', (): void => {

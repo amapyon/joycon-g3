@@ -313,6 +313,39 @@ export const electronAPI: ElectronAPI = {
      */
     sendTimerCountdownUpdate: (remainingTime: number): void => ipcRenderer.send('timer-countdown-update', remainingTime),
     /**
+     * タイマーの一時停止状態を通知する。
+     * @param isPaused 一時停止中かどうか
+     */
+    sendTimerPauseStatus: (isPaused: boolean): void => ipcRenderer.send('timer-pause-update', isPaused),
+    /**
+     * タイマーの一時停止/再開を切り替える。
+     */
+    toggleTimerPause: (): void => ipcRenderer.send('toggle-timer-pause'),
+    /**
+     * タイマーに +1 分を追加する。
+     */
+    addMinuteTimer: (): void => ipcRenderer.send('add-minute-timer'),
+    /**
+     * タイマーの一時停止/再開を購読する。
+     * @param callback コールバック
+     */
+    onToggleTimerPause: (callback: () => void): void => {
+        ipcRenderer.on('timer-toggle-pause', (event: IpcRendererEvent) => {
+            void event;
+            callback();
+        });
+    },
+    /**
+     * タイマーの +1 分追加を購読する。
+     * @param callback コールバック
+     */
+    onAddMinuteTimer: (callback: () => void): void => {
+        ipcRenderer.on('timer-add-minute', (event: IpcRendererEvent) => {
+            void event;
+            callback();
+        });
+    },
+    /**
      * タイマー通知設定を更新する。
      * @param configs 通知設定
      */
