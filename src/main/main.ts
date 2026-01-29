@@ -6,12 +6,27 @@ import WindowManager from './window-manager';
 import * as IpcHandler from './ipc-handler';
 import imuProcessor from './imu-processor';
 import { getScreenSize, setScreenSize } from './screen-state';
+import {
+    createTimerState,
+    decideToggleTimerWindow,
+    getTimerWindowMode,
+    setTimerCounting,
+} from './timer-state';
+import {
+    CursorId,
+    CursorMapConfig,
+    ImuData,
+    PointerPositions,
+    decidePointerUpdate,
+} from './imu-pointer';
+import {
+    RStickAction,
+    RStickConfig,
+    RStickState,
+    decideRStickAnalog,
+    decideRStickPress,
+} from './r-stick-handler';
 
-type CursorId = 'cursorLeft' | 'cursorRight';
-type Vector3 = { x: number; y: number; z: number };
-type ImuData = { id: string; accel: Vector3; gyro: Vector3 };
-type PointerPositions = { [key in CursorId]: { x: number; y: number } };
-type CursorMapConfig = Partial<Record<CursorId, { xSign: number; ySign: number }>>;
 type TimerNotificationConfig = Record<string, unknown>;
 type JoyConEventData = { id?: string } & Record<string, unknown>;
 type JoyConStatus = Record<string, unknown>;
@@ -37,7 +52,67 @@ const FONT_SIZE_CHANGE_AMOUNT = 2; // Pixels to change font size
 const FONT_SIZE_CHANGE_INTERVAL = 100; // Milliseconds between font size changes
 let lastFontSizeChangeTime = 0; // Timestamp of the last font size change
 let isTimerMenuNavActive = false; // Track if stick is currently tilted for menu navigation
-let isTimerCounting = false; // Track if timer is active
+let timerState = createTimerState();
+
+const rStickConfig: RStickConfig = {
+    fontSizeChangeAmount: FONT_SIZE_CHANGE_AMOUNT,
+    fontSizeChangeInterval: FONT_SIZE_CHANGE_INTERVAL,
+    analogCenter: 2048,
+    fontSizeDeadzone: 200,
+    navDeadzone: 600,
+};
+
+let rStickState: RStickState = {
+    isPressed: isRStickPressed,
+    lastAnalogData,
+    lastFontSizeChangeTime,
+    isTimerMenuNavActive,
+};
+
+/**
+ * R スティックの状態を同期する。
+ * @param state 新しい状態
+ */
+function applyRStickState(state: RStickState): void {
+    rStickState = state;
+    isRStickPressed = state.isPressed;
+    lastAnalogData = state.lastAnalogData;
+    lastFontSizeChangeTime = state.lastFontSizeChangeTime;
+    isTimerMenuNavActive = state.isTimerMenuNavActive;
+}
+
+/**
+ * R スティックのアクションを実行する。
+ * @param actions アクション一覧
+ * @param timerWindow タイマーウィンドウ
+ * @param cursorWindow カーソルウィンドウ
+ */
+function dispatchRStickActions(
+    actions: RStickAction[],
+    timerWindow: BrowserWindow | null,
+    cursorWindow: BrowserWindow | null,
+): void {
+    actions.forEach((action: RStickAction) => {
+        if (action.target === 'timer') {
+            if (timerWindow && !timerWindow.isDestroyed()) {
+                if (action.payload === undefined) {
+                    timerWindow.webContents.send(action.channel);
+                } else {
+                    timerWindow.webContents.send(action.channel, action.payload);
+                }
+            }
+            return;
+        }
+
+        if (cursorWindow && !cursorWindow.isDestroyed()) {
+            if (action.payload === undefined) {
+                cursorWindow.webContents.send(action.channel);
+            } else {
+                cursorWindow.webContents.send(action.channel, action.payload);
+            }
+        }
+    });
+}
 
 /**
  * 物理ピクセルでの画面サイズを取得する。
@@ -73,71 +148,68 @@ app.whenReady().then(() => {
     IpcHandler.setupIpcHandlers(WindowManager, joyconManager);
 
     /**
+     * タイマーウィンドウを必要に応じて生成する。
+     * @returns タイマーウィンドウ
+     */
+    function ensureTimerWindow(): BrowserWindow | null {
+        const existingWindow = WindowManager.getTimerWindow();
+        if (existingWindow && !existingWindow.isDestroyed()) {
+            return existingWindow;
+        }
+
+        const mainWin = WindowManager.getMainWindow();
+        const mainWinBounds = mainWin ? mainWin.getBounds() : screen.getPrimaryDisplay().bounds;
+        const mainDisplay = screen.getDisplayNearestPoint({ x: mainWinBounds.x, y: mainWinBounds.y });
+        const createdWindow = WindowManager.createTimerWindow(mainDisplay);
+        if (createdWindow) {
+            createdWindow.webContents.once('did-finish-load', () => {
+                if (createdWindow && !createdWindow.isDestroyed()) {
+                    createdWindow.webContents.send('set-timer-mode', getTimerWindowMode(timerState));
+                }
+            });
+        }
+        return createdWindow;
+    }
+
+    /**
      * タイマーウィンドウの表示/非表示を切り替える。
      */
     function toggleTimerWindowVisibility(): void {
         console.log('[Main] toggleTimerWindowVisibility called.');
         const existingWindow = WindowManager.getTimerWindow();
-        let targetWindow = existingWindow;
-        
-        if (!targetWindow || targetWindow.isDestroyed()) {
-            console.log('[Main] Timer window does not exist or is destroyed. Creating new window.');
-            const mainWin = WindowManager.getMainWindow();
-            const mainWinBounds = mainWin ? mainWin.getBounds() : screen.getPrimaryDisplay().bounds;
-            const mainDisplay = screen.getDisplayNearestPoint({ x: mainWinBounds.x, y: mainWinBounds.y });
-            targetWindow = WindowManager.createTimerWindow(mainDisplay);
-            if (!targetWindow) {
+        const hasWindow = !!existingWindow && !existingWindow.isDestroyed();
+        const status = {
+            hasWindow,
+            isVisible: hasWindow ? existingWindow.isVisible() : false,
+        };
+        const decision = decideToggleTimerWindow(timerState, status);
+
+        if (decision.action === 'create') {
+            const createdWindow = ensureTimerWindow();
+            if (!createdWindow) {
                 console.error('[Main] Failed to create timer window.');
                 return;
             }
-            targetWindow.webContents.once('did-finish-load', () => {
-                if (targetWindow && !targetWindow.isDestroyed()) {
-                    console.log('[Main] Timer window did-finish-load. Showing window.');
-                    targetWindow.show();
-                    if (!isTimerCounting) {
-                        targetWindow.webContents.send('set-timer-mode', 'setup');
-                    } else {
-                        targetWindow.webContents.send('set-timer-mode', 'timer');
-                    }
-                } else {
-                    console.warn('[Main] Timer window was destroyed before did-finish-load.');
-                }
-            });
-            return; // Exit after initiating creation
+            createdWindow.show();
+            createdWindow.webContents.send('set-timer-mode', decision.mode);
+            return;
         }
 
-        console.log('[Main] Timer window exists. Checking visibility.');
-        if (targetWindow.isVisible()) {
-            console.log('[Main] Hiding timer window.');
-            targetWindow.hide();
-        } else {
-            console.log('[Main] Showing timer window.');
-            targetWindow.show();
-            if (!isTimerCounting) {
-                targetWindow.webContents.send('set-timer-mode', 'setup');
-            } else {
-                targetWindow.webContents.send('set-timer-mode', 'timer');
-            }
+        if (!existingWindow || existingWindow.isDestroyed()) {
+            return;
         }
+
+        if (decision.action === 'hide') {
+            existingWindow.hide();
+            return;
+        }
+
+        existingWindow.show();
+        existingWindow.webContents.send('set-timer-mode', decision.mode);
     }
 
     const mainWin = WindowManager.getMainWindow();
     if (mainWin) {
-        // Get the display where the main window is located
-        const mainWinBounds = mainWin.getBounds();
-        const mainDisplay = screen.getDisplayNearestPoint({ x: mainWinBounds.x, y: mainWinBounds.y });
-
-        // Create the timer window on the same display as the main window
-        const timerWindow = WindowManager.createTimerWindow(mainDisplay);
-        if (timerWindow) {
-            timerWindow.webContents.once('did-finish-load', () => {
-                if (!isTimerCounting) {
-                    timerWindow.webContents.send('set-timer-mode', 'setup');
-                } else {
-                    timerWindow.webContents.send('set-timer-mode', 'timer');
-                }
-            });
-        }
         mainWin.webContents.on('did-finish-load', () => {
             if (powerpointControl) {
                 // プレゼンテーションリスト送信など
@@ -198,7 +270,7 @@ app.whenReady().then(() => {
     if (!ipcMain.listenerCount('timer-status-update')) {
         ipcMain.on('timer-status-update', (event: IpcMainEvent, isCountingUpdate: boolean) => {
             console.log(`[main.ts] Timer status update: ${isCountingUpdate}`);
-            isTimerCounting = isCountingUpdate;
+            timerState = setTimerCounting(timerState, isCountingUpdate);
         });
     }
     if (!ipcMain.listenerCount('hide-timer-window')) {
@@ -237,7 +309,7 @@ app.whenReady().then(() => {
      */
     function handleImuData(data: ImuData): void {
         const cursorId = (data.id === 'R' || data.id === 'cursorRight') ? 'cursorRight' : 'cursorLeft';
-        
+
         // Feed data to imuProcessor for calibration and attitude calculation
         imuProcessor.update({
             id: cursorId,
@@ -245,27 +317,10 @@ app.whenReady().then(() => {
             gyro: data.gyro
         });
 
-        if (imuProcessor.isCalibrating[cursorId]) {
-            return; // Don't move pointer during calibration
-        }
-
-        if (!isCursorVisible[cursorId]) { // Check visibility for the specific cursor
-            return; // Don't move pointer if not visible
-        }
-
         const moveSpeed = 0.1; // Adjusted to a more reasonable default
         const gyroDeadzone = 90; // Increased to account for higher noise/bias
 
-        // Apply bias correction from imuProcessor (per-cursor bias)
         const state = imuProcessor.states[cursorId];
-        let effectiveGyroX = data.gyro.x - state.gyroBiasX;
-        let effectiveGyroY = data.gyro.y - state.gyroBiasY;
-        let effectiveGyroZ = data.gyro.z - state.gyroBiasZ;
-
-        // Apply deadzone
-        if (Math.abs(effectiveGyroX) < gyroDeadzone) effectiveGyroX = 0;
-        if (Math.abs(effectiveGyroY) < gyroDeadzone) effectiveGyroY = 0;
-        if (Math.abs(effectiveGyroZ) < gyroDeadzone) effectiveGyroZ = 0;
 
         // --- JoyConごとにポインター座標を分離 ---
         const id = data.id === 'R' || data.id === 'cursorRight' ? 'cursorRight' : 'cursorLeft';
@@ -273,29 +328,33 @@ app.whenReady().then(() => {
         const g = globalThis as typeof globalThis & { pointerPositions?: PointerPositions; cursorMapConfig?: CursorMapConfig };
         if (!g.pointerPositions) g.pointerPositions = { cursorLeft: { x: 600, y: 300 }, cursorRight: { x: 600, y: 300 } };
         const pointerPosition = g.pointerPositions[id];
+        const decision = decidePointerUpdate({
+            data,
+            cursorId: id,
+            cursorVisible: isCursorVisible[id],
+            isCalibrating: imuProcessor.isCalibrating[id],
+            gyroBias: { x: state.gyroBiasX, y: state.gyroBiasY, z: state.gyroBiasZ },
+            cursorMapConfig,
+            currentPosition: pointerPosition,
+            defaultPosition: { x: 600, y: 300 },
+            screenSize: getScreenSize(),
+            moveSpeed,
+            gyroDeadzone,
+        });
 
-        // --- Use sign from cursor-renderer.ts mapping ---
-        // Default signs in case not received from renderer
-        let xSign = 1;
-        let ySign = 1;
+        if (!decision) {
+            return;
+        }
 
-        if (cursorMapConfig && cursorMapConfig[id]) {
-            xSign = cursorMapConfig[id].xSign;
-            ySign = cursorMapConfig[id].ySign;
-        } else {
+        if (decision.configMissing) {
             console.warn(`[main.ts] cursorMapConfig for ${id} is undefined. Using default signs.`);
         }
 
-        pointerPosition.x += effectiveGyroZ * moveSpeed * xSign;
-        pointerPosition.y += effectiveGyroY * moveSpeed * ySign;
-
-        const { width: screenWidth, height: screenHeight } = getScreenSize();
-        pointerPosition.x = Math.max(0, Math.min(screenWidth, pointerPosition.x));
-        pointerPosition.y = Math.max(0, Math.min(screenHeight, pointerPosition.y));
+        g.pointerPositions[id] = decision.position;
         const pointerWindow = WindowManager.getCursorWindow();
 
         if (pointerWindow && !pointerWindow.isDestroyed()) {
-            pointerWindow.webContents.send('update-pointer', { id, x: pointerPosition.x, y: pointerPosition.y });
+            pointerWindow.webContents.send('update-pointer', decision.sendPayload);
         }
     }
     imuProcessor.on('attitude-update', (attitudeData: AttitudeData) => {
@@ -348,7 +407,7 @@ app.whenReady().then(() => {
     });
     joyconManager.on('button-minus-pressed', (data: JoyConEventData) => {
         console.log(`[Main] button-minus-pressed received from JoyConManager for ${data?.id}`);
-        const timerWindow = WindowManager.getTimerWindow();
+        const timerWindow = ensureTimerWindow();
         if (timerWindow && !timerWindow.isDestroyed()) {
             timerWindow.show();
             if (timerWindow.webContents.isLoading()) {
@@ -364,7 +423,7 @@ app.whenReady().then(() => {
     });
     joyconManager.on('button-sr-pressed', (data: JoyConEventData) => {
         console.log(`[Main] button-sr-pressed received from JoyConManager for ${data?.id}`);
-        const timerWindow = WindowManager.getTimerWindow();
+        const timerWindow = ensureTimerWindow();
         if (timerWindow && !timerWindow.isDestroyed()) {
             timerWindow.show();
             if (timerWindow.webContents.isLoading()) {
@@ -391,104 +450,32 @@ app.whenReady().then(() => {
     });
     // Listen for R-stick press/release
     joyconManager.on('r-stick', (data: { pressed: boolean }) => {
-        isRStickPressed = data.pressed;
+        const decision = decideRStickPress({
+            pressed: data.pressed,
+            now: Date.now(),
+            state: rStickState,
+            config: rStickConfig,
+        });
+        applyRStickState(decision.state);
 
-        if (isRStickPressed) {
-            console.log('[Main] R-stick pressed (Click)');
-            // Send select event to Timer Window
-            const timerWindow = WindowManager.getTimerWindow();
-            if (timerWindow && !timerWindow.isDestroyed()) {
-                timerWindow.webContents.send('timer-menu-select');
-            }
-        }
-
-        // If stick is pressed and we have previous analog data, immediately process it (existing logic for font size)
-        if (isRStickPressed && lastAnalogData) {
-            const now = Date.now();
-            if (now - lastFontSizeChangeTime < FONT_SIZE_CHANGE_INTERVAL) {
-                return; // Rate limit
-            }
-
-            const joystickY = lastAnalogData.y;
-            const center = 2048;
-            const deadzone = 200;
-
-            if (joystickY < center - deadzone) { // Tilted upwards
-                console.log(`[Main] R-stick pressed and tilted Upwards (Y: ${joystickY})`);
-                const cursorWindow = WindowManager.getCursorWindow();
-                if (cursorWindow && !cursorWindow.isDestroyed()) {
-                    cursorWindow.webContents.send('change-font-size', FONT_SIZE_CHANGE_AMOUNT);
-                    lastFontSizeChangeTime = now;
-                }
-            } else if (joystickY > center + deadzone) { // Tilted downwards
-                console.log(`[Main] R-stick pressed and tilted Downwards (Y: ${joystickY})`);
-                const cursorWindow = WindowManager.getCursorWindow();
-                if (cursorWindow && !cursorWindow.isDestroyed()) {
-                    cursorWindow.webContents.send('change-font-size', -FONT_SIZE_CHANGE_AMOUNT);
-                    lastFontSizeChangeTime = now;
-                }
-            }
-        }
+        const timerWindow = decision.shouldEnsureTimerWindow ? ensureTimerWindow() : null;
+        const cursorWindow = WindowManager.getCursorWindow();
+        dispatchRStickActions(decision.actions, timerWindow, cursorWindow);
     });
 
     // Listen for R-stick analog data
     joyconManager.on('r-stick-analog', (data: { x: number, y: number }) => {
-        lastAnalogData = data; // Always update last analog data
-        const now = Date.now();
+        const decision = decideRStickAnalog({
+            analog: data,
+            now: Date.now(),
+            state: rStickState,
+            config: rStickConfig,
+        });
+        applyRStickState(decision.state);
 
-        // X-Axis Navigation for Timer Menu (Left/Right) - Flick Style
-        const joystickX = data.x;
-        const center = 2048;
-        const navDeadzone = 600; // Normal deadzone is fine for flick mode
-        
-        const timerWindow = WindowManager.getTimerWindow();
-        if (timerWindow && !timerWindow.isDestroyed()) {
-            const diffX = joystickX - center;
-            
-            if (Math.abs(diffX) < navDeadzone) {
-                // Returned to center
-                isTimerMenuNavActive = false;
-            } else if (!isTimerMenuNavActive) {
-                // Tilted outwards, process single move
-                if (joystickX < center - navDeadzone) {
-                    // Left
-                    timerWindow.webContents.send('timer-menu-navigate', -1);
-                    isTimerMenuNavActive = true;
-                } else if (joystickX > center + navDeadzone) {
-                    // Right
-                    timerWindow.webContents.send('timer-menu-navigate', 1);
-                    isTimerMenuNavActive = true;
-                }
-            }
-        }
-
-        if (isRStickPressed) { // Only process analog if stick is pressed
-            if (now - lastFontSizeChangeTime < FONT_SIZE_CHANGE_INTERVAL) {
-                return; // Rate limit the font size changes
-            }
-
-            // Assuming joystick Y-axis is roughly 0-4095, with center around 2048
-            // Upwards tilt: Y < 2048, Downwards tilt: Y > 2048
-            const joystickY = data.y;
-            const center = 2048; // Approximate center for 12-bit analog stick
-            const deadzone = 200; // To prevent accidental changes
-
-            if (joystickY < center - deadzone) { // Tilted upwards
-                console.log(`[Main] R-stick analog: Upwards tilt (Y: ${joystickY})`);
-                const cursorWindow = WindowManager.getCursorWindow();
-                if (cursorWindow && !cursorWindow.isDestroyed()) {
-                    cursorWindow.webContents.send('change-font-size', FONT_SIZE_CHANGE_AMOUNT);
-                    lastFontSizeChangeTime = now; // Update timestamp after sending event
-                }
-            } else if (joystickY > center + deadzone) { // Tilted downwards
-                console.log(`[Main] R-stick analog: Downwards tilt (Y: ${joystickY})`);
-                const cursorWindow = WindowManager.getCursorWindow();
-                if (cursorWindow && !cursorWindow.isDestroyed()) {
-                    cursorWindow.webContents.send('change-font-size', -FONT_SIZE_CHANGE_AMOUNT);
-                    lastFontSizeChangeTime = now; // Update timestamp after sending event
-                }
-            }
-        }
+        const timerWindow = decision.shouldEnsureTimerWindow ? ensureTimerWindow() : null;
+        const cursorWindow = WindowManager.getCursorWindow();
+        dispatchRStickActions(decision.actions, timerWindow, cursorWindow);
     });
     joyconManager.on('ppt-next', () => {
         powerpointControl.next();

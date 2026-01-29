@@ -4,7 +4,7 @@ jest.mock('winax', () => ({
 
 import { getErrorMessage } from '../main/powerpoint-control';
 
-describe('getErrorMessage', (): void => {
+describe('エラーメッセージ生成', (): void => {
     it('Error インスタンスのメッセージを返す', (): void => {
         const error = new Error('boom');
         expect(getErrorMessage(error)).toBe('boom');

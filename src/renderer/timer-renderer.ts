@@ -5,6 +5,10 @@ type TimerNotificationConfig = {
     filename: string;
     absolutePath: string;
 };
+type TimerStyleStateApi = {
+    calcNextFontSize: (current: number, delta: number, min: number, max: number) => number;
+    calcNextOpacity: (current: number, delta: number, min: number, max: number) => number;
+};
 type TimerRendererElectronAPI = {
     onUpdateTimerNotifications: (callback: (configs: TimerNotificationConfig[]) => void) => void;
     sendTimerStatus: (isCounting: boolean) => void;
@@ -20,6 +24,7 @@ type TimerRendererElectronAPI = {
 };
 
 const electronAPI = (window as unknown as { electronAPI: TimerRendererElectronAPI }).electronAPI;
+const timerStyleState = (window as unknown as { timerStyleState: TimerStyleStateApi }).timerStyleState;
 const countdownTimerElement = document.getElementById('countdownTimer') as HTMLElement | null;
 const countdownMenuElement = document.getElementById('countdownMenu') as HTMLElement | null;
 const countdownMenuValueElement = document.getElementById('countdownMenuValue') as HTMLElement | null;
@@ -46,9 +51,7 @@ let timerNotificationConfigs: TimerNotificationConfig[] = JSON.parse(storedNotif
  * @param delta 増減量
  */
 function updateTimerFontSize(delta: number): void {
-    currentFontSize += delta;
-    if (currentFontSize < 20) currentFontSize = 20;
-    if (currentFontSize > 500) currentFontSize = 500;
+    currentFontSize = timerStyleState.calcNextFontSize(currentFontSize, delta, 20, 500);
     
     if (countdownTimerElement) {
         countdownTimerElement.style.fontSize = `${currentFontSize}px`;
@@ -175,9 +178,7 @@ function applyCountdownTimerOpacity(opacity: number): void {
  * @param delta 増減量
  */
 function updateTransparency(delta: number): void {
-    currentOpacity += delta;
-    if (currentOpacity < 0.1) currentOpacity = 0.1; // 最小透明度
-    if (currentOpacity > 1.0) currentOpacity = 1.0; // 最大透明度
+    currentOpacity = timerStyleState.calcNextOpacity(currentOpacity, delta, 0.1, 1.0);
 
     applyCountdownTimerOpacity(currentOpacity);
     localStorage.setItem('timerWindowOpacity', String(currentOpacity));

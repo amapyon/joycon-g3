@@ -17,7 +17,7 @@ function createImuData(id: 'cursorLeft' | 'cursorRight'): {
     };
 }
 
-describe('IMUProcessor', (): void => {
+describe('IMUProcessor の動作', (): void => {
     it('初期状態の生成が正しい', (): void => {
         const processor = new IMUProcessor(0.8);
         const stateLeft = processor.states.cursorLeft;
