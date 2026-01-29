@@ -13,6 +13,7 @@ import {
     setTimerCounting,
     setTimerPaused,
 } from './timer-state';
+import { registerTimerIpcHandlers } from './timer-ipc';
 import {
     CursorId,
     CursorMapConfig,
@@ -268,18 +269,16 @@ app.whenReady().then(() => {
     }
 
     // --- IPC for Timer Status ---
-    if (!ipcMain.listenerCount('timer-status-update')) {
-        ipcMain.on('timer-status-update', (event: IpcMainEvent, isCountingUpdate: boolean) => {
+    registerTimerIpcHandlers(ipcMain, {
+        onStatusUpdate: (isCountingUpdate: boolean): void => {
             console.log(`[main.ts] Timer status update: ${isCountingUpdate}`);
             timerState = setTimerCounting(timerState, isCountingUpdate);
-        });
-    }
-    if (!ipcMain.listenerCount('timer-pause-update')) {
-        ipcMain.on('timer-pause-update', (event: IpcMainEvent, isPausedUpdate: boolean) => {
+        },
+        onPauseUpdate: (isPausedUpdate: boolean): void => {
             console.log(`[main.ts] Timer pause update: ${isPausedUpdate}`);
             timerState = setTimerPaused(timerState, isPausedUpdate);
-        });
-    }
+        },
+    });
     if (!ipcMain.listenerCount('hide-timer-window')) {
         ipcMain.on('hide-timer-window', () => {
             const timerWindow = WindowManager.getTimerWindow();
