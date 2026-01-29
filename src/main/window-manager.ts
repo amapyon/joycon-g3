@@ -23,6 +23,7 @@ export function createMainWindow(): BrowserWindow {
             preload: path.join(__dirname, '..', 'preload', 'preload.js'),
             contextIsolation: true,
             nodeIntegration: false,
+            sandbox: false,
         },
     });
     mainWindow.loadFile(path.join(__dirname, '..', 'renderer', 'main-window.html'));
@@ -89,6 +90,7 @@ function createCursorWindowInternal(targetDisplay: Display): void {
             contextIsolation: true,
             nodeIntegration: false,
             backgroundThrottling: false,
+            sandbox: false,
         },
     });
     cursorWindow.setIgnoreMouseEvents(true, { forward: true });
@@ -184,6 +186,7 @@ export function createTimerWindow(targetDisplay?: Display): BrowserWindow | null
             contextIsolation: true,
             nodeIntegration: false,
             backgroundThrottling: false,
+            sandbox: false,
         },
     });
 
@@ -252,6 +255,7 @@ export function createMessageWindow(targetDisplay?: Display): BrowserWindow | nu
             preload: path.join(__dirname, '..', 'preload', 'preload.js'),
             contextIsolation: true,
             nodeIntegration: false,
+            sandbox: false,
         },
     });
 
