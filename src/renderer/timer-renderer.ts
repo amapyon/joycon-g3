@@ -23,6 +23,40 @@ type TimerRendererElectronAPI = {
     onTimerMenuSelect: (callback: () => void) => void;
 };
 
+/**
+ * カウントダウンメニュー表示切替時の挙動を決定する。
+ * @param visible 表示するかどうか
+ * @returns 反映する挙動
+ */
+function decideCountdownMenuVisibility(visible: boolean): {
+    menuVisible: boolean;
+    timerVisible: boolean;
+    updateMenuDisplay: boolean;
+    renderPresets: boolean;
+    stopCountdown: boolean;
+    resetTimerText: boolean;
+} {
+    if (visible) {
+        return {
+            menuVisible: true,
+            timerVisible: false,
+            updateMenuDisplay: true,
+            renderPresets: true,
+            stopCountdown: false,
+            resetTimerText: false,
+        };
+    }
+
+    return {
+        menuVisible: false,
+        timerVisible: true,
+        updateMenuDisplay: false,
+        renderPresets: false,
+        stopCountdown: false,
+        resetTimerText: false,
+    };
+}
+
 const electronAPI = (window as unknown as { electronAPI: TimerRendererElectronAPI }).electronAPI;
 const timerStyleState = (window as unknown as { timerStyleState: TimerStyleStateApi }).timerStyleState;
 const countdownTimerElement = document.getElementById('countdownTimer') as HTMLElement | null;
@@ -105,21 +139,30 @@ function updateCountdownMenuDisplay(): void {
  * @param visible 表示するかどうか
  */
 function setCountdownMenuVisible(visible: boolean): void {
+    const decision = decideCountdownMenuVisibility(visible);
     isCountdownMenuVisible = visible;
     if (countdownMenuElement) {
-        countdownMenuElement.style.visibility = visible ? 'visible' : 'hidden';
+        countdownMenuElement.style.visibility = decision.menuVisible ? 'visible' : 'hidden';
     }
     if (visible) {
-        updateCountdownMenuDisplay();
-        stopCountdown();
-        if (countdownTimerElement) {
-            countdownTimerElement.style.visibility = 'hidden';
-            countdownTimerElement.textContent = formatTime(currentCountdownInitialValue);
+        if (decision.updateMenuDisplay) {
+            updateCountdownMenuDisplay();
         }
-        renderTimerPresets(); // メニュー表示時に再描画
+        if (decision.stopCountdown) {
+            stopCountdown();
+        }
+        if (countdownTimerElement && !decision.timerVisible) {
+            countdownTimerElement.style.visibility = 'hidden';
+            if (decision.resetTimerText) {
+                countdownTimerElement.textContent = formatTime(currentCountdownInitialValue);
+            }
+        }
+        if (decision.renderPresets) {
+            renderTimerPresets(); // メニュー表示時に再描画
+        }
     } else {
         // タイマー表示に戻す
-        if (countdownTimerElement) {
+        if (countdownTimerElement && decision.timerVisible) {
             countdownTimerElement.style.visibility = 'visible';
             // 停止後の色が残らないように戻す
             if (!countdownInterval) {
