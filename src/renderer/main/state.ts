@@ -38,6 +38,7 @@ type ElectronAPI = {
     onUpdateTimerPresets: (callback: (presets: number[]) => void) => void;
     getMediaFiles: () => Promise<string[]>;
     getMediaBasePath: () => Promise<string>;
+    selectMediaFolder: () => Promise<string>;
     updateTimerNotifications: (configs: NotificationConfig[]) => void;
     onUpdateTimerNotifications: (callback: (configs: NotificationConfig[]) => void) => void;
     toggleTimerWindow: () => void;
@@ -73,6 +74,7 @@ type MainRendererElements = {
     sound1TimeInput: HTMLInputElement;
     sound2TimeInput: HTMLInputElement;
     refreshSoundsBtn: HTMLButtonElement;
+    soundFolderSelectBtn: HTMLButtonElement;
     sound1PlayBtn: HTMLButtonElement;
     sound2PlayBtn: HTMLButtonElement;
     sound1RumbleToggle: HTMLInputElement;
@@ -127,6 +129,7 @@ type MainRendererContext = {
             sound1TimeInput: document.getElementById('sound1-time') as HTMLInputElement,
             sound2TimeInput: document.getElementById('sound2-time') as HTMLInputElement,
             refreshSoundsBtn: document.getElementById('refresh-sounds-btn') as HTMLButtonElement,
+            soundFolderSelectBtn: document.getElementById('sound-folder-select-btn') as HTMLButtonElement,
             sound1PlayBtn: document.getElementById('sound1-play-btn') as HTMLButtonElement,
             sound2PlayBtn: document.getElementById('sound2-play-btn') as HTMLButtonElement,
             sound1RumbleToggle: document.getElementById('sound1-rumble') as HTMLInputElement,

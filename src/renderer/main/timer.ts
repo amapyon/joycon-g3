@@ -313,12 +313,14 @@
             void previewSound(elements.sound2Select.value);
         });
 
-        const refreshSoundsBtn = document.getElementById('refresh-sounds-btn') as HTMLButtonElement | null;
-        if (refreshSoundsBtn) {
-            refreshSoundsBtn.addEventListener('click', (): void => {
-                void loadMediaFiles();
-            });
-        }
+        elements.refreshSoundsBtn.addEventListener('click', (): void => {
+            void loadMediaFiles();
+        });
+
+        elements.soundFolderSelectBtn.addEventListener('click', async (): Promise<void> => {
+            await electronAPI.selectMediaFolder();
+            void loadMediaFiles();
+        });
 
         electronAPI.onUpdateTimerNotifications((configs: NotificationConfig[]): void => {
             localStorage.setItem('timerNotifications', JSON.stringify(configs));

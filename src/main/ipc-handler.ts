@@ -1,5 +1,5 @@
 // ipc-handler.ts
-import { ipcMain, screen, IpcMainEvent, Display } from 'electron';
+import { ipcMain, screen, IpcMainEvent, Display, dialog } from 'electron';
 import fs from 'fs';
 import path from 'path';
 import WindowManager from './window-manager';
@@ -15,6 +15,26 @@ import { setScreenSize } from './screen-state';
  */
 export function setupIpcHandlers(windowManagerInstance: typeof WindowManager = WindowManager, joyconManager: JoyConManager): void {
     console.log('Setting up IPC Handlers...');
+    const defaultMediaDir = path.join(process.cwd(), 'media');
+    let selectedMediaDir = defaultMediaDir;
+
+    /**
+     * メディアディレクトリを準備してパスを返す。
+     * @param dir 対象ディレクトリ
+     * @returns 有効なディレクトリパス
+     */
+    const ensureMediaDir = (dir: string): string => {
+        const targetDir = dir || defaultMediaDir;
+        if (!fs.existsSync(targetDir)) {
+            try {
+                fs.mkdirSync(targetDir, { recursive: true });
+            } catch (e) {
+                console.error('Failed to create media directory:', e);
+                return defaultMediaDir;
+            }
+        }
+        return targetDir;
+    };
 
     ipcMain.on('launch-cursor-window', (event: IpcMainEvent, displayId: string) => {
         console.log(`IPC Handler: Received 'launch-cursor-window' for display ID: ${displayId}`);
@@ -154,16 +174,39 @@ export function setupIpcHandlers(windowManagerInstance: typeof WindowManager = W
         event.reply('joycon-status-update', joyconManager.getConnectionStatus());
     });
 
-    ipcMain.handle('get-media-files', async () => {
-        const mediaDir = path.join(process.cwd(), 'media');
-        if (!fs.existsSync(mediaDir)) {
-            try {
-                fs.mkdirSync(mediaDir);
-            } catch (e) {
-                console.error('Failed to create media directory:', e);
-                return [];
-            }
+    /**
+     * サウンドフォルダーを選択する。
+     * @returns 選択したフォルダーパス（キャンセル時は空文字）
+     */
+    const selectMediaFolder = async (): Promise<string> => {
+        const mainWin = windowManagerInstance.getMainWindow();
+        const result = await dialog.showOpenDialog(mainWin ?? undefined, {
+            title: 'Select Sound Folder or File',
+            properties: ['openFile', 'openDirectory'],
+            filters: [
+                { name: 'Audio', extensions: ['mp3', 'wav', 'ogg'] },
+                { name: 'All Files', extensions: ['*'] },
+            ],
+        });
+        if (result.canceled || result.filePaths.length === 0) {
+            return '';
         }
+        const selectedPath = result.filePaths[0];
+        const stats = fs.statSync(selectedPath);
+        const nextDir = stats.isDirectory() ? selectedPath : path.dirname(selectedPath);
+        if (!fs.existsSync(nextDir)) {
+            return '';
+        }
+        selectedMediaDir = nextDir;
+        return selectedMediaDir;
+    };
+
+    /**
+     * メディアファイル一覧を取得する。
+     * @returns メディアファイル名一覧
+     */
+    const getMediaFiles = async (): Promise<string[]> => {
+        const mediaDir = ensureMediaDir(selectedMediaDir);
         try {
             const files = fs.readdirSync(mediaDir);
             return files.filter((f: string) => /\.(mp3|wav|ogg)$/i.test(f));
@@ -171,11 +214,19 @@ export function setupIpcHandlers(windowManagerInstance: typeof WindowManager = W
             console.error('Failed to read media directory:', e);
             return [];
         }
-    });
+    };
 
-    ipcMain.handle('get-media-base-path', () => {
-        return path.join(process.cwd(), 'media');
-    });
+    /**
+     * メディアのベースパスを取得する。
+     * @returns ベースパス
+     */
+    const getMediaBasePath = (): string => {
+        return ensureMediaDir(selectedMediaDir);
+    };
+
+    ipcMain.handle('select-media-folder', async () => selectMediaFolder());
+    ipcMain.handle('get-media-files', async () => getMediaFiles());
+    ipcMain.handle('get-media-base-path', () => getMediaBasePath());
 
     // --- Message Window Handlers ---
     let lastMessageText = '';
