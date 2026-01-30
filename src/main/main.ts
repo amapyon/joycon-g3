@@ -2,6 +2,7 @@
 import { app, BrowserWindow, ipcMain, screen, IpcMainEvent } from 'electron';
 import JoyConManager from './joycon';
 import powerpointControl from './powerpoint-control';
+import googleSlidesControl from './google-slides-control';
 import WindowManager from './window-manager';
 import * as IpcHandler from './ipc-handler';
 import imuProcessor from './imu-processor';
@@ -491,10 +492,16 @@ app.whenReady().then(() => {
         dispatchRStickActions(decision.actions, timerWindow, cursorWindow);
     });
     joyconManager.on('ppt-next', () => {
-        powerpointControl.next();
+        const handled = powerpointControl.next();
+        if (!handled) {
+            googleSlidesControl.next();
+        }
     });
     joyconManager.on('ppt-prev', () => {
-        powerpointControl.previous();
+        const handled = powerpointControl.previous();
+        if (!handled) {
+            googleSlidesControl.previous();
+        }
     });
     imuProcessor.on('attitude-update', (attitudeData: AttitudeData) => {
         const targetWindow = WindowManager.getCursorWindow();
