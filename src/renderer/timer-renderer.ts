@@ -4,6 +4,7 @@ type TimerNotificationConfig = {
     time: number;
     filename: string;
     absolutePath: string;
+    rumble?: boolean;
 };
 type TimerStyleStateApi = {
     calcNextFontSize: (current: number, delta: number, min: number, max: number) => number;
@@ -24,6 +25,7 @@ type TimerRendererElectronAPI = {
     onTimerMenuSelect: (callback: () => void) => void;
     onToggleTimerPause: (callback: () => void) => void;
     onAddMinuteTimer: (callback: () => void) => void;
+    sendTimerNotificationTrigger: (seconds: number, shouldRumble: boolean) => void;
 };
 
 type TimerMenuItem =
@@ -292,19 +294,8 @@ function resumeCountdown(): void {
     countdownInterval = setInterval((): void => {
         // カウントが一致したタイミングで通知を再生する
         timerNotificationConfigs.forEach((config: TimerNotificationConfig, index: number): void => {
-            if (!playedNotificationIndices.has(index) && config.absolutePath && countdownValue === config.time) {
-                console.log(`[TimerRenderer] Alert trigger at ${config.time}s: ${config.absolutePath}`);
-                try {
-                    let audioUrl = config.absolutePath;
-                    if (!audioUrl.startsWith('file://') && !audioUrl.startsWith('http')) {
-                        audioUrl = 'file://' + config.absolutePath.replace(/\\/g, '/');
-                    }
-                    const audio = new Audio(audioUrl);
-                    audio.play().catch((e: unknown): void => console.error('Audio play failed:', e));
-                    playedNotificationIndices.add(index);
-                } catch (err) {
-                    console.error('Error playing notification sound:', err);
-                }
+            if (!playedNotificationIndices.has(index) && countdownValue === config.time) {
+                playNotificationSound(config, index);
             }
         });
 
@@ -372,6 +363,38 @@ function updateTransparency(delta: number): void {
 }
 
 /**
+ * 通知音を再生する。
+ * @param config 通知設定
+ * @param index 通知インデックス
+ * @returns 再生した場合は true
+ */
+function playNotificationSound(config: TimerNotificationConfig, index: number): boolean {
+    if (!config.absolutePath) {
+        if (config.rumble) {
+            electronAPI.sendTimerNotificationTrigger(config.time, true);
+        }
+        playedNotificationIndices.add(index);
+        return true;
+    }
+    console.log(`[TimerRenderer] Alert trigger at ${config.time}s: ${config.absolutePath}`);
+    try {
+        let audioUrl = config.absolutePath;
+        if (!audioUrl.startsWith('file://') && !audioUrl.startsWith('http')) {
+            audioUrl = 'file://' + config.absolutePath.replace(/\\/g, '/');
+        }
+        const audio = new Audio(audioUrl);
+        audio.play().catch((e: unknown): void => console.error('Audio play failed:', e));
+        playedNotificationIndices.add(index);
+        const shouldRumble = !!config.rumble;
+        electronAPI.sendTimerNotificationTrigger(config.time, shouldRumble);
+        return true;
+    } catch (err) {
+        console.error('Error playing notification sound:', err);
+        return false;
+    }
+}
+
+/**
  * プリセットのフォーカス状態を更新する。
  */
 function updatePresetFocus(): void {
@@ -417,19 +440,8 @@ function startCountdown(duration: number): void {
     countdownInterval = setInterval(() => {
         // カウントが一致したタイミングで通知を再生する
         timerNotificationConfigs.forEach((config: TimerNotificationConfig, index: number): void => {
-            if (!playedNotificationIndices.has(index) && config.absolutePath && countdownValue === config.time) {
-                console.log(`[TimerRenderer] Alert trigger at ${config.time}s: ${config.absolutePath}`);
-                try {
-                    let audioUrl = config.absolutePath;
-                    if (!audioUrl.startsWith('file://') && !audioUrl.startsWith('http')) {
-                        audioUrl = 'file://' + config.absolutePath.replace(/\\/g, '/');
-                    }
-                    const audio = new Audio(audioUrl);
-                    audio.play().catch((e: unknown): void => console.error('Audio play failed:', e));
-                    playedNotificationIndices.add(index);
-                } catch (err) {
-                    console.error('Error playing notification sound:', err);
-                }
+            if (!playedNotificationIndices.has(index) && countdownValue === config.time) {
+                playNotificationSound(config, index);
             }
         });
 
@@ -448,9 +460,13 @@ function startCountdown(duration: number): void {
 
 electronAPI.onUpdateTimerNotifications((configs: TimerNotificationConfig[]): void => {
     console.log('[TimerRenderer] Notifications updated:', configs);
-    timerNotificationConfigs = configs;
+    timerNotificationConfigs = configs.map((config: TimerNotificationConfig) => ({
+        ...config,
+        rumble: !!config.rumble,
+    }));
     localStorage.setItem('timerNotifications', JSON.stringify(configs));
 });
+
 
 electronAPI.onChangeFontSize((delta: number): void => {
     console.log(`[TimerRenderer] Change font size via Joy-Con: ${delta}`);

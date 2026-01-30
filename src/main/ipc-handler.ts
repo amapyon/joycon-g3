@@ -125,6 +125,7 @@ export function setupIpcHandlers(windowManagerInstance: typeof WindowManager = W
         }
     });
 
+
     ipcMain.on('set-target-display', (event: IpcMainEvent, displayId: number | string) => {
         console.log(`[IPC Handler] Received 'set-target-display': ${displayId}`);
         const id = typeof displayId === 'string' ? parseInt(displayId, 10) : displayId;

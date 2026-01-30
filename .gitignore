@@ -1,7 +1,30 @@
-/node_modules/
-/dist_packager/
-/dist/
-/src_legacy/
-/coverage/
-*.mp3
-*.wav
+node_modules
+
+# ビルド出力
+dist
+dist_packager
+coverage
+
+# ログ
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# キャッシュ
+.eslintcache
+.npm
+.cache
+
+# 環境ファイル
+.env
+.env.local
+.env.*.local
+
+# OS 由来ファイル
+.DS_Store
+Thumbs.db
+ehthumbs.db
+Desktop.ini

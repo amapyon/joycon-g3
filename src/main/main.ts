@@ -14,6 +14,7 @@ import {
     setTimerPaused,
 } from './timer-state';
 import { registerTimerIpcHandlers } from './timer-ipc';
+import { createStrongTripleRumblePattern } from './rumble-pattern';
 import {
     CursorId,
     CursorMapConfig,
@@ -142,10 +143,6 @@ app.whenReady().then(() => {
     const { width, height } = getPhysicalScreenSize();
     setScreenSize(width, height);
     console.log('App Ready. Initializing modules...');
-    const connected = powerpointControl.connect();
-    if (!connected) {
-        console.warn('Initial connection to PowerPoint failed. Ensure PowerPoint is running.');
-    }
     WindowManager.createMainWindow();
     IpcHandler.setupIpcHandlers(WindowManager, joyconManager);
 
@@ -303,6 +300,16 @@ app.whenReady().then(() => {
             const mainWindow = WindowManager.getMainWindow();
             if (mainWindow && !mainWindow.isDestroyed()) {
                 mainWindow.webContents.send('main-timer-update', remainingTime);
+            }
+        });
+    }
+
+    if (!ipcMain.listenerCount('timer-notification-trigger')) {
+        ipcMain.on('timer-notification-trigger', (event: IpcMainEvent, seconds: number, shouldRumble: boolean) => {
+            void event;
+            void seconds;
+            if (shouldRumble) {
+                joyconManager.playRumblePattern(createStrongTripleRumblePattern());
             }
         });
     }

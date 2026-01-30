@@ -12,6 +12,7 @@ type NotificationConfig = {
     time: number;
     filename: string;
     absolutePath: string;
+    rumble?: boolean;
 };
 type ElectronAPI = {
     getOpenPowerPointPresentations: () => Promise<PresentationInfo[]>;
@@ -74,6 +75,8 @@ type MainRendererElements = {
     refreshSoundsBtn: HTMLButtonElement;
     sound1PlayBtn: HTMLButtonElement;
     sound2PlayBtn: HTMLButtonElement;
+    sound1RumbleToggle: HTMLInputElement;
+    sound2RumbleToggle: HTMLInputElement;
     toggleTimerWindowBtn: HTMLButtonElement;
     toggleTimerPauseBtn: HTMLButtonElement;
     addMinuteMainBtn: HTMLButtonElement;
@@ -126,6 +129,8 @@ type MainRendererContext = {
             refreshSoundsBtn: document.getElementById('refresh-sounds-btn') as HTMLButtonElement,
             sound1PlayBtn: document.getElementById('sound1-play-btn') as HTMLButtonElement,
             sound2PlayBtn: document.getElementById('sound2-play-btn') as HTMLButtonElement,
+            sound1RumbleToggle: document.getElementById('sound1-rumble') as HTMLInputElement,
+            sound2RumbleToggle: document.getElementById('sound2-rumble') as HTMLInputElement,
             toggleTimerWindowBtn: document.getElementById('toggle-timer-window-btn') as HTMLButtonElement,
             toggleTimerPauseBtn: document.getElementById('toggle-timer-pause-btn') as HTMLButtonElement,
             addMinuteMainBtn: document.getElementById('add-minute-main-btn') as HTMLButtonElement,

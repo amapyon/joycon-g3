@@ -357,6 +357,12 @@ export const electronAPI: ElectronAPI = {
     onUpdateTimerNotifications: (callback: (configs: TimerNotificationConfig[]) => void): void => {
         ipcRenderer.on('update-timer-notifications', (event: IpcRendererEvent, configs: TimerNotificationConfig[]) => callback(configs));
     },
+    /**
+     * 通知タイミングを通知する。
+     * @param seconds 残り秒数
+     */
+    sendTimerNotificationTrigger: (seconds: number, shouldRumble: boolean): void =>
+        ipcRenderer.send('timer-notification-trigger', seconds, shouldRumble),
 
     // --- Message Window Control ---
     /**

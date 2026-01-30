@@ -18,6 +18,7 @@ export type TimerNotificationConfig = {
     time: number;
     filename: string;
     absolutePath: string;
+    rumble?: boolean;
 };
 export type CalibrationStatus = { id: string; status: string };
 
@@ -79,4 +80,5 @@ export type ElectronAPI = {
     sendMessageText: (text: string) => void;
     onUpdateMessageText: (callback: (text: string) => void) => void;
     onMainTimerUpdate: (callback: (remainingTime: number) => void) => void;
+    sendTimerNotificationTrigger: (seconds: number, shouldRumble: boolean) => void;
 };

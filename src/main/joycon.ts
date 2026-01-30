@@ -47,10 +47,14 @@ export default class JoyConManager extends EventEmitter {
     lastButtonStateR: ButtonState;
     scanIntervalMs: number;
     scanTimer: NodeJS.Timeout | null = null;
+    rumbleTimer: NodeJS.Timeout | null = null;
     connectingL = false;
     connectingR = false;
     autoConnectL = true;
     autoConnectR = true;
+
+    private static readonly STRONG_RUMBLE_DATA = JoyConManager.createRumbleData(320, 1.0, 160, 1.0, 320, 1.0, 160, 1.0);
+    private static readonly RUMBLE_OFF_DATA = JoyConManager.createRumbleData(320, 0.0, 160, 0.0, 320, 0.0, 160, 0.0);
 
     /**
      * Joy-Con 管理クラスを生成する。
@@ -158,10 +162,13 @@ export default class JoyConManager extends EventEmitter {
         const delay = (ms: number): Promise<void> => new Promise((resolve: () => void) => setTimeout(resolve, ms));
         console.log(`Initializing ${isLeft ? 'L' : 'R'} Joy-Con...`);
         try {
+            // 振動を有効化する
+            const enableRumbleCommand = [0x01, 0x00, ...JoyConManager.RUMBLE_OFF_DATA, 0x48, 0x01];
             const commands: number[][] = [
                 [0x01, 0, 0x00, 0x01, 0x40, 0x40, 0x00, 0x01, 0x40, 0x40, 0x03, 0x30],
                 [0x01, 0, 0x00, 0x01, 0x40, 0x40, 0x00, 0x01, 0x40, 0x40, 0x40, 0x01],
                 [0x01, 0, 0x00, 0x01, 0x40, 0x40, 0x00, 0x01, 0x40, 0x40, 0x30, isLeft ? 0x01 : 0x02],
+                enableRumbleCommand,
             ];
             for (const cmd of commands) {
                 const currentPacketNumber = packetNumber();
@@ -194,6 +201,152 @@ export default class JoyConManager extends EventEmitter {
                 console.error('Close HID Error:', e);
             }
         }
+    }
+
+    /**
+     * 振動パターンを再生する。
+     * @param steps 振動パターン
+     */
+    playRumblePattern(steps: { on: boolean; durationMs: number }[]): void {
+        if (!this.hidL && !this.hidR) {
+            return;
+        }
+        this.stopRumblePattern();
+        let index = 0;
+        const runStep = (): void => {
+            if (index >= steps.length) {
+                this.setRumble(false);
+                return;
+            }
+            const step = steps[index];
+            this.setRumble(step.on);
+            this.rumbleTimer = setTimeout(() => {
+                index += 1;
+                runStep();
+            }, step.durationMs);
+        };
+        runStep();
+    }
+
+    /**
+     * 振動パターンを停止する。
+     */
+    stopRumblePattern(): void {
+        if (this.rumbleTimer) {
+            clearTimeout(this.rumbleTimer);
+            this.rumbleTimer = null;
+        }
+        this.setRumble(false);
+    }
+
+    /**
+     * 振動の ON/OFF を送信する。
+     * @param enabled 振動を有効にするかどうか
+     */
+    private setRumble(enabled: boolean): void {
+        const data = enabled ? JoyConManager.STRONG_RUMBLE_DATA : JoyConManager.RUMBLE_OFF_DATA;
+        this.sendRumbleCommand(this.hidL, data, true);
+        this.sendRumbleCommand(this.hidR, data, false);
+    }
+
+    /**
+     * 振動コマンドを送信する。
+     * @param hidDevice 対象の HID デバイス
+     * @param rumbleData 振動データ
+     * @param isLeft 左 Joy-Con かどうか
+     */
+    private sendRumbleCommand(hidDevice: HID.HID | null, rumbleData: number[], isLeft: boolean): void {
+        if (!hidDevice) return;
+        const packetNumber = isLeft ? this.globalPacketNumberL : this.globalPacketNumberR;
+        const command = [0x10, packetNumber, ...rumbleData];
+        if (!this.sendCommand(hidDevice, command, isLeft)) {
+            this.closeJoyCon(isLeft);
+        }
+    }
+
+    /**
+     * 周波数と振幅から振動データを作成する。
+     * @param leftHighFreq 左高周波
+     * @param leftHighAmp 左高周波振幅
+     * @param leftLowFreq 左低周波
+     * @param leftLowAmp 左低周波振幅
+     * @param rightHighFreq 右高周波
+     * @param rightHighAmp 右高周波振幅
+     * @param rightLowFreq 右低周波
+     * @param rightLowAmp 右低周波振幅
+     * @returns 振動データ
+     */
+    private static createRumbleData(
+        leftHighFreq: number,
+        leftHighAmp: number,
+        leftLowFreq: number,
+        leftLowAmp: number,
+        rightHighFreq: number,
+        rightHighAmp: number,
+        rightLowFreq: number,
+        rightLowAmp: number,
+    ): number[] {
+        const lhf = JoyConManager.encodeHighFreq(leftHighFreq);
+        const lha = JoyConManager.encodeHighAmp(leftHighAmp);
+        const llf = JoyConManager.encodeLowFreq(leftLowFreq);
+        const lla = JoyConManager.encodeLowAmp(leftLowAmp);
+        const rhf = JoyConManager.encodeHighFreq(rightHighFreq);
+        const rha = JoyConManager.encodeHighAmp(rightHighAmp);
+        const rlf = JoyConManager.encodeLowFreq(rightLowFreq);
+        const rla = JoyConManager.encodeLowAmp(rightLowAmp);
+
+        return [
+            lhf & 0xff,
+            (lha + ((lhf >> 8) & 0xff)) & 0xff,
+            (llf + ((lla >> 8) & 0xff)) & 0xff,
+            lla & 0xff,
+            rhf & 0xff,
+            (rha + ((rhf >> 8) & 0xff)) & 0xff,
+            (rlf + ((rla >> 8) & 0xff)) & 0xff,
+            rla & 0xff,
+        ];
+    }
+
+    /**
+     * 高周波数をエンコードする。
+     * @param freq 周波数
+     * @returns エンコード値
+     */
+    private static encodeHighFreq(freq: number): number {
+        const value = Math.round(Math.log2(freq / 10) * 32);
+        return Math.max(0, Math.min(0x1ff, value));
+    }
+
+    /**
+     * 低周波数をエンコードする。
+     * @param freq 周波数
+     * @returns エンコード値
+     */
+    private static encodeLowFreq(freq: number): number {
+        const value = Math.round(Math.log2(freq / 10) * 32);
+        return Math.max(0, Math.min(0x1ff, value));
+    }
+
+    /**
+     * 高周波の振幅をエンコードする。
+     * @param amp 振幅
+     * @returns エンコード値
+     */
+    private static encodeHighAmp(amp: number): number {
+        if (amp <= 0) return 0;
+        const value = Math.round(Math.log2(amp * 8.7) * 32);
+        return Math.max(0, Math.min(0x1ff, value));
+    }
+
+    /**
+     * 低周波の振幅をエンコードする。
+     * @param amp 振幅
+     * @returns エンコード値
+     */
+    private static encodeLowAmp(amp: number): number {
+        if (amp <= 0) return 0;
+        const value = Math.round(Math.log2(amp * 17.0) * 32);
+        return Math.max(0, Math.min(0x1ff, value));
     }
 
     /**

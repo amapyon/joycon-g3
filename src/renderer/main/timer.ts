@@ -116,6 +116,23 @@
     };
 
     /**
+     * 通知音の振動設定を初期化する。
+     * @returns なし
+     */
+    const initNotificationRumbleToggle = (): void => {
+        const toggleMap: Array<{ toggle: HTMLInputElement; index: number }> = [
+            { toggle: elements.sound1RumbleToggle, index: 0 },
+            { toggle: elements.sound2RumbleToggle, index: 1 },
+        ];
+        toggleMap.forEach(({ toggle, index }: { toggle: HTMLInputElement; index: number }): void => {
+            toggle.addEventListener('change', (): void => {
+                void index;
+                void broadcastNotificationUpdate();
+            });
+        });
+    };
+
+    /**
      * メインメニューのタイマー操作ボタンを初期化する。
      * @returns なし
      */
@@ -154,10 +171,12 @@
             if (configs[0]) {
                 elements.sound1TimeInput.value = String(configs[0].time);
                 setSelectValue(elements.sound1Select, configs[0].filename);
+                elements.sound1RumbleToggle.checked = !!configs[0].rumble;
             }
             if (configs[1]) {
                 elements.sound2TimeInput.value = String(configs[1].time);
                 setSelectValue(elements.sound2Select, configs[1].filename);
+                elements.sound2RumbleToggle.checked = !!configs[1].rumble;
             }
         }
         void broadcastNotificationUpdate();
@@ -176,6 +195,7 @@
                 absolutePath: elements.sound1Select.value
                     ? (basePath + '/' + elements.sound1Select.value).replace(/\\/g, '/')
                     : '',
+                rumble: elements.sound1RumbleToggle.checked,
             },
             {
                 time: parseInt(elements.sound2TimeInput.value, 10) || 0,
@@ -183,6 +203,7 @@
                 absolutePath: elements.sound2Select.value
                     ? (basePath + '/' + elements.sound2Select.value).replace(/\\/g, '/')
                     : '',
+                rumble: elements.sound2RumbleToggle.checked,
             },
         ];
         localStorage.setItem('timerNotifications', JSON.stringify(configs));
@@ -265,6 +286,7 @@
 
         renderPresets();
         initTimerActionButtons();
+        initNotificationRumbleToggle();
         renderPresetConfig();
 
         electronAPI.onUpdateTimerPresets((presets: number[]): void => {

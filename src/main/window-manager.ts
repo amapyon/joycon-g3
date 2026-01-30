@@ -1,5 +1,5 @@
 // window-manager.ts
-import { BrowserWindow, screen, Display } from 'electron';
+import { app, BrowserWindow, screen, Display } from 'electron';
 import path from 'path';
 
 let mainWindow: BrowserWindow | null = null;
@@ -27,7 +27,9 @@ export function createMainWindow(): BrowserWindow {
         },
     });
     mainWindow.loadFile(path.join(__dirname, '..', 'renderer', 'main-window.html'));
-    mainWindow.webContents.openDevTools(); // 開発者ツールを開く
+    if (!app.isPackaged) {
+        mainWindow.webContents.openDevTools();
+    }
     mainWindow.webContents.on('did-finish-load', () => {
         sendAvailableDisplays();
     });
