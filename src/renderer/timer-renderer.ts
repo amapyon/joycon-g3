@@ -91,6 +91,7 @@ let currentPresetValues: number[] = JSON.parse(storedTimerPresets || '[10, 60, 1
 let currentMenuItems: TimerMenuItem[] = buildMenuItems(currentPresetValues);
 let currentOpacity = storedOpacity ? Number.parseFloat(storedOpacity) : 0.9; // 背景の初期透明度
 let timerNotificationConfigs: TimerNotificationConfig[] = JSON.parse(storedNotifications || '[]');
+const SOUND_PLAY_DELAY_MS = 200;
 
 /**
  * タイマーのフォントサイズを更新する。
@@ -383,7 +384,10 @@ function playNotificationSound(config: TimerNotificationConfig, index: number): 
             audioUrl = 'file://' + config.absolutePath.replace(/\\/g, '/');
         }
         const audio = new Audio(audioUrl);
-        audio.play().catch((e: unknown): void => console.error('Audio play failed:', e));
+        // HDMI/DP のリンク遅延対策として再生を少し遅らせる
+        setTimeout((): void => {
+            audio.play().catch((e: unknown): void => console.error('Audio play failed:', e));
+        }, SOUND_PLAY_DELAY_MS);
         playedNotificationIndices.add(index);
         const shouldRumble = !!config.rumble;
         electronAPI.sendTimerNotificationTrigger(config.time, shouldRumble);
