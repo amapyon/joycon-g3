@@ -384,8 +384,13 @@ function playNotificationSound(config: TimerNotificationConfig, index: number): 
         if (!audioUrl.startsWith('file://') && !audioUrl.startsWith('http')) {
             audioUrl = 'file://' + config.absolutePath.replace(/\\/g, '/');
         }
-        const audio = new Audio(audioUrl);
+        // HDMI/DP のリンク遅延対策として無音を先に再生する
+        const silentAudio = new Audio(audioUrl);
+        silentAudio.volume = 0;
+        silentAudio.play().catch((e: unknown): void => console.error('Audio play failed:', e));
+
         // HDMI/DP のリンク遅延対策として再生を少し遅らせる
+        const audio = new Audio(audioUrl);
         setTimeout((): void => {
             audio.play().catch((e: unknown): void => console.error('Audio play failed:', e));
         }, soundPlayDelayMs);
