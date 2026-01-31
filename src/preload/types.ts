@@ -29,6 +29,7 @@ export type ElectronAPI = {
     getMediaFiles: () => Promise<string[]>;
     getMediaBasePath: () => Promise<string>;
     selectMediaFolder: () => Promise<string>;
+    setMediaBasePath: (dir: string) => Promise<boolean>;
     onJoyConStatusUpdate: (callback: (status: JoyConStatus) => void) => void;
     onJoyConAttitude: (callback: (data: JoyConAttitude) => void) => void;
     onJoyConButtonX: (callback: (data: JoyConButtonState) => void) => void;

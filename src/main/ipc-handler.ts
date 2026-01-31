@@ -37,6 +37,22 @@ export function setupIpcHandlers(windowManagerInstance: typeof WindowManager = W
     };
 
     /**
+     * メディアディレクトリを設定する。
+     * @param dir 設定するディレクトリ
+     * @returns 設定に成功したかどうか
+     */
+    const setMediaBasePath = (dir: string): boolean => {
+        if (!dir) {
+            return false;
+        }
+        if (!fs.existsSync(dir)) {
+            return false;
+        }
+        selectedMediaDir = dir;
+        return true;
+    };
+
+    /**
      * タイマーウィンドウへ安全にメッセージを送る。
      * @param timerWin タイマーウィンドウ
      * @param duration カウントダウン秒数
@@ -250,6 +266,10 @@ export function setupIpcHandlers(windowManagerInstance: typeof WindowManager = W
     ipcMain.handle('select-media-folder', async () => selectMediaFolder());
     ipcMain.handle('get-media-files', async () => getMediaFiles());
     ipcMain.handle('get-media-base-path', () => getMediaBasePath());
+    ipcMain.handle('set-media-base-path', (event: IpcMainEvent, dir: string) => {
+        void event;
+        return setMediaBasePath(dir);
+    });
 
     // --- Message Window Handlers ---
     let lastMessageText = '';

@@ -267,6 +267,21 @@
     };
 
     /**
+     * 保存済みのサウンドフォルダーを反映する。
+     * @returns 処理完了を示す Promise
+     */
+    const applyStoredMediaDir = async (): Promise<void> => {
+        const storedDir = localStorage.getItem('soundMediaDir') || '';
+        if (!storedDir) {
+            return;
+        }
+        const applied = await electronAPI.setMediaBasePath(storedDir);
+        if (!applied) {
+            localStorage.removeItem('soundMediaDir');
+        }
+    };
+
+    /**
      * タイマーセクションを初期化する。
      * @returns なし
      */
@@ -319,6 +334,10 @@
 
         elements.soundFolderSelectBtn.addEventListener('click', async (): Promise<void> => {
             await electronAPI.selectMediaFolder();
+            const basePath = await electronAPI.getMediaBasePath();
+            if (basePath) {
+                localStorage.setItem('soundMediaDir', basePath);
+            }
             void loadMediaFiles();
         });
 
@@ -326,7 +345,7 @@
             localStorage.setItem('timerNotifications', JSON.stringify(configs));
         });
 
-        void loadMediaFiles();
+        void applyStoredMediaDir().then(() => loadMediaFiles());
 
         elements.toggleTimerWindowBtn.addEventListener('click', (): void => {
             electronAPI.toggleTimerWindow();

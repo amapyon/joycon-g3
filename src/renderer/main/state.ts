@@ -39,6 +39,7 @@ type ElectronAPI = {
     getMediaFiles: () => Promise<string[]>;
     getMediaBasePath: () => Promise<string>;
     selectMediaFolder: () => Promise<string>;
+    setMediaBasePath: (dir: string) => Promise<boolean>;
     updateTimerNotifications: (configs: NotificationConfig[]) => void;
     onUpdateTimerNotifications: (callback: (configs: NotificationConfig[]) => void) => void;
     toggleTimerWindow: () => void;

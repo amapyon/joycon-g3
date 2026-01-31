@@ -51,6 +51,12 @@ export const electronAPI: ElectronAPI = {
      * @returns フォルダーパス
      */
     selectMediaFolder: (): Promise<string> => ipcRenderer.invoke('select-media-folder'),
+    /**
+     * メディアディレクトリのベースパスを設定する。
+     * @param dir 設定するディレクトリ
+     * @returns 設定に成功したかどうか
+     */
+    setMediaBasePath: (dir: string): Promise<boolean> => ipcRenderer.invoke('set-media-base-path', dir),
 
     // --- Cursor Window Control ---
     /**
