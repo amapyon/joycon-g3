@@ -1,5 +1,5 @@
 // ipc-handler.ts
-import { ipcMain, screen, IpcMainEvent, Display, dialog } from 'electron';
+import { ipcMain, screen, IpcMainEvent, Display, dialog, BrowserWindow } from 'electron';
 import fs from 'fs';
 import path from 'path';
 import WindowManager from './window-manager';
@@ -34,6 +34,29 @@ export function setupIpcHandlers(windowManagerInstance: typeof WindowManager = W
             }
         }
         return targetDir;
+    };
+
+    /**
+     * タイマーウィンドウへ安全にメッセージを送る。
+     * @param timerWin タイマーウィンドウ
+     * @param duration カウントダウン秒数
+     */
+    const sendStartCountdownToTimerWindow = (timerWin: BrowserWindow, duration: number): void => {
+        const sendPayload = (): void => {
+            timerWin.webContents.send('set-timer-mode', 'timer');
+            timerWin.webContents.send('start-countdown', duration);
+        };
+
+        if (timerWin.webContents.isLoading()) {
+            timerWin.webContents.once('did-finish-load', () => {
+                if (timerWin && !timerWin.isDestroyed()) {
+                    sendPayload();
+                }
+            });
+            return;
+        }
+
+        sendPayload();
     };
 
     ipcMain.on('launch-cursor-window', (event: IpcMainEvent, displayId: string) => {
@@ -118,13 +141,13 @@ export function setupIpcHandlers(windowManagerInstance: typeof WindowManager = W
         if (timerWin && !timerWin.isDestroyed()) {
             // Timer Window should be visible when starting via button
             timerWin.show();
-            timerWin.webContents.send('start-countdown', duration);
+            sendStartCountdownToTimerWindow(timerWin, duration);
         } else {
             // Try to create it if missing (should exist from startup, but for safety)
             const newTimerWin = windowManagerInstance.createTimerWindow();
             if (newTimerWin) {
                 newTimerWin.show();
-                newTimerWin.webContents.send('start-countdown', duration);
+                sendStartCountdownToTimerWindow(newTimerWin, duration);
             } else {
                 console.warn('[IPC Handler] Failed to find or create Timer window.');
             }

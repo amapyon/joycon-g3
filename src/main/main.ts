@@ -208,6 +208,9 @@ app.whenReady().then(() => {
         existingWindow.webContents.send('set-timer-mode', decision.mode);
     }
 
+    // Joy-Con 未接続時でもタイマーウィンドウを起動時に表示する
+    ensureTimerWindow();
+
     const mainWin = WindowManager.getMainWindow();
     if (mainWin) {
         mainWin.webContents.on('did-finish-load', () => {
