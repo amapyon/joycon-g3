@@ -1,0 +1,208 @@
+type CountdownTickResult = {
+    remaining: number;
+    shouldStop: boolean;
+};
+
+type CountdownStatus = {
+    isCounting: boolean;
+    isPaused: boolean;
+};
+
+type CountdownEngineOptions = {
+    initialValue?: number;
+    minSeconds?: number;
+    maxSeconds?: number;
+};
+
+/**
+ * カウントダウンの状態と進行を管理する。
+ */
+class CountdownEngine {
+    private readonly minSeconds: number;
+    private readonly maxSeconds: number;
+    private currentInitialValue: number;
+    private countdownValue: number;
+    private isCounting: boolean;
+    private isPaused: boolean;
+
+    /**
+     * カウントダウンエンジンを初期化する。
+     * @param options 初期値や上限・下限の設定
+     */
+    public constructor(options: CountdownEngineOptions = {}) {
+        const initialValue = options.initialValue ?? 10;
+        const minSeconds = options.minSeconds ?? 1;
+        const maxSeconds = options.maxSeconds ?? 3600;
+
+        this.minSeconds = minSeconds;
+        this.maxSeconds = maxSeconds;
+        this.currentInitialValue = this.clampValue(initialValue);
+        this.countdownValue = this.currentInitialValue;
+        this.isCounting = false;
+        this.isPaused = false;
+    }
+
+    /**
+     * 秒数を M:SS 形式に整形する。
+     * @param seconds 秒数
+     * @returns 表示用文字列
+     */
+    public static formatTime(seconds: number): string {
+        const mins = Math.floor(seconds / 60);
+        const secs = seconds % 60;
+        return `${mins}:${String(secs).padStart(2, '0')}`;
+    }
+
+    /**
+     * 秒数を指定範囲に丸める。
+     * @param value 対象値
+     * @param minSeconds 最小値
+     * @param maxSeconds 最大値
+     * @returns 補正後の値
+     */
+    public static clampValue(value: number, minSeconds: number = 1, maxSeconds: number = 3600): number {
+        return Math.max(minSeconds, Math.min(maxSeconds, value));
+    }
+
+    /**
+     * 現在の初期値を取得する。
+     * @returns 初期値
+     */
+    public getCurrentInitialValue(): number {
+        return this.currentInitialValue;
+    }
+
+    /**
+     * 現在の残り秒数を取得する。
+     * @returns 残り秒数
+     */
+    public getCountdownValue(): number {
+        return this.countdownValue;
+    }
+
+    /**
+     * 実行中か一時停止中かを判定する。
+     * @returns 有効なカウント状態かどうか
+     */
+    public isActive(): boolean {
+        return this.isCounting || this.isPaused;
+    }
+
+    /**
+     * 現在の状態を取得する。
+     * @returns 状態
+     */
+    public getStatus(): CountdownStatus {
+        return {
+            isCounting: this.isCounting,
+            isPaused: this.isPaused,
+        };
+    }
+
+    /**
+     * カウントダウンを開始する。
+     * @param duration 秒数
+     * @returns 開始後の残り秒数
+     */
+    public start(duration: number): number {
+        this.currentInitialValue = this.clampValue(duration);
+        this.countdownValue = this.currentInitialValue;
+        this.isCounting = true;
+        this.isPaused = false;
+        return this.countdownValue;
+    }
+
+    /**
+     * カウントダウンを停止する。
+     */
+    public stop(): void {
+        this.isCounting = false;
+        this.isPaused = false;
+    }
+
+    /**
+     * カウントダウンを一時停止する。
+     * @returns 停止できたかどうか
+     */
+    public pause(): boolean {
+        if (!this.isCounting) {
+            return false;
+        }
+        this.isCounting = false;
+        this.isPaused = true;
+        return true;
+    }
+
+    /**
+     * カウントダウンを再開する。
+     * @returns 再開できたかどうか
+     */
+    public resume(): boolean {
+        if (!this.isPaused) {
+            return false;
+        }
+        this.isPaused = false;
+        this.isCounting = true;
+        return true;
+    }
+
+    /**
+     * 1秒進める処理結果を返す。
+     * @returns 残り秒数と停止判定
+     */
+    public tick(): CountdownTickResult | null {
+        if (!this.isCounting) {
+            return null;
+        }
+        if (this.countdownValue > 0) {
+            this.countdownValue -= 1;
+            return { remaining: this.countdownValue, shouldStop: false };
+        }
+        return { remaining: this.countdownValue, shouldStop: true };
+    }
+
+    /**
+     * +1分を反映する。
+     * @returns 更新後の残り秒数と初期値
+     */
+    public addMinute(): { nextRemaining: number; nextInitial: number } {
+        if (this.isActive()) {
+            this.countdownValue = this.clampValue(this.countdownValue + 60);
+            return { nextRemaining: this.countdownValue, nextInitial: this.currentInitialValue };
+        }
+        this.currentInitialValue = this.clampValue(this.currentInitialValue + 60);
+        return { nextRemaining: this.countdownValue, nextInitial: this.currentInitialValue };
+    }
+
+    /**
+     * 初期値を更新する。
+     * @param value 初期値
+     * @returns 更新後の初期値
+     */
+    public setInitialValue(value: number): number {
+        this.currentInitialValue = this.clampValue(value);
+        if (!this.isActive()) {
+            this.countdownValue = this.currentInitialValue;
+        }
+        return this.currentInitialValue;
+    }
+
+    /**
+     * 設定範囲内に丸める。
+     * @param value 対象値
+     * @returns 補正後の値
+     */
+    private clampValue(value: number): number {
+        return CountdownEngine.clampValue(value, this.minSeconds, this.maxSeconds);
+    }
+}
+
+const root = (typeof window !== 'undefined' ? window : globalThis) as unknown as {
+    countdownEngine?: { CountdownEngine: typeof CountdownEngine };
+};
+
+root.countdownEngine = { CountdownEngine };
+
+if (typeof module !== 'undefined' && module && module.exports) {
+    module.exports = { CountdownEngine };
+}
