@@ -59,6 +59,25 @@ type CountdownEngineClass = {
     clampValue: (value: number, minSeconds?: number, maxSeconds?: number) => number;
 };
 
+type NotificationPlayerOptions = {
+    sendRumble: (seconds: number, shouldRumble: boolean) => void;
+    createAudio: (audioUrl: string) => HTMLAudioElement;
+    now: () => number;
+    initialDelayMs?: number;
+};
+
+type NotificationPlayerInstance = {
+    setDelayMs: (delayMs: number) => number;
+    getDelayMs: () => number;
+    resetPlayed: () => void;
+    handleTick: (configs: TimerNotificationConfig[], currentSeconds: number) => void;
+};
+
+type NotificationPlayerClass = {
+    new (options: NotificationPlayerOptions): NotificationPlayerInstance;
+    normalizeDelay: (delayMs: number) => number;
+};
+
 /**
  * カウントダウンメニュー表示切替時の挙動を決定する。
  * @param visible 表示するかどうか
@@ -107,11 +126,20 @@ const storedOpacity = localStorage.getItem('timerWindowOpacity');
 const storedNotifications = localStorage.getItem('timerNotifications');
 const CountdownEngine = (window as unknown as { countdownEngine: { CountdownEngine: CountdownEngineClass } })
     .countdownEngine.CountdownEngine;
+const NotificationPlayer = (window as unknown as { notificationPlayer: { NotificationPlayer: NotificationPlayerClass } })
+    .notificationPlayer.NotificationPlayer;
 const initialCountdownValue = storedCountdownInitialValue ? Number.parseInt(storedCountdownInitialValue, 10) : 10;
 const countdownEngine = new CountdownEngine({ initialValue: initialCountdownValue });
+const notificationPlayer = new NotificationPlayer({
+    sendRumble: (seconds: number, shouldRumble: boolean): void => {
+        electronAPI.sendTimerNotificationTrigger(seconds, shouldRumble);
+    },
+    createAudio: (audioUrl: string): HTMLAudioElement => new Audio(audioUrl),
+    now: (): number => Date.now(),
+    initialDelayMs: 200,
+});
 
 let countdownInterval: ReturnType<typeof setInterval> | null = null;
-let playedNotificationIndices = new Set<number>();
 let currentFontSize = storedTimerFontSize ? Number.parseInt(storedTimerFontSize, 10) : 100; // 保存値を反映
 let isCountdownMenuVisible = false;
 let selectedPresetIndex = -1;
@@ -119,7 +147,6 @@ let currentPresetValues: number[] = JSON.parse(storedTimerPresets || '[10, 60, 1
 let currentMenuItems: TimerMenuItem[] = buildMenuItems(currentPresetValues);
 let currentOpacity = storedOpacity ? Number.parseFloat(storedOpacity) : 0.9; // 背景の初期透明度
 let timerNotificationConfigs: TimerNotificationConfig[] = JSON.parse(storedNotifications || '[]');
-let soundPlayDelayMs = 200;
 
 /**
  * タイマーのフォントサイズを更新する。
@@ -228,6 +255,7 @@ function stopCountdown(): void {
         countdownInterval = null;
     }
     countdownEngine.stop();
+    notificationPlayer.resetPlayed();
     if (wasActive) {
         electronAPI.sendTimerStatus(false);
     }
@@ -291,11 +319,7 @@ function resumeCountdown(): void {
     countdownInterval = setInterval((): void => {
         // カウントが一致したタイミングで通知を再生する
         const currentValue = countdownEngine.getCountdownValue();
-        timerNotificationConfigs.forEach((config: TimerNotificationConfig, index: number): void => {
-            if (!playedNotificationIndices.has(index) && currentValue === config.time) {
-                playNotificationSound(config, index);
-            }
-        });
+        notificationPlayer.handleTick(timerNotificationConfigs, currentValue);
 
         const tickResult = countdownEngine.tick();
         if (!tickResult) {
@@ -365,45 +389,6 @@ function updateTransparency(delta: number): void {
     localStorage.setItem('timerWindowOpacity', String(currentOpacity));
 }
 
-/**
- * 通知音を再生する。
- * @param config 通知設定
- * @param index 通知インデックス
- * @returns 再生した場合は true
- */
-function playNotificationSound(config: TimerNotificationConfig, index: number): boolean {
-    if (!config.absolutePath) {
-        if (config.rumble) {
-            electronAPI.sendTimerNotificationTrigger(config.time, true);
-        }
-        playedNotificationIndices.add(index);
-        return true;
-    }
-    console.log(`[TimerRenderer] Alert trigger at ${config.time}s: ${config.absolutePath}`);
-    try {
-        let audioUrl = config.absolutePath;
-        if (!audioUrl.startsWith('file://') && !audioUrl.startsWith('http')) {
-            audioUrl = 'file://' + config.absolutePath.replace(/\\/g, '/');
-        }
-        // HDMI/DP のリンク遅延対策として無音を先に再生する
-        const silentAudio = new Audio(audioUrl);
-        silentAudio.volume = 0;
-        silentAudio.play().catch((e: unknown): void => console.error('Audio play failed:', e));
-
-        // HDMI/DP のリンク遅延対策として再生を少し遅らせる
-        const audio = new Audio(audioUrl);
-        setTimeout((): void => {
-            audio.play().catch((e: unknown): void => console.error('Audio play failed:', e));
-        }, soundPlayDelayMs);
-        playedNotificationIndices.add(index);
-        const shouldRumble = !!config.rumble;
-        electronAPI.sendTimerNotificationTrigger(config.time, shouldRumble);
-        return true;
-    } catch (err) {
-        console.error('Error playing notification sound:', err);
-        return false;
-    }
-}
 
 /**
  * プリセットのフォーカス状態を更新する。
@@ -437,7 +422,7 @@ function startCountdown(duration: number): void {
     const startValue = countdownEngine.start(duration);
     
     // 再生済みの通知を記録して重複を防ぐ
-    playedNotificationIndices = new Set<number>();
+    notificationPlayer.resetPlayed();
 
     countdownTimerElement.style.visibility = 'visible';
     countdownTimerElement.style.color = '#ffffff';
@@ -449,11 +434,7 @@ function startCountdown(duration: number): void {
     countdownInterval = setInterval(() => {
         // カウントが一致したタイミングで通知を再生する
         const currentValue = countdownEngine.getCountdownValue();
-        timerNotificationConfigs.forEach((config: TimerNotificationConfig, index: number): void => {
-            if (!playedNotificationIndices.has(index) && currentValue === config.time) {
-                playNotificationSound(config, index);
-            }
-        });
+        notificationPlayer.handleTick(timerNotificationConfigs, currentValue);
 
         const tickResult = countdownEngine.tick();
         if (!tickResult) {
@@ -483,8 +464,7 @@ electronAPI.onUpdateTimerNotifications((configs: TimerNotificationConfig[]): voi
 });
 
 electronAPI.onUpdateSoundPlayDelay((delayMs: number): void => {
-    const normalizedDelay = Number.isNaN(delayMs) ? 200 : Math.min(Math.max(delayMs, 0), 5000);
-    soundPlayDelayMs = normalizedDelay;
+    const normalizedDelay = notificationPlayer.setDelayMs(delayMs);
     localStorage.setItem('soundPlayDelayMs', String(normalizedDelay));
 });
 
@@ -619,7 +599,7 @@ console.log('[TimerRenderer] Initialized.');
 const storedSoundDelay = localStorage.getItem('soundPlayDelayMs');
 if (storedSoundDelay) {
     const parsedDelay = parseInt(storedSoundDelay, 10);
-    soundPlayDelayMs = Number.isNaN(parsedDelay) ? soundPlayDelayMs : Math.min(Math.max(parsedDelay, 0), 5000);
+    notificationPlayer.setDelayMs(parsedDelay);
 }
 renderTimerPresets();
 })();

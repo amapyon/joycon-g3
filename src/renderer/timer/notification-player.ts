@@ -1,0 +1,153 @@
+type TimerNotificationConfig = {
+    time: number;
+    filename: string;
+    absolutePath: string;
+    rumble?: boolean;
+};
+
+type NotificationPlayerOptions = {
+    sendRumble: (seconds: number, shouldRumble: boolean) => void;
+    createAudio: (audioUrl: string) => HTMLAudioElement;
+    now: () => number;
+    initialDelayMs?: number;
+};
+
+/**
+ * 通知音と振動の再生を管理する。
+ */
+class NotificationPlayer {
+    private readonly sendRumble: (seconds: number, shouldRumble: boolean) => void;
+    private readonly createAudio: (audioUrl: string) => HTMLAudioElement;
+    private readonly now: () => number;
+    private readonly playedIndices: Set<number>;
+    private delayMs: number;
+
+    /**
+     * 通知プレイヤーを初期化する。
+     * @param options 再生に必要な依存
+     */
+    public constructor(options: NotificationPlayerOptions) {
+        this.sendRumble = options.sendRumble;
+        this.createAudio = options.createAudio;
+        this.now = options.now;
+        this.delayMs = NotificationPlayer.normalizeDelay(options.initialDelayMs ?? 200);
+        this.playedIndices = new Set<number>();
+    }
+
+    /**
+     * 遅延値を更新する。
+     * @param delayMs 遅延ミリ秒
+     * @returns 正規化済みの遅延値
+     */
+    public setDelayMs(delayMs: number): number {
+        this.delayMs = NotificationPlayer.normalizeDelay(delayMs);
+        return this.delayMs;
+    }
+
+    /**
+     * 遅延値を取得する。
+     * @returns 遅延ミリ秒
+     */
+    public getDelayMs(): number {
+        return this.delayMs;
+    }
+
+    /**
+     * 再生済み通知をリセットする。
+     */
+    public resetPlayed(): void {
+        this.playedIndices.clear();
+    }
+
+    /**
+     * 現在の秒数に一致する通知を処理する。
+     * @param configs 通知設定
+     * @param currentSeconds 現在の残り秒数
+     */
+    public handleTick(configs: TimerNotificationConfig[], currentSeconds: number): void {
+        configs.forEach((config: TimerNotificationConfig, index: number): void => {
+            if (this.playedIndices.has(index)) {
+                return;
+            }
+            if (currentSeconds !== config.time) {
+                return;
+            }
+            if (this.playNotificationSound(config)) {
+                this.playedIndices.add(index);
+            }
+        });
+    }
+
+    /**
+     * 通知音と振動を再生する。
+     * @param config 通知設定
+     * @returns 再生した場合は true
+     */
+    private playNotificationSound(config: TimerNotificationConfig): boolean {
+        if (!config.absolutePath) {
+            if (config.rumble) {
+                this.sendRumble(config.time, true);
+            }
+            return true;
+        }
+
+        const audioUrl = this.normalizeAudioUrl(config.absolutePath);
+
+        // HDMI/DP のリンク遅延対策として無音を先に再生する
+        const silentAudio = this.createAudio(audioUrl);
+        silentAudio.volume = 0;
+        silentAudio.play().catch((): void => {
+            // 音声再生失敗は無視
+        });
+
+        // HDMI/DP のリンク遅延対策として再生を少し遅らせる
+        const audio = this.createAudio(audioUrl);
+        const delayMs = this.delayMs;
+        const scheduledAt = this.now();
+        setTimeout((): void => {
+            if (this.now() >= scheduledAt) {
+                audio.play().catch((): void => {
+                    // 音声再生失敗は無視
+                });
+            }
+        }, delayMs);
+
+        const shouldRumble = !!config.rumble;
+        this.sendRumble(config.time, shouldRumble);
+        return true;
+    }
+
+    /**
+     * ファイルパスを再生用URLに変換する。
+     * @param path パス
+     * @returns URL
+     */
+    private normalizeAudioUrl(path: string): string {
+        if (path.startsWith('file://') || path.startsWith('http')) {
+            return path;
+        }
+        return 'file://' + path.replace(/\\/g, '/');
+    }
+
+    /**
+     * 遅延値を正規化する。
+     * @param delayMs 遅延ミリ秒
+     * @returns 正規化後の値
+     */
+    public static normalizeDelay(delayMs: number): number {
+        if (Number.isNaN(delayMs)) {
+            return 200;
+        }
+        return Math.min(Math.max(delayMs, 0), 5000);
+    }
+}
+
+const notificationPlayerRoot = (typeof window !== 'undefined' ? window : globalThis) as unknown as {
+    notificationPlayer?: { NotificationPlayer: typeof NotificationPlayer };
+};
+
+notificationPlayerRoot.notificationPlayer = { NotificationPlayer };
+
+if (typeof module !== 'undefined' && module && module.exports) {
+    module.exports = { NotificationPlayer };
+}

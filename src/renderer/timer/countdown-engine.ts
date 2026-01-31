@@ -197,11 +197,11 @@ class CountdownEngine {
     }
 }
 
-const root = (typeof window !== 'undefined' ? window : globalThis) as unknown as {
+const countdownEngineRoot = (typeof window !== 'undefined' ? window : globalThis) as unknown as {
     countdownEngine?: { CountdownEngine: typeof CountdownEngine };
 };
 
-root.countdownEngine = { CountdownEngine };
+countdownEngineRoot.countdownEngine = { CountdownEngine };
 
 if (typeof module !== 'undefined' && module && module.exports) {
     module.exports = { CountdownEngine };
