@@ -30,6 +30,7 @@ export type ElectronAPI = {
     getMediaBasePath: () => Promise<string>;
     selectMediaFolder: () => Promise<string>;
     setMediaBasePath: (dir: string) => Promise<boolean>;
+    updateSoundPlayDelay: (delayMs: number) => void;
     onJoyConStatusUpdate: (callback: (status: JoyConStatus) => void) => void;
     onJoyConAttitude: (callback: (data: JoyConAttitude) => void) => void;
     onJoyConButtonX: (callback: (data: JoyConButtonState) => void) => void;
@@ -78,6 +79,7 @@ export type ElectronAPI = {
     onAddMinuteTimer: (callback: () => void) => void;
     updateTimerNotifications: (configs: TimerNotificationConfig[]) => void;
     onUpdateTimerNotifications: (callback: (configs: TimerNotificationConfig[]) => void) => void;
+    onUpdateSoundPlayDelay: (callback: (delayMs: number) => void) => void;
     toggleMessageWindow: () => void;
     sendMessageText: (text: string) => void;
     onUpdateMessageText: (callback: (text: string) => void) => void;

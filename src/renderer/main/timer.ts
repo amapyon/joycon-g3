@@ -282,6 +282,33 @@
     };
 
     /**
+     * サウンド再生遅延を初期化する。
+     * @returns なし
+     */
+    const initSoundPlayDelay = (): void => {
+        const storedDelay = localStorage.getItem('soundPlayDelayMs');
+        const defaultDelay = 200;
+        const initialDelay = storedDelay ? parseInt(storedDelay, 10) : defaultDelay;
+        const normalizedDelay = Number.isNaN(initialDelay) ? defaultDelay : Math.min(Math.max(initialDelay, 0), 5000);
+        elements.soundPlayDelayInput.value = String(normalizedDelay);
+        electronAPI.updateSoundPlayDelay(normalizedDelay);
+
+        elements.soundPlayDelayInput.addEventListener('change', (): void => {
+            const nextValue = parseInt(elements.soundPlayDelayInput.value, 10);
+            if (Number.isNaN(nextValue)) {
+                elements.soundPlayDelayInput.value = String(defaultDelay);
+                localStorage.setItem('soundPlayDelayMs', String(defaultDelay));
+                electronAPI.updateSoundPlayDelay(defaultDelay);
+                return;
+            }
+            const clamped = Math.min(Math.max(nextValue, 0), 5000);
+            elements.soundPlayDelayInput.value = String(clamped);
+            localStorage.setItem('soundPlayDelayMs', String(clamped));
+            electronAPI.updateSoundPlayDelay(clamped);
+        });
+    };
+
+    /**
      * タイマーセクションを初期化する。
      * @returns なし
      */
@@ -302,6 +329,7 @@
         renderPresets();
         initTimerActionButtons();
         initNotificationRumbleToggle();
+        initSoundPlayDelay();
         renderPresetConfig();
 
         electronAPI.onUpdateTimerPresets((presets: number[]): void => {

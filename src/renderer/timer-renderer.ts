@@ -26,6 +26,7 @@ type TimerRendererElectronAPI = {
     onToggleTimerPause: (callback: () => void) => void;
     onAddMinuteTimer: (callback: () => void) => void;
     sendTimerNotificationTrigger: (seconds: number, shouldRumble: boolean) => void;
+    onUpdateSoundPlayDelay: (callback: (delayMs: number) => void) => void;
 };
 
 type TimerMenuItem =
@@ -91,7 +92,7 @@ let currentPresetValues: number[] = JSON.parse(storedTimerPresets || '[10, 60, 1
 let currentMenuItems: TimerMenuItem[] = buildMenuItems(currentPresetValues);
 let currentOpacity = storedOpacity ? Number.parseFloat(storedOpacity) : 0.9; // 背景の初期透明度
 let timerNotificationConfigs: TimerNotificationConfig[] = JSON.parse(storedNotifications || '[]');
-const SOUND_PLAY_DELAY_MS = 200;
+let soundPlayDelayMs = 200;
 
 /**
  * タイマーのフォントサイズを更新する。
@@ -387,7 +388,7 @@ function playNotificationSound(config: TimerNotificationConfig, index: number): 
         // HDMI/DP のリンク遅延対策として再生を少し遅らせる
         setTimeout((): void => {
             audio.play().catch((e: unknown): void => console.error('Audio play failed:', e));
-        }, SOUND_PLAY_DELAY_MS);
+        }, soundPlayDelayMs);
         playedNotificationIndices.add(index);
         const shouldRumble = !!config.rumble;
         electronAPI.sendTimerNotificationTrigger(config.time, shouldRumble);
@@ -469,6 +470,12 @@ electronAPI.onUpdateTimerNotifications((configs: TimerNotificationConfig[]): voi
         rumble: !!config.rumble,
     }));
     localStorage.setItem('timerNotifications', JSON.stringify(configs));
+});
+
+electronAPI.onUpdateSoundPlayDelay((delayMs: number): void => {
+    const normalizedDelay = Number.isNaN(delayMs) ? 200 : Math.min(Math.max(delayMs, 0), 5000);
+    soundPlayDelayMs = normalizedDelay;
+    localStorage.setItem('soundPlayDelayMs', String(normalizedDelay));
 });
 
 
@@ -599,6 +606,11 @@ if (countdownTimerElement) {
 applyCountdownTimerOpacity(currentOpacity); // 初期値を適用
 
 console.log('[TimerRenderer] Initialized.');
+const storedSoundDelay = localStorage.getItem('soundPlayDelayMs');
+if (storedSoundDelay) {
+    const parsedDelay = parseInt(storedSoundDelay, 10);
+    soundPlayDelayMs = Number.isNaN(parsedDelay) ? soundPlayDelayMs : Math.min(Math.max(parsedDelay, 0), 5000);
+}
 renderTimerPresets();
 })();
 

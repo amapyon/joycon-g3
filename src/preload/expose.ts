@@ -57,6 +57,11 @@ export const electronAPI: ElectronAPI = {
      * @returns 設定に成功したかどうか
      */
     setMediaBasePath: (dir: string): Promise<boolean> => ipcRenderer.invoke('set-media-base-path', dir),
+    /**
+     * サウンド再生遅延を更新する。
+     * @param delayMs 遅延時間（ミリ秒）
+     */
+    updateSoundPlayDelay: (delayMs: number): void => ipcRenderer.send('update-sound-play-delay', delayMs),
 
     // --- Cursor Window Control ---
     /**
@@ -367,6 +372,13 @@ export const electronAPI: ElectronAPI = {
      */
     onUpdateTimerNotifications: (callback: (configs: TimerNotificationConfig[]) => void): void => {
         ipcRenderer.on('update-timer-notifications', (event: IpcRendererEvent, configs: TimerNotificationConfig[]) => callback(configs));
+    },
+    /**
+     * サウンド再生遅延の更新を購読する。
+     * @param callback コールバック
+     */
+    onUpdateSoundPlayDelay: (callback: (delayMs: number) => void): void => {
+        ipcRenderer.on('update-sound-play-delay', (event: IpcRendererEvent, delayMs: number) => callback(delayMs));
     },
     /**
      * 通知タイミングを通知する。

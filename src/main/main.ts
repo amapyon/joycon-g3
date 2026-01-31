@@ -57,6 +57,7 @@ const FONT_SIZE_CHANGE_INTERVAL = 100; // Milliseconds between font size changes
 let lastFontSizeChangeTime = 0; // Timestamp of the last font size change
 let isTimerMenuNavActive = false; // Track if stick is currently tilted for menu navigation
 let timerState = createTimerState();
+let soundPlayDelayMs = 200;
 
 const rStickConfig: RStickConfig = {
     fontSizeChangeAmount: FONT_SIZE_CHANGE_AMOUNT,
@@ -165,6 +166,7 @@ app.whenReady().then(() => {
             createdWindow.webContents.once('did-finish-load', () => {
                 if (createdWindow && !createdWindow.isDestroyed()) {
                     createdWindow.webContents.send('set-timer-mode', getTimerWindowMode(timerState));
+                    createdWindow.webContents.send('update-sound-play-delay', soundPlayDelayMs);
                 }
             });
         }
@@ -266,6 +268,18 @@ app.whenReady().then(() => {
             [WindowManager.getCursorWindow(), WindowManager.getTimerWindow(), WindowManager.getMainWindow()].forEach((win: BrowserWindow | null) => {
                 if (win && !win.isDestroyed()) win.webContents.send('update-timer-notifications', configs);
             });
+        });
+    }
+
+    if (!ipcMain.listenerCount('update-sound-play-delay')) {
+        ipcMain.on('update-sound-play-delay', (event: IpcMainEvent, delayMs: number) => {
+            void event;
+            const normalizedDelay = Number.isNaN(delayMs) ? 200 : Math.min(Math.max(delayMs, 0), 5000);
+            soundPlayDelayMs = normalizedDelay;
+            const timerWindow = WindowManager.getTimerWindow();
+            if (timerWindow && !timerWindow.isDestroyed()) {
+                timerWindow.webContents.send('update-sound-play-delay', normalizedDelay);
+            }
         });
     }
 

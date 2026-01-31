@@ -40,8 +40,10 @@ type ElectronAPI = {
     getMediaBasePath: () => Promise<string>;
     selectMediaFolder: () => Promise<string>;
     setMediaBasePath: (dir: string) => Promise<boolean>;
+    updateSoundPlayDelay: (delayMs: number) => void;
     updateTimerNotifications: (configs: NotificationConfig[]) => void;
     onUpdateTimerNotifications: (callback: (configs: NotificationConfig[]) => void) => void;
+    onUpdateSoundPlayDelay: (callback: (delayMs: number) => void) => void;
     toggleTimerWindow: () => void;
     toggleTimerPause: () => void;
     addMinuteTimer: () => void;
@@ -76,6 +78,7 @@ type MainRendererElements = {
     sound2TimeInput: HTMLInputElement;
     refreshSoundsBtn: HTMLButtonElement;
     soundFolderSelectBtn: HTMLButtonElement;
+    soundPlayDelayInput: HTMLInputElement;
     sound1PlayBtn: HTMLButtonElement;
     sound2PlayBtn: HTMLButtonElement;
     sound1RumbleToggle: HTMLInputElement;
@@ -131,6 +134,7 @@ type MainRendererContext = {
             sound2TimeInput: document.getElementById('sound2-time') as HTMLInputElement,
             refreshSoundsBtn: document.getElementById('refresh-sounds-btn') as HTMLButtonElement,
             soundFolderSelectBtn: document.getElementById('sound-folder-select-btn') as HTMLButtonElement,
+            soundPlayDelayInput: document.getElementById('sound-play-delay') as HTMLInputElement,
             sound1PlayBtn: document.getElementById('sound1-play-btn') as HTMLButtonElement,
             sound2PlayBtn: document.getElementById('sound2-play-btn') as HTMLButtonElement,
             sound1RumbleToggle: document.getElementById('sound1-rumble') as HTMLInputElement,
