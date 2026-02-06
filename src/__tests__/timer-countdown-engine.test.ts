@@ -9,12 +9,18 @@ const { CountdownEngine } = require('../renderer/timer/countdown-engine') as {
         }): {
             getCurrentInitialValue: () => number;
             getCountdownValue: () => number;
+            getDisplayValue: () => number;
             getStatus: () => { isCounting: boolean; isPaused: boolean };
+            canPause: () => boolean;
+            canResume: () => boolean;
+            decidePauseToggle: () => 'pause' | 'resume' | 'none';
+            stop: () => boolean;
             start: (duration: number) => number;
             pause: () => boolean;
             resume: () => boolean;
             tick: () => { remaining: number; shouldStop: boolean } | null;
             addMinute: () => { nextRemaining: number; nextInitial: number };
+            setInitialValue: (value: number) => number;
         };
         formatTime: (seconds: number) => string;
         clampValue: (value: number) => number;
@@ -91,5 +97,61 @@ describe('カウントダウンエンジン', (): void => {
     it('clampValueが範囲内に丸める', (): void => {
         expect(CountdownEngine.clampValue(0)).toBe(1);
         expect(CountdownEngine.clampValue(3601)).toBe(3600);
+    });
+
+    it('トグル判定が状態に応じて切り替わる', (): void => {
+        const engine = new CountdownEngine({ initialValue: 10 });
+
+        expect(engine.decidePauseToggle()).toBe('none');
+        engine.start(10);
+        expect(engine.decidePauseToggle()).toBe('pause');
+        engine.pause();
+        expect(engine.decidePauseToggle()).toBe('resume');
+    });
+
+    it('表示値が実行状態に応じて切り替わる', (): void => {
+        const engine = new CountdownEngine({ initialValue: 20 });
+
+        expect(engine.getDisplayValue()).toBe(20);
+        engine.start(20);
+        engine.tick();
+        expect(engine.getDisplayValue()).toBe(19);
+    });
+
+    it('stopが状態を終了させて判定を返す', (): void => {
+        const engine = new CountdownEngine({ initialValue: 5 });
+
+        expect(engine.stop()).toBe(false);
+        engine.start(5);
+        expect(engine.stop()).toBe(true);
+        expect(engine.getStatus()).toEqual({ isCounting: false, isPaused: false });
+    });
+
+    it('setInitialValueは停止中に残り秒数も更新する', (): void => {
+        const engine = new CountdownEngine({ initialValue: 30 });
+
+        engine.setInitialValue(40);
+        expect(engine.getCurrentInitialValue()).toBe(40);
+        expect(engine.getCountdownValue()).toBe(40);
+
+        engine.start(20);
+        engine.setInitialValue(50);
+        expect(engine.getCurrentInitialValue()).toBe(50);
+        expect(engine.getCountdownValue()).toBe(20);
+    });
+
+    it('canPauseとcanResumeが状態を反映する', (): void => {
+        const engine = new CountdownEngine({ initialValue: 10 });
+
+        expect(engine.canPause()).toBe(false);
+        expect(engine.canResume()).toBe(false);
+
+        engine.start(10);
+        expect(engine.canPause()).toBe(true);
+        expect(engine.canResume()).toBe(false);
+
+        engine.pause();
+        expect(engine.canPause()).toBe(false);
+        expect(engine.canResume()).toBe(true);
     });
 });

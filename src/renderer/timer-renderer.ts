@@ -38,10 +38,15 @@ type CountdownEngineOptions = {
 type CountdownEngineInstance = {
     getCurrentInitialValue: () => number;
     getCountdownValue: () => number;
+    getDisplayValue: () => number;
     isActive: () => boolean;
+    isCountingNow: () => boolean;
     getStatus: () => { isCounting: boolean; isPaused: boolean };
+    canPause: () => boolean;
+    canResume: () => boolean;
+    decidePauseToggle: () => 'pause' | 'resume' | 'none';
     start: (duration: number) => number;
-    stop: () => void;
+    stop: () => boolean;
     pause: () => boolean;
     resume: () => boolean;
     tick: () => { remaining: number; shouldStop: boolean } | null;
@@ -137,9 +142,7 @@ const menuController = new MenuController({
     timerPresetsContainer,
     formatTime,
     getDisplaySeconds: (): number => {
-        return countdownEngine.isActive()
-            ? countdownEngine.getCountdownValue()
-            : countdownEngine.getCurrentInitialValue();
+        return countdownEngine.getDisplayValue();
     },
     onSelectPreset: (seconds: number): void => {
         if (menuController.getIsVisible()) {
@@ -208,12 +211,11 @@ function formatTime(seconds: number): string {
  * カウントダウンを停止する。
  */
 function stopCountdown(): void {
-    const wasActive = countdownEngine.isActive();
     if (countdownInterval) {
         clearInterval(countdownInterval);
         countdownInterval = null;
     }
-    countdownEngine.stop();
+    const wasActive = countdownEngine.stop();
     notificationPlayer.resetPlayed();
     if (wasActive) {
         electronAPI.sendTimerStatus(false);
@@ -225,16 +227,15 @@ function stopCountdown(): void {
  * +1分の処理を実行する。
  */
 function handleAddMinuteAction(): void {
-    const result = countdownEngine.addMinute();
+    countdownEngine.addMinute();
     const isActive = countdownEngine.isActive();
     localStorage.setItem('countdownInitialValue', String(countdownEngine.getCurrentInitialValue()));
 
     if (countdownTimerElement) {
-        const displayValue = isActive ? result.nextRemaining : result.nextInitial;
-        countdownTimerElement.textContent = formatTime(displayValue);
+        countdownTimerElement.textContent = formatTime(countdownEngine.getDisplayValue());
     }
     if (isActive) {
-        electronAPI.sendTimerCountdownUpdate(result.nextRemaining);
+        electronAPI.sendTimerCountdownUpdate(countdownEngine.getCountdownValue());
     }
     if (menuController.getIsVisible()) {
         menuController.updateMenuDisplay();
@@ -245,15 +246,18 @@ function handleAddMinuteAction(): void {
  * カウントダウンを一時停止する。
  */
 function pauseCountdown(): void {
+    if (!countdownEngine.canPause()) {
+        return;
+    }
     if (countdownInterval) {
         clearInterval(countdownInterval);
         countdownInterval = null;
-        if (countdownEngine.pause()) {
-            if (countdownTimerElement) {
-                countdownTimerElement.style.color = '#ffd966';
-            }
-            electronAPI.sendTimerPauseStatus(true);
+    }
+    if (countdownEngine.pause()) {
+        if (countdownTimerElement) {
+            countdownTimerElement.style.color = '#ffd966';
         }
+        electronAPI.sendTimerPauseStatus(true);
     }
 }
 
@@ -261,7 +265,7 @@ function pauseCountdown(): void {
  * カウントダウンを再開する。
  */
 function resumeCountdown(): void {
-    if (countdownInterval || !countdownEngine.getStatus().isPaused || !countdownTimerElement) return;
+    if (countdownInterval || !countdownEngine.canResume() || !countdownTimerElement) return;
     if (!countdownEngine.resume()) return;
     countdownTimerElement.style.color = '#ffffff';
     electronAPI.sendTimerPauseStatus(false);
@@ -286,6 +290,20 @@ function resumeCountdown(): void {
         countdownTimerElement.textContent = formatTime(countdownEngine.getCurrentInitialValue());
         electronAPI.sendTimerCountdownUpdate(tickResult.remaining); // 0 になったことを送信
     }, 1000);
+}
+
+/**
+ * 一時停止のトグル処理を実行する。
+ */
+function handleTogglePauseAction(): void {
+    const decision = countdownEngine.decidePauseToggle();
+    if (decision === 'pause') {
+        pauseCountdown();
+        return;
+    }
+    if (decision === 'resume') {
+        resumeCountdown();
+    }
 }
 
 /**
@@ -445,26 +463,14 @@ electronAPI.onTimerMenuNavigate((direction: number): void => {
 
 electronAPI.onTimerMenuSelect((): void => {
     if (!menuController.getIsVisible()) {
-        if (countdownInterval) {
-            pauseCountdown();
-            return;
-        }
-        if (countdownEngine.getStatus().isPaused) {
-            resumeCountdown();
-        }
+        handleTogglePauseAction();
         return;
     }
     menuController.selectCurrent();
 });
 
 electronAPI.onToggleTimerPause((): void => {
-    if (countdownInterval) {
-        pauseCountdown();
-        return;
-    }
-    if (countdownEngine.getStatus().isPaused) {
-        resumeCountdown();
-    }
+    handleTogglePauseAction();
 });
 
 electronAPI.onAddMinuteTimer((): void => {

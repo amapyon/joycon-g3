@@ -8,6 +8,8 @@ type CountdownStatus = {
     isPaused: boolean;
 };
 
+type PauseToggleDecision = 'pause' | 'resume' | 'none';
+
 type CountdownEngineOptions = {
     initialValue?: number;
     minSeconds?: number;
@@ -89,6 +91,52 @@ class CountdownEngine {
     }
 
     /**
+     * 実行中かどうかを判定する。
+     * @returns 実行中の場合は true
+     */
+    public isCountingNow(): boolean {
+        return this.isCounting;
+    }
+
+    /**
+     * 表示に使う秒数を返す。
+     * @returns 表示用秒数
+     */
+    public getDisplayValue(): number {
+        return this.isActive() ? this.countdownValue : this.currentInitialValue;
+    }
+
+    /**
+     * 一時停止可能かを判定する。
+     * @returns 一時停止可能なら true
+     */
+    public canPause(): boolean {
+        return this.isCounting;
+    }
+
+    /**
+     * 再開可能かを判定する。
+     * @returns 再開可能なら true
+     */
+    public canResume(): boolean {
+        return this.isPaused;
+    }
+
+    /**
+     * 一時停止トグルの挙動を返す。
+     * @returns トグル時の判定
+     */
+    public decidePauseToggle(): PauseToggleDecision {
+        if (this.isCounting) {
+            return 'pause';
+        }
+        if (this.isPaused) {
+            return 'resume';
+        }
+        return 'none';
+    }
+
+    /**
      * 現在の状態を取得する。
      * @returns 状態
      */
@@ -115,9 +163,11 @@ class CountdownEngine {
     /**
      * カウントダウンを停止する。
      */
-    public stop(): void {
+    public stop(): boolean {
+        const wasActive = this.isActive();
         this.isCounting = false;
         this.isPaused = false;
+        return wasActive;
     }
 
     /**
