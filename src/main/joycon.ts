@@ -5,6 +5,7 @@ import HID from 'node-hid';
 import { EventEmitter } from 'events';
 import { createRumbleData } from './joycon-rumble-utils';
 import { decodeRightStickAnalog, extractBatteryLevel } from './joycon-packet-utils';
+import { shouldAttemptAutoConnect, shouldSkipConnect } from './joycon-connection-utils';
 
 const VENDOR_ID = 1406;
 const PRODUCT_ID_L = 8198;
@@ -307,8 +308,10 @@ export default class JoyConManager extends EventEmitter {
      * @param isLeft 左 Joy-Con かどうか
      */
     connectJoyCon(path: string | null, isLeft: boolean): void {
-        if (!path) return;
-        if ((isLeft && (this.hidL || this.connectingL)) || (!isLeft && (this.hidR || this.connectingR))) {
+        const state = isLeft
+            ? { isConnected: !!this.hidL, isConnecting: this.connectingL }
+            : { isConnected: !!this.hidR, isConnecting: this.connectingR };
+        if (shouldSkipConnect(path, state)) {
             return;
         }
         let hidDevice: HID.HID | null = null;
@@ -423,7 +426,7 @@ export default class JoyConManager extends EventEmitter {
         if (this.hidL) {
             console.log('[Debug] Left Joy-Con is connected. Requesting battery status.');
             this.requestBatteryStatus(true);
-        } else if (joyconLPath && this.autoConnectL) { // Check autoConnectL
+        } else if (shouldAttemptAutoConnect(joyconLPath, false, this.autoConnectL)) { // Check autoConnectL
             console.log('[Debug] Found disconnected Left Joy-Con. Attempting to connect.');
             this.connectJoyCon(joyconLPath, true);
         }
@@ -432,7 +435,7 @@ export default class JoyConManager extends EventEmitter {
         if (this.hidR) {
             console.log('[Debug] Right Joy-Con is connected. Requesting battery status.');
             this.requestBatteryStatus(false);
-        } else if (joyconRPath && this.autoConnectR) { // Check autoConnectR
+        } else if (shouldAttemptAutoConnect(joyconRPath, false, this.autoConnectR)) { // Check autoConnectR
             console.log('[Debug] Found disconnected Right Joy-Con. Attempting to connect.');
             this.connectJoyCon(joyconRPath, false);
         }
