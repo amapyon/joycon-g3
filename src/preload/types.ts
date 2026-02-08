@@ -2,7 +2,11 @@ import type { ElectronAPI as MainRendererElectronAPI } from '../shared/main-rend
 import type {
     BatteryStatus,
     CalibrationStatus,
+    JoyConAttitudeData,
+    JoyConButtonStateData,
+    JoyConCursorIdData,
     JoyConStatus,
+    UpdatePointerData,
 } from '../shared/joycon-event-types';
 
 /**
@@ -29,26 +33,17 @@ export type { JoyConStatus };
 /**
  * Joy-Con の姿勢情報。
  */
-export interface JoyConAttitude {
-    id: CursorId;
-    roll: number;
-    pitch: number;
-    yaw?: number;
-}
+export type JoyConAttitude = JoyConAttitudeData;
 
 /**
  * Joy-Con ボタンの押下状態。
  */
-export interface JoyConButtonState {
-    pressed: boolean;
-}
+export type JoyConButtonState = JoyConButtonStateData;
 
 /**
  * Joy-Con ボタン押下イベントの発生元。
  */
-export interface JoyConButtonPress {
-    id: CursorId;
-}
+export type JoyConButtonPress = JoyConCursorIdData;
 
 /**
  * Joy-Con バッテリー状態。
@@ -58,11 +53,7 @@ export type { BatteryStatus };
 /**
  * カーソル更新イベント。
  */
-export interface UpdatePointerData {
-    id: CursorId;
-    x: number;
-    y: number;
-}
+export type { UpdatePointerData };
 
 /**
  * タイマー通知設定。

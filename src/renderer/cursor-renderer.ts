@@ -33,10 +33,10 @@ interface CursorData {
 }
 
 type CursorMapConfig = import('../shared/cursor-types').CursorMapConfig;
-type UpdatePointerData = { id: CursorId; x: number; y: number };
-type JoyConAttitudeData = { id: CursorId; roll: number; pitch: number; yaw?: number };
-type ButtonStateData = { pressed: boolean };
-type ButtonPressData = { id: CursorId };
+type UpdatePointerData = import('../shared/joycon-event-types').UpdatePointerData;
+type JoyConAttitudeData = import('../shared/joycon-event-types').JoyConAttitudeData;
+type ButtonStateData = import('../shared/joycon-event-types').JoyConButtonStateData;
+type ButtonPressData = import('../shared/joycon-event-types').JoyConCursorIdData;
 type CursorStateSnapshot = {
     x: number;
     y: number;
