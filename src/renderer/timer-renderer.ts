@@ -44,11 +44,7 @@ type TimerStorageApi = {
     saveSoundPlayDelay: (delayMs: number) => void;
 };
 
-type CountdownEngineOptions = {
-    initialValue?: number;
-    minSeconds?: number;
-    maxSeconds?: number;
-};
+type CountdownEngineOptions = { initialValue?: number; minSeconds?: number; maxSeconds?: number };
 
 type CountdownEngineInstance = {
     getCurrentInitialValue: () => number;
@@ -69,18 +65,9 @@ type CountdownEngineInstance = {
     setInitialValue: (value: number) => number;
 };
 
-type CountdownEngineClass = {
-    new (options?: CountdownEngineOptions): CountdownEngineInstance;
-    formatTime: (seconds: number) => string;
-    clampValue: (value: number, minSeconds?: number, maxSeconds?: number) => number;
-};
+type CountdownEngineClass = { new (options?: CountdownEngineOptions): CountdownEngineInstance; formatTime: (seconds: number) => string; clampValue: (value: number, minSeconds?: number, maxSeconds?: number) => number };
 
-type NotificationPlayerOptions = {
-    sendRumble: (seconds: number, shouldRumble: boolean) => void;
-    createAudio: (audioUrl: string) => HTMLAudioElement;
-    now: () => number;
-    initialDelayMs?: number;
-};
+type NotificationPlayerOptions = { sendRumble: (seconds: number, shouldRumble: boolean) => void; createAudio: (audioUrl: string) => HTMLAudioElement; now: () => number; initialDelayMs?: number };
 
 type NotificationPlayerInstance = {
     setDelayMs: (delayMs: number) => number;
@@ -89,10 +76,7 @@ type NotificationPlayerInstance = {
     handleTick: (configs: TimerNotificationConfig[], currentSeconds: number) => void;
 };
 
-type NotificationPlayerClass = {
-    new (options: NotificationPlayerOptions): NotificationPlayerInstance;
-    normalizeDelay: (delayMs: number) => number;
-};
+type NotificationPlayerClass = { new (options: NotificationPlayerOptions): NotificationPlayerInstance; normalizeDelay: (delayMs: number) => number };
 
 type MenuControllerOptions = {
     countdownMenuElement: HTMLElement | null;
@@ -119,24 +103,7 @@ type MenuControllerInstance = {
     selectCurrent: () => void;
 };
 
-type MenuControllerClass = {
-    new (options: MenuControllerOptions): MenuControllerInstance;
-};
-
-type TickAction =
-    | {
-        kind: 'none';
-    }
-    | {
-        kind: 'continue';
-        displaySeconds: number;
-        sendSeconds: number;
-    }
-    | {
-        kind: 'finish';
-        displaySeconds: number;
-        sendSeconds: number;
-    };
+type MenuControllerClass = { new (options: MenuControllerOptions): MenuControllerInstance };
 
 type TimerRendererLogicApi = {
     normalizeNotifications: (configs: TimerNotificationConfig[]) => TimerNotificationConfig[];
@@ -144,7 +111,11 @@ type TimerRendererLogicApi = {
     resolveTickAction: (
         tickResult: { remaining: number; shouldStop: boolean } | null,
         currentInitialValue: number
-    ) => TickAction;
+    ) => (
+        | { kind: 'none' }
+        | { kind: 'continue'; displaySeconds: number; sendSeconds: number }
+        | { kind: 'finish'; displaySeconds: number; sendSeconds: number }
+    );
     shouldShowSetupMenu: (mode: TimerMode) => boolean;
 };
 
