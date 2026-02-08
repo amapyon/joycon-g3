@@ -3,12 +3,10 @@ import { CursorId, CursorMapConfig } from './imu-pointer';
 import { RStickAction, RStickConfig, RStickState } from './r-stick-handler';
 export type { BatteryStatus, CalibrationStatus, JoyConStatus } from '../shared/joycon-event-types';
 
-export type JoyConEventData = {
-    id?: CursorId;
-    pressed?: boolean;
-    x?: number;
-    y?: number;
-};
+export type JoyConButtonStateData = { pressed: boolean };
+export type JoyConCursorIdData = { id: CursorId };
+export type JoyConStickAnalogData = { x: number; y: number };
+export type JoyConEventData = JoyConButtonStateData | JoyConCursorIdData | JoyConStickAnalogData;
 export type AttitudeData = { id: CursorId; roll: number; pitch: number; yaw: number };
 
 export type JoyConManagerLike = {

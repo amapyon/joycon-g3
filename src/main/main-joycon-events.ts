@@ -6,7 +6,9 @@ import {
     AttitudeData,
     BatteryStatus,
     CalibrationStatus,
-    JoyConEventData,
+    JoyConButtonStateData,
+    JoyConCursorIdData,
+    JoyConStickAnalogData,
     JoyConEventsContext,
     JoyConStatus,
     RegisterMainJoyConEventsOptions,
@@ -157,12 +159,12 @@ function registerButtonHandlers(context: JoyConEventsContext): void {
 
     Object.keys(forwardMap).forEach((eventName: string): void => {
         joyConManager.on(eventName, (data: unknown): void => {
-            sendToWindow(windowManager.getCursorWindow(), forwardMap[eventName], data as JoyConEventData);
+            sendToWindow(windowManager.getCursorWindow(), forwardMap[eventName], data as JoyConButtonStateData);
         });
     });
 
     joyConManager.on('button-x-pressed', (data: unknown): void => {
-        const typedData = data as JoyConEventData;
+        const typedData = data as JoyConCursorIdData;
         // console.log(`[Main] button-x-pressed received for ${typedData?.id}`);
         if (isCursorId(typedData.id)) {
             imuProcessor.recenter(typedData.id);
@@ -171,7 +173,7 @@ function registerButtonHandlers(context: JoyConEventsContext): void {
     });
 
     joyConManager.on('button-plus-pressed', (data: unknown): void => {
-        const typedData = data as JoyConEventData;
+        const typedData = data as JoyConCursorIdData;
         // console.log(`[Main] button-plus-pressed received for ${typedData?.id}. Toggle logic.`);
         toggleTimerWindowVisibility();
         sendToWindow(windowManager.getTimerWindow(), 'button-plus-pressed', typedData);
@@ -179,7 +181,7 @@ function registerButtonHandlers(context: JoyConEventsContext): void {
 
     ['button-minus-pressed', 'button-sr-pressed'].forEach((eventName: string): void => {
         joyConManager.on(eventName, (data: unknown): void => {
-            const typedData = data as JoyConEventData;
+            const typedData = data as JoyConCursorIdData;
             // console.log(`[Main] ${eventName} received from JoyConManager for ${typedData?.id}`);
             const timerWindow = ensureTimerWindow();
             if (timerWindow && !timerWindow.isDestroyed()) {
@@ -189,7 +191,7 @@ function registerButtonHandlers(context: JoyConEventsContext): void {
     });
 
     joyConManager.on('button-down-pressed', (data: unknown): void => {
-        const typedData = data as JoyConEventData;
+        const typedData = data as JoyConCursorIdData;
         // console.log(`[Main] button-down-pressed received for ${typedData?.id} -> calling imuProcessor.recenter`);
         if (isCursorId(typedData.id)) {
             imuProcessor.recenter(typedData.id);
@@ -198,7 +200,7 @@ function registerButtonHandlers(context: JoyConEventsContext): void {
     });
 
     joyConManager.on('button-home-pressed', (data: unknown): void => {
-        const typedData = data as { id: 'cursorLeft' | 'cursorRight' };
+        const typedData = data as JoyConCursorIdData;
         if (typedData.id === 'cursorRight') {
             // console.log('[Main] R Joy-Con Home button pressed. Closing cursor window.');
             windowManager.closeCursorWindow();
@@ -215,7 +217,7 @@ function registerRStickHandlers(context: JoyConEventsContext): void {
 
     joyConManager.on('r-stick', (data: unknown): void => {
         const decision = decideRStickPress({
-            pressed: (data as { pressed: boolean }).pressed,
+            pressed: (data as JoyConButtonStateData).pressed,
             now: Date.now(),
             state: context.rStickState,
             config: context.rStickConfig,
@@ -227,7 +229,7 @@ function registerRStickHandlers(context: JoyConEventsContext): void {
 
     joyConManager.on('r-stick-analog', (data: unknown): void => {
         const decision = decideRStickAnalog({
-            analog: data as { x: number; y: number },
+            analog: data as JoyConStickAnalogData,
             now: Date.now(),
             state: context.rStickState,
             config: context.rStickConfig,
