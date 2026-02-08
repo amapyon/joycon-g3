@@ -1,22 +1,10 @@
-type MessageWheelAction =
-    | {
-        kind: 'fontSize';
-        delta: number;
-    }
-    | {
-        kind: 'opacity';
-        delta: number;
-    };
+type MessageWheelActionShared = import('../shared/wheel-action-types').WheelAction;
 
 type MessageLogicApi = {
     normalizeFontSize: (value: number, fallback: number, min: number, max: number) => number;
     normalizeOpacity: (value: number, fallback: number, min: number, max: number) => number;
-    resolveWheelAction: (deltaY: number, shiftKey: boolean) => MessageWheelAction;
+    resolveWheelAction: (deltaY: number, shiftKey: boolean) => MessageWheelActionShared;
     isWheelTargetInZone: (target: Node | null, wheelZone: HTMLElement | null) => boolean;
-};
-
-type MessageWheelActionUtilsApi = {
-    resolveWheelAction: (deltaY: number, shiftKey: boolean) => MessageWheelAction;
 };
 
 type MessageNumberUtilsApi = {
@@ -38,7 +26,7 @@ const messageApiResolverUtils = ((): { resolveApi: <T>(globalKey: string, requir
     throw new Error('rendererApiResolverUtils API is not available');
 })();
 
-const messageWheelActionUtilsApi: MessageWheelActionUtilsApi = messageApiResolverUtils.resolveApi<MessageWheelActionUtilsApi>('wheelActionUtils', './wheel-action-utils');
+const messageWheelActionUtilsApi = messageApiResolverUtils.resolveApi<import('../shared/wheel-action-types').WheelActionUtilsApi>('wheelActionUtils', './wheel-action-utils');
 const messageNumberUtilsApi: MessageNumberUtilsApi = messageApiResolverUtils.resolveApi<MessageNumberUtilsApi>('numberUtils', './number-utils');
 
 /**
@@ -66,16 +54,6 @@ function normalizeOpacity(value: number, fallback: number, min: number, max: num
 }
 
 /**
- * ホイール操作から反映先と増減量を判定する。
- * @param deltaY ホイール変化量
- * @param shiftKey Shift 押下状態
- * @returns 操作種別と増減量
- */
-function resolveMessageWheelAction(deltaY: number, shiftKey: boolean): MessageWheelAction {
-    return messageWheelActionUtilsApi.resolveWheelAction(deltaY, shiftKey);
-}
-
-/**
  * ホイールイベントの対象がズーム操作ゾーン内か判定する。
  * @param target イベント対象
  * @param wheelZone ズーム操作ゾーン
@@ -91,7 +69,7 @@ function isWheelTargetInZone(target: Node | null, wheelZone: HTMLElement | null)
 const messageLogicApi: MessageLogicApi = {
     normalizeFontSize,
     normalizeOpacity,
-    resolveWheelAction: resolveMessageWheelAction,
+    resolveWheelAction: messageWheelActionUtilsApi.resolveWheelAction,
     isWheelTargetInZone,
 };
 

@@ -1,10 +1,8 @@
 type TimerMode = import('../../shared/timer-mode').TimerMode;
 
 type TimerRendererLogicNotificationConfig = import('../../shared/timer-notification-config').TimerNotificationConfig;
-
-type WheelAction =
-    | { kind: 'opacity'; delta: number }
-    | { kind: 'fontSize'; delta: number };
+type TimerRendererWheelActionShared = import('../../shared/wheel-action-types').WheelAction;
+type TimerRendererWheelActionUtilsSharedApi = import('../../shared/wheel-action-types').WheelActionUtilsApi;
 
 type TickResult = {
     remaining: number;
@@ -30,13 +28,9 @@ type TimerRendererLogicApi = {
     normalizeNotifications: (
         configs: TimerRendererLogicNotificationConfig[]
     ) => TimerRendererLogicNotificationConfig[];
-    resolveWheelAction: (deltaY: number, shiftKey: boolean) => WheelAction;
+    resolveWheelAction: (deltaY: number, shiftKey: boolean) => TimerRendererWheelActionShared;
     resolveTickAction: (tickResult: TickResult | null, currentInitialValue: number) => TickAction;
     shouldShowSetupMenu: (mode: TimerMode) => boolean;
-};
-
-type TimerRendererWheelActionUtilsApi = {
-    resolveWheelAction: (deltaY: number, shiftKey: boolean) => WheelAction;
 };
 
 const timerRendererLogicApiResolverUtils = ((): { resolveApi: <T>(globalKey: string, requirePath: string) => T } => {
@@ -53,7 +47,8 @@ const timerRendererLogicApiResolverUtils = ((): { resolveApi: <T>(globalKey: str
     throw new Error('rendererApiResolverUtils API is not available');
 })();
 
-const timerRendererWheelActionUtilsApi: TimerRendererWheelActionUtilsApi = timerRendererLogicApiResolverUtils.resolveApi<TimerRendererWheelActionUtilsApi>('wheelActionUtils', './wheel-action-utils');
+const timerRendererWheelActionUtilsApi: TimerRendererWheelActionUtilsSharedApi =
+    timerRendererLogicApiResolverUtils.resolveApi<TimerRendererWheelActionUtilsSharedApi>('wheelActionUtils', './wheel-action-utils');
 
 /**
  * 通知設定の rumble 値を明示的な真偽値へ正規化する。
@@ -67,16 +62,6 @@ function normalizeNotifications(
         ...config,
         rumble: !!config.rumble,
     }));
-}
-
-/**
- * ホイール操作の反映先と増減量を判定する。
- * @param deltaY ホイール変化量
- * @param shiftKey Shift 押下状態
- * @returns 操作種別と増減量
- */
-function resolveWheelAction(deltaY: number, shiftKey: boolean): WheelAction {
-    return timerRendererWheelActionUtilsApi.resolveWheelAction(deltaY, shiftKey);
 }
 
 /**
@@ -114,7 +99,7 @@ function shouldShowSetupMenu(mode: TimerMode): boolean {
 
 const timerRendererLogicApi: TimerRendererLogicApi = {
     normalizeNotifications,
-    resolveWheelAction,
+    resolveWheelAction: timerRendererWheelActionUtilsApi.resolveWheelAction,
     resolveTickAction,
     shouldShowSetupMenu,
 };

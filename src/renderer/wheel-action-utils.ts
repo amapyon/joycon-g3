@@ -1,10 +1,5 @@
-type WheelActionUtilsAction =
-    | { kind: 'opacity'; delta: number }
-    | { kind: 'fontSize'; delta: number };
-
-type WheelActionUtilsApi = {
-    resolveWheelAction: (deltaY: number, shiftKey: boolean) => WheelActionUtilsAction;
-};
+type WheelActionUtilsSharedAction = import('../shared/wheel-action-types').WheelAction;
+type WheelActionUtilsSharedApi = import('../shared/wheel-action-types').WheelActionUtilsApi;
 
 /**
  * ホイール入力から操作種別と増減量を判定する。
@@ -12,7 +7,7 @@ type WheelActionUtilsApi = {
  * @param shiftKey Shift 押下状態
  * @returns 操作種別と増減量
  */
-function resolveWheelActionFromInput(deltaY: number, shiftKey: boolean): WheelActionUtilsAction {
+function resolveWheelActionFromInput(deltaY: number, shiftKey: boolean): WheelActionUtilsSharedAction {
     if (shiftKey) {
         return {
             kind: 'opacity',
@@ -25,12 +20,12 @@ function resolveWheelActionFromInput(deltaY: number, shiftKey: boolean): WheelAc
     };
 }
 
-const wheelActionUtilsApi: WheelActionUtilsApi = {
+const wheelActionUtilsApi: WheelActionUtilsSharedApi = {
     resolveWheelAction: resolveWheelActionFromInput,
 };
 
 const wheelActionUtilsRoot = (typeof window !== 'undefined' ? window : globalThis) as unknown as {
-    wheelActionUtils?: WheelActionUtilsApi;
+    wheelActionUtils?: WheelActionUtilsSharedApi;
 };
 wheelActionUtilsRoot.wheelActionUtils = wheelActionUtilsApi;
 
