@@ -1,28 +1,7 @@
-type CursorRuntimeSendDecisionMethod = 'api' | 'send' | 'ipc' | 'retry' | 'none';
-
-type CursorRuntimeSendDecision = {
-    method: CursorRuntimeSendDecisionMethod;
-    nextRetry: number | null;
-};
-
-type CursorRuntimeSendDecisionInput = {
-    hasSendCursorMapConfig: boolean;
-    hasSend: boolean;
-    hasIpcRenderer: boolean;
-    retry: number;
-    maxRetry: number;
-};
-
-type CursorResetPosition = {
-    x: number;
-    y: number;
-};
-
-type CursorRuntimeLogicApi = {
-    isValidViewport: (width: number, height: number) => boolean;
-    resolveResetPosition: (width: number, height: number, fallback: number) => CursorResetPosition;
-    resolveCursorMapSendDecision: (input: CursorRuntimeSendDecisionInput) => CursorRuntimeSendDecision;
-};
+type SharedCursorRuntimeSendDecision = import('../shared/cursor-types').CursorRuntimeSendDecision;
+type SharedCursorRuntimeSendDecisionInput = import('../shared/cursor-types').CursorRuntimeSendDecisionInput;
+type SharedCursorResetPosition = import('../shared/cursor-types').CursorResetPosition;
+type SharedCursorRuntimeLogicApi = import('../shared/cursor-types').CursorRuntimeLogicApi;
 
 /**
  * ビューポートのサイズが有効か判定する。
@@ -41,7 +20,7 @@ function isValidViewport(width: number, height: number): boolean {
  * @param fallback フォールバック座標
  * @returns リセット座標
  */
-function resolveResetPosition(width: number, height: number, fallback: number): CursorResetPosition {
+function resolveResetPosition(width: number, height: number, fallback: number): SharedCursorResetPosition {
     if (!isValidViewport(width, height)) {
         return { x: fallback, y: fallback };
     }
@@ -56,7 +35,9 @@ function resolveResetPosition(width: number, height: number, fallback: number): 
  * @param input 判定情報
  * @returns 送信手段と次のリトライ回数
  */
-function resolveCursorMapSendDecision(input: CursorRuntimeSendDecisionInput): CursorRuntimeSendDecision {
+function resolveCursorMapSendDecision(
+    input: SharedCursorRuntimeSendDecisionInput
+): SharedCursorRuntimeSendDecision {
     if (input.hasSendCursorMapConfig) {
         return { method: 'api', nextRetry: null };
     }
@@ -72,14 +53,14 @@ function resolveCursorMapSendDecision(input: CursorRuntimeSendDecisionInput): Cu
     return { method: 'none', nextRetry: null };
 }
 
-const cursorRuntimeLogicApi: CursorRuntimeLogicApi = {
+const cursorRuntimeLogicApi: SharedCursorRuntimeLogicApi = {
     isValidViewport,
     resolveResetPosition,
     resolveCursorMapSendDecision,
 };
 
 const cursorRuntimeLogicRoot = (typeof window !== 'undefined' ? window : globalThis) as unknown as {
-    cursorRuntimeLogic?: CursorRuntimeLogicApi;
+    cursorRuntimeLogic?: SharedCursorRuntimeLogicApi;
 };
 cursorRuntimeLogicRoot.cursorRuntimeLogic = cursorRuntimeLogicApi;
 

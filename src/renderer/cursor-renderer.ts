@@ -3,6 +3,8 @@
 
 {
 type CursorId = import('../shared/cursor-types').CursorId;
+type SharedCursorLogicApi = import('../shared/cursor-types').CursorLogicApi;
+type SharedCursorRuntimeLogicApi = import('../shared/cursor-types').CursorRuntimeLogicApi;
 
 // カーソルのマッピング設定
 interface CursorMap {
@@ -45,33 +47,6 @@ type CursorStateSnapshot = {
     pendingX: number | null;
     pendingY: number | null;
 };
-type VisibilityTransition = {
-    changed: boolean;
-    nextIsVisible: boolean;
-    nextPendingX: number | null;
-    nextPendingY: number | null;
-    restoreX: number | null;
-    restoreY: number | null;
-};
-type CursorLogicApi = {
-    calculateTargetFromAttitude: (
-        cursorData: CursorStateSnapshot,
-        attitude: { roll: number; pitch: number; yaw?: number },
-        viewportWidth: number,
-        viewportHeight: number
-    ) => { x: number; y: number };
-    decideVisibilityTransition: (cursorData: CursorStateSnapshot, shouldBeVisible: boolean) => VisibilityTransition;
-    clampToViewport: (
-        input: {
-            x: number;
-            y: number;
-            viewportWidth: number;
-            viewportHeight: number;
-            halfWidth: number;
-            halfHeight: number;
-        }
-    ) => { x: number; y: number };
-};
 type CursorRendererElectronAPI = {
     onUpdatePointer: (callback: (pos: UpdatePointerData) => void) => void;
     onJoyConAttitude: (callback: (data: JoyConAttitudeData) => void) => void;
@@ -84,17 +59,6 @@ type CursorRendererElectronAPI = {
     send?: (channel: string, ...args: unknown[]) => void;
 };
 type WindowWithIpcRenderer = Window & { ipcRenderer?: { send: (channel: string, ...args: unknown[]) => void } };
-type CursorRuntimeLogicApi = {
-    isValidViewport: (width: number, height: number) => boolean;
-    resolveResetPosition: (width: number, height: number, fallback: number) => { x: number; y: number };
-    resolveCursorMapSendDecision: (input: {
-        hasSendCursorMapConfig: boolean;
-        hasSend: boolean;
-        hasIpcRenderer: boolean;
-        retry: number;
-        maxRetry: number;
-    }) => { method: 'api' | 'send' | 'ipc' | 'retry' | 'none'; nextRetry: number | null };
-};
 type RendererApiResolverUtilsApi = import('../shared/renderer-api-resolver-types').RendererApiResolverUtilsApi;
 type WindowWithRendererApiResolver = Window & { rendererApiResolverUtils?: RendererApiResolverUtilsApi };
 
@@ -104,8 +68,8 @@ if (!rendererApiResolverUtils) {
 }
 
 const electronAPI = rendererApiResolverUtils.resolveGlobal<CursorRendererElectronAPI>('electronAPI');
-const cursorLogic = rendererApiResolverUtils.resolveApi<CursorLogicApi>('cursorLogic', './cursor-logic');
-const cursorRuntimeLogic = rendererApiResolverUtils.resolveApi<CursorRuntimeLogicApi>('cursorRuntimeLogic', './cursor-runtime-logic');
+const cursorLogic = rendererApiResolverUtils.resolveApi<SharedCursorLogicApi>('cursorLogic', './cursor-logic');
+const cursorRuntimeLogic = rendererApiResolverUtils.resolveApi<SharedCursorRuntimeLogicApi>('cursorRuntimeLogic', './cursor-runtime-logic');
 const CURSOR_IDS: ReadonlyArray<CursorId> = ['cursorLeft', 'cursorRight'];
 
 // カーソルDOM要素の参照

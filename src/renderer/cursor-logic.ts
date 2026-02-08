@@ -1,62 +1,10 @@
-type CursorAxis = 'roll' | 'pitch' | 'yaw';
-
-type CursorMap = {
-    xFrom: CursorAxis;
-    yFrom: CursorAxis;
-    xSign: number;
-    ySign: number;
-};
-
-type CursorStateSnapshot = {
-    x: number;
-    y: number;
-    sensitivityX: number;
-    sensitivityY: number;
-    map: CursorMap;
-    isVisible: boolean;
-    pendingX: number | null;
-    pendingY: number | null;
-};
-
-type AttitudeValues = {
-    roll: number;
-    pitch: number;
-    yaw?: number;
-};
-
-type PointerTarget = {
-    x: number;
-    y: number;
-};
-
-type ClampToViewportInput = {
-    x: number;
-    y: number;
-    viewportWidth: number;
-    viewportHeight: number;
-    halfWidth: number;
-    halfHeight: number;
-};
-
-type VisibilityTransition = {
-    changed: boolean;
-    nextIsVisible: boolean;
-    nextPendingX: number | null;
-    nextPendingY: number | null;
-    restoreX: number | null;
-    restoreY: number | null;
-};
-
-type CursorLogicApi = {
-    calculateTargetFromAttitude: (
-        cursorData: CursorStateSnapshot,
-        attitude: AttitudeValues,
-        viewportWidth: number,
-        viewportHeight: number
-    ) => PointerTarget;
-    decideVisibilityTransition: (cursorData: CursorStateSnapshot, shouldBeVisible: boolean) => VisibilityTransition;
-    clampToViewport: (input: ClampToViewportInput) => PointerTarget;
-};
+type SharedCursorAxis = import('../shared/cursor-types').CursorAxis;
+type SharedCursorStateSnapshot = import('../shared/cursor-types').CursorStateSnapshot;
+type SharedAttitudeValues = import('../shared/cursor-types').AttitudeValues;
+type SharedPointerTarget = import('../shared/cursor-types').PointerTarget;
+type SharedClampToViewportInput = import('../shared/cursor-types').ClampToViewportInput;
+type SharedVisibilityTransition = import('../shared/cursor-types').VisibilityTransition;
+type SharedCursorLogicApi = import('../shared/cursor-types').CursorLogicApi;
 
 /**
  * 姿勢軸に応じた値を取得する。
@@ -64,7 +12,7 @@ type CursorLogicApi = {
  * @param attitude 姿勢値
  * @returns 指定軸の値
  */
-function pickAxisValue(axis: CursorAxis, attitude: AttitudeValues): number {
+function pickAxisValue(axis: SharedCursorAxis, attitude: SharedAttitudeValues): number {
     if (axis === 'pitch') {
         return attitude.pitch;
     }
@@ -83,11 +31,11 @@ function pickAxisValue(axis: CursorAxis, attitude: AttitudeValues): number {
  * @returns 目標座標
  */
 function calculateTargetFromAttitude(
-    cursorData: CursorStateSnapshot,
-    attitude: AttitudeValues,
+    cursorData: SharedCursorStateSnapshot,
+    attitude: SharedAttitudeValues,
     viewportWidth: number,
     viewportHeight: number
-): PointerTarget {
+): SharedPointerTarget {
     const centerX = viewportWidth / 2;
     const centerY = viewportHeight / 2;
     const sourceX = pickAxisValue(cursorData.map.xFrom, attitude);
@@ -104,7 +52,10 @@ function calculateTargetFromAttitude(
  * @param shouldBeVisible 目標表示状態
  * @returns 遷移内容
  */
-function decideVisibilityTransition(cursorData: CursorStateSnapshot, shouldBeVisible: boolean): VisibilityTransition {
+function decideVisibilityTransition(
+    cursorData: SharedCursorStateSnapshot,
+    shouldBeVisible: boolean
+): SharedVisibilityTransition {
     if (cursorData.isVisible === shouldBeVisible) {
         return {
             changed: false,
@@ -144,21 +95,21 @@ function decideVisibilityTransition(cursorData: CursorStateSnapshot, shouldBeVis
  * @param input 座標と表示領域情報
  * @returns 補正後座標
  */
-function clampToViewport(input: ClampToViewportInput): PointerTarget {
+function clampToViewport(input: SharedClampToViewportInput): SharedPointerTarget {
     return {
         x: Math.max(input.halfWidth, Math.min(input.viewportWidth - input.halfWidth, input.x)),
         y: Math.max(input.halfHeight, Math.min(input.viewportHeight - input.halfHeight, input.y)),
     };
 }
 
-const cursorLogicApi: CursorLogicApi = {
+const cursorLogicApi: SharedCursorLogicApi = {
     calculateTargetFromAttitude,
     decideVisibilityTransition,
     clampToViewport,
 };
 
 const cursorLogicRoot = (typeof window !== 'undefined' ? window : globalThis) as unknown as {
-    cursorLogic?: CursorLogicApi;
+    cursorLogic?: SharedCursorLogicApi;
 };
 cursorLogicRoot.cursorLogic = cursorLogicApi;
 
