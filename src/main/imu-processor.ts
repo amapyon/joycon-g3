@@ -40,6 +40,15 @@ interface IMUState {
     gyroBiasZ: number;
 }
 
+type ScaledMotion = {
+    ax: number;
+    ay: number;
+    az: number;
+    gx: number;
+    gy: number;
+    gz: number;
+};
+
 /**
  * IMU データの姿勢推定とキャリブレーションを行い、イベントを発行する。
  */
@@ -97,6 +106,123 @@ export class IMUProcessor extends EventEmitter {
     }
 
     /**
+     * 前回更新時刻からの経過秒を計算する。
+     * @param state 対象 IMU 状態
+     * @param now 現在時刻
+     * @returns 経過秒
+     */
+    private computeDeltaTime(state: IMUState, now: number): number {
+        return state.lastTimestamp > 0 && now - state.lastTimestamp < 1000 ? (now - state.lastTimestamp) / 1000.0 : 0.0166;
+    }
+
+    /**
+     * キャリブレーション中データを蓄積する。
+     * @param imuData IMU データ
+     */
+    private appendCalibrationData(imuData: IMUData): void {
+        this.calibrationData[imuData.id].x.push(imuData.gyro.x);
+        this.calibrationData[imuData.id].y.push(imuData.gyro.y);
+        this.calibrationData[imuData.id].z.push(imuData.gyro.z);
+    }
+
+    /**
+     * ジャイロバイアスを取得する。
+     * @param state IMU 状態
+     * @returns バイアス値
+     */
+    private getGyroBias(state: IMUState): IMUVector {
+        return {
+            x: typeof state.gyroBiasX === 'number' && !Number.isNaN(state.gyroBiasX) ? state.gyroBiasX : 0,
+            y: typeof state.gyroBiasY === 'number' && !Number.isNaN(state.gyroBiasY) ? state.gyroBiasY : 0,
+            z: typeof state.gyroBiasZ === 'number' && !Number.isNaN(state.gyroBiasZ) ? state.gyroBiasZ : 0,
+        };
+    }
+
+    /**
+     * 生データをスケーリングして利用値を生成する。
+     * @param imuData IMU データ
+     * @param bias ジャイロバイアス
+     * @returns 変換済み値（不正値時は null）
+     */
+    private scaleMotion(imuData: IMUData, bias: IMUVector): ScaledMotion | null {
+        const gxRawCal = imuData.gyro.x - bias.x;
+        const gyRawCal = imuData.gyro.y - bias.y;
+        const gzRawCal = imuData.gyro.z - bias.z;
+        if ([gxRawCal, gyRawCal, gzRawCal].some(Number.isNaN)) {
+            return null;
+        }
+
+        const scaled: ScaledMotion = {
+            ax: imuData.accel.x * ACCEL_SCALE_G,
+            ay: imuData.accel.y * ACCEL_SCALE_G,
+            az: imuData.accel.z * ACCEL_SCALE_G,
+            gx: gxRawCal * GYRO_SCALE_DPS,
+            gy: gyRawCal * GYRO_SCALE_DPS,
+            gz: gzRawCal * GYRO_SCALE_DPS,
+        };
+        return [scaled.ax, scaled.ay, scaled.az, scaled.gx, scaled.gy, scaled.gz].some(Number.isNaN) ? null : scaled;
+    }
+
+    /**
+     * 加速度由来の姿勢角を計算する。
+     * @param state IMU 状態
+     * @param motion 変換済みモーション
+     * @returns 加速度由来ピッチ・ロール
+     */
+    private computeAccelAngles(state: IMUState, motion: ScaledMotion): { pitchAcc: number; rollAcc: number } {
+        let pitchAcc = Number.isNaN(state.pitch) ? 0 : state.pitch;
+        let rollAcc = Number.isNaN(state.roll) ? 0 : state.roll;
+        const accelMagnitude = Math.sqrt(motion.ax * motion.ax + motion.ay * motion.ay + motion.az * motion.az);
+        if (!Number.isNaN(accelMagnitude) && accelMagnitude > 0.8 && accelMagnitude < 1.2) {
+            pitchAcc = Math.atan2(-motion.ax, Math.sqrt(motion.ay * motion.ay + motion.az * motion.az)) * RAD_TO_DEG;
+            rollAcc = Math.atan2(motion.ay, motion.az) * RAD_TO_DEG;
+        }
+        return { pitchAcc, rollAcc };
+    }
+
+    /**
+     * 姿勢を更新して最終値を返す。
+     * @param state IMU 状態
+     * @param motion 変換済みモーション
+     * @param dt 経過秒
+     * @param angles 加速度由来角度
+     * @returns 最終姿勢（不正値時は null）
+     */
+    private updateOrientation(
+        state: IMUState,
+        motion: ScaledMotion,
+        dt: number,
+        angles: { pitchAcc: number; rollAcc: number },
+    ): { roll: number; pitch: number; yaw: number } | null {
+        const rollGyroDelta = motion.gz * dt;
+        const pitchGyroDelta = motion.gy * dt;
+        const yawGyroDelta = motion.gx * dt;
+        if ([rollGyroDelta, pitchGyroDelta, yawGyroDelta].some(Number.isNaN)) {
+            return null;
+        }
+
+        const previousPitch = Number.isNaN(state.pitch) ? state.pitchOffset : state.pitch;
+        const previousRoll = Number.isNaN(state.roll) ? state.rollOffset : state.roll;
+        const alpha = state.alpha;
+        if ([alpha, previousPitch, pitchGyroDelta, angles.pitchAcc, previousRoll, rollGyroDelta, angles.rollAcc].some(Number.isNaN)) {
+            return null;
+        }
+
+        state.pitch = alpha * (previousPitch + pitchGyroDelta) + (1 - alpha) * angles.pitchAcc;
+        state.roll = alpha * (previousRoll + rollGyroDelta) + (1 - alpha) * angles.rollAcc;
+        state.yaw += yawGyroDelta;
+        if (Number.isNaN(state.pitch) || Number.isNaN(state.roll)) {
+            return null;
+        }
+
+        return {
+            roll: state.roll - state.rollOffset,
+            pitch: state.pitch - state.pitchOffset,
+            yaw: state.yaw - state.yawOffset,
+        };
+    }
+
+    /**
      * IMU データを受け取り、姿勢を更新する。
      * @param imuData 受信した IMU データ
      */
@@ -108,7 +234,7 @@ export class IMUProcessor extends EventEmitter {
         this.lastRawGyro[imuData.id] = { ...imuData.gyro };
         const now = performance.now();
         // 前回からの経過時間を計算
-        const dt = state.lastTimestamp > 0 && now - state.lastTimestamp < 1000 ? (now - state.lastTimestamp) / 1000.0 : 0.0166;
+        const dt = this.computeDeltaTime(state, now);
         state.lastTimestamp = now;
 
         if (dt <= 0 || Number.isNaN(dt)) {
@@ -117,83 +243,27 @@ export class IMUProcessor extends EventEmitter {
 
         // キャリブレーション中はデータを蓄積
         if (this.isCalibrating[imuData.id]) {
-            this.calibrationData[imuData.id].x.push(imuData.gyro.x);
-            this.calibrationData[imuData.id].y.push(imuData.gyro.y);
-            this.calibrationData[imuData.id].z.push(imuData.gyro.z);
+            this.appendCalibrationData(imuData);
             return;
         }
 
-        // ジャイロバイアス補正
-        const biasX = typeof state.gyroBiasX === 'number' && !Number.isNaN(state.gyroBiasX) ? state.gyroBiasX : 0;
-        const biasY = typeof state.gyroBiasY === 'number' && !Number.isNaN(state.gyroBiasY) ? state.gyroBiasY : 0;
-        const biasZ = typeof state.gyroBiasZ === 'number' && !Number.isNaN(state.gyroBiasZ) ? state.gyroBiasZ : 0;
-
-        const gx_raw_cal = imuData.gyro.x - biasX;
-        const gy_raw_cal = imuData.gyro.y - biasY;
-        const gz_raw_cal = imuData.gyro.z - biasZ;
-
-        if ([gx_raw_cal, gy_raw_cal, gz_raw_cal].some(Number.isNaN)) {
+        const motion = this.scaleMotion(imuData, this.getGyroBias(state));
+        if (!motion) {
             return;
         }
 
-        // 加速度・ジャイロ値をスケーリング
-        const ax = imuData.accel.x * ACCEL_SCALE_G;
-        const ay = imuData.accel.y * ACCEL_SCALE_G;
-        const az = imuData.accel.z * ACCEL_SCALE_G;
-        const gx = gx_raw_cal * GYRO_SCALE_DPS;
-        const gy = gy_raw_cal * GYRO_SCALE_DPS;
-        const gz = gz_raw_cal * GYRO_SCALE_DPS;
-        
-        if ([ax, ay, az, gx, gy, gz].some(Number.isNaN)) {
+        const angles = this.computeAccelAngles(state, motion);
+        const next = this.updateOrientation(state, motion, dt, angles);
+        if (!next) {
             return;
         }
-
-        // 加速度からピッチ・ロールを計算
-        let pitchAcc = Number.isNaN(state.pitch) ? 0 : state.pitch;
-        let rollAcc = Number.isNaN(state.roll) ? 0 : state.roll;
-        const accelMagnitude = Math.sqrt(ax * ax + ay * ay + az * az);
-        if (!Number.isNaN(accelMagnitude) && accelMagnitude > 0.8 && accelMagnitude < 1.2) {
-            pitchAcc = Math.atan2(-ax, Math.sqrt(ay * ay + az * az)) * RAD_TO_DEG;
-            rollAcc = Math.atan2(ay, az) * RAD_TO_DEG;
-        }
-
-        // ジャイロ積分による姿勢変化量
-        const rollGyroDelta = gz * dt;
-        const pitchGyroDelta = gy * dt;
-        const yawGyroDelta = gx * dt;
-
-        if ([rollGyroDelta, pitchGyroDelta, yawGyroDelta].some(Number.isNaN)) {
-            return;
-        }
-
-        // 前回値取得
-        const previousPitch = Number.isNaN(state.pitch) ? state.pitchOffset : state.pitch;
-        const previousRoll = Number.isNaN(state.roll) ? state.rollOffset : state.roll;
-        const alpha = state.alpha;
-
-        if ([alpha, previousPitch, pitchGyroDelta, pitchAcc, previousRoll, rollGyroDelta, rollAcc].some(Number.isNaN)) {
-            return;
-        }
-
-        // 姿勢推定（コンプリメンタリフィルタ）
-        state.pitch = alpha * (previousPitch + pitchGyroDelta) + (1 - alpha) * pitchAcc;
-        state.roll = alpha * (previousRoll + rollGyroDelta) + (1 - alpha) * rollAcc;
-        state.yaw += yawGyroDelta;
-
-        if (Number.isNaN(state.pitch) || Number.isNaN(state.roll)) {
-            return;
-        }
-
-        // オフセット補正
-        const finalRoll = state.roll - state.rollOffset;
-        const finalPitch = state.pitch - state.pitchOffset;
 
         // 姿勢更新イベントを発火
         this.emit('attitude-update', {
             id: imuData.id,
-            roll: finalRoll,
-            pitch: finalPitch,
-            yaw: state.yaw - state.yawOffset,
+            roll: next.roll,
+            pitch: next.pitch,
+            yaw: next.yaw,
         });
     }
 

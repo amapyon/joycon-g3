@@ -37,6 +37,26 @@
             "rules": {
                 "max-lines-per-function": "off"
             }
+        },
+        {
+            "files": ["src/main/powerpoint-control.ts"],
+            "rules": {
+                "complexity": ["warn", 25],
+                "max-depth": ["warn", 6]
+            }
+        },
+        {
+            "files": ["src/renderer/cursor-renderer.ts"],
+            "rules": {
+                "complexity": ["warn", 20],
+                "max-lines": ["warn", { "max": 350, "skipBlankLines": true, "skipComments": true }]
+            }
+        },
+        {
+            "files": ["src/renderer/timer-renderer.ts"],
+            "rules": {
+                "max-lines": ["warn", { "max": 420, "skipBlankLines": true, "skipComments": true }]
+            }
         }
     ]
 }

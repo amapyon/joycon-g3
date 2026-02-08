@@ -26,6 +26,24 @@ type ButtonEventResult = {
 };
 
 /**
+ * 立ち上がりエッジ時のみイベントを追加する。
+ * @param events 追加先イベント配列
+ * @param current 現在状態
+ * @param previous 直前状態
+ * @param event 追加するイベント
+ */
+function pushEdgeEvent(
+    events: ButtonEvent[],
+    current: boolean,
+    previous: boolean,
+    event: ButtonEvent,
+): void {
+    if (current && !previous) {
+        events.push(event);
+    }
+}
+
+/**
  * 左 Joy-Con のボタン入力からイベントと次状態を作成する。
  * @param buttonByte 左 Joy-Con ボタンバイト
  * @param sharedButtonByte 共通ボタンバイト
@@ -56,21 +74,11 @@ export function buildLeftButtonEvents(
         { name: 'button-minus', payload: { pressed: currentMinusPressed } },
     ];
 
-    if (currentDownPressed && !lastState.downPressed) {
-        events.push({ name: 'button-down-pressed', payload: { id: cursorId } });
-    }
-    if (currentLeftPressed && !lastState.leftPressed) {
-        events.push({ name: 'ppt-next' });
-    }
-    if (currentRightPressed && !lastState.rightPressed) {
-        events.push({ name: 'ppt-prev' });
-    }
-    if (currentSrPressed && !lastState.srPressed) {
-        events.push({ name: 'button-sr-pressed', payload: { id: cursorId } });
-    }
-    if (currentMinusPressed && !lastState.minusPressed) {
-        events.push({ name: 'button-minus-pressed', payload: { id: cursorId } });
-    }
+    pushEdgeEvent(events, currentDownPressed, lastState.downPressed, { name: 'button-down-pressed', payload: { id: cursorId } });
+    pushEdgeEvent(events, currentLeftPressed, lastState.leftPressed, { name: 'ppt-next' });
+    pushEdgeEvent(events, currentRightPressed, lastState.rightPressed, { name: 'ppt-prev' });
+    pushEdgeEvent(events, currentSrPressed, lastState.srPressed, { name: 'button-sr-pressed', payload: { id: cursorId } });
+    pushEdgeEvent(events, currentMinusPressed, lastState.minusPressed, { name: 'button-minus-pressed', payload: { id: cursorId } });
 
     return {
         events,
@@ -125,30 +133,14 @@ export function buildRightButtonEvents(
         { name: 'button-home', payload: { pressed: currentHomePressed } },
     ];
 
-    if (currentXPressed && !lastState.xPressed) {
-        events.push({ name: 'button-x-pressed', payload: { id: cursorId } });
-    }
-    if (currentAPressed && !lastState.aPressed) {
-        events.push({ name: 'ppt-next' });
-    }
-    if (currentYPressed && !lastState.yPressed) {
-        events.push({ name: 'ppt-prev' });
-    }
-    if (currentPlusPressed && !lastState.plusPressed) {
-        events.push({ name: 'button-plus-pressed', payload: { id: cursorId } });
-    }
-    if (currentMinusPressed && !lastState.minusPressed) {
-        events.push({ name: 'button-minus-pressed', payload: { id: cursorId } });
-    }
-    if (currentSrPressed && !lastState.srPressed) {
-        events.push({ name: 'button-sr-pressed', payload: { id: cursorId } });
-    }
-    if (currentRStickPressed && !lastState.rStickPressed) {
-        events.push({ name: 'r-stick-pressed', payload: { id: cursorId } });
-    }
-    if (currentHomePressed && !lastState.homePressed) {
-        events.push({ name: 'button-home-pressed', payload: { id: cursorId } });
-    }
+    pushEdgeEvent(events, currentXPressed, lastState.xPressed, { name: 'button-x-pressed', payload: { id: cursorId } });
+    pushEdgeEvent(events, currentAPressed, lastState.aPressed, { name: 'ppt-next' });
+    pushEdgeEvent(events, currentYPressed, lastState.yPressed, { name: 'ppt-prev' });
+    pushEdgeEvent(events, currentPlusPressed, lastState.plusPressed, { name: 'button-plus-pressed', payload: { id: cursorId } });
+    pushEdgeEvent(events, currentMinusPressed, lastState.minusPressed, { name: 'button-minus-pressed', payload: { id: cursorId } });
+    pushEdgeEvent(events, currentSrPressed, lastState.srPressed, { name: 'button-sr-pressed', payload: { id: cursorId } });
+    pushEdgeEvent(events, currentRStickPressed, lastState.rStickPressed, { name: 'r-stick-pressed', payload: { id: cursorId } });
+    pushEdgeEvent(events, currentHomePressed, lastState.homePressed, { name: 'button-home-pressed', payload: { id: cursorId } });
 
     return {
         events,
