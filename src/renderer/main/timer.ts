@@ -18,15 +18,6 @@
     const { electronAPI, elements, state } = mainRenderer;
 
     /**
-     * プリセットの表示ラベルを作成する。
-     * @param seconds 秒数
-     * @returns 表示ラベル
-     */
-    const formatMainPresetLabel = (seconds: number): string => {
-        return timerMainLogic.formatPresetLabel(seconds);
-    };
-
-    /**
      * カウントダウン初期値を反映して通知する。
      * @param value 秒数
      * @param shouldNotify メインプロセスへ通知するか
@@ -54,7 +45,7 @@
             const btn = document.createElement('button');
             btn.className = 'preset-btn';
             btn.dataset.time = String(time);
-            btn.textContent = formatMainPresetLabel(time);
+            btn.textContent = timerMainLogic.formatPresetLabel(time);
             btn.addEventListener('click', (): void => {
                 applyCountdownInitialValue(time, true, true);
             });
@@ -260,15 +251,6 @@
     };
 
     /**
-     * 秒数を表示用の文字列に整形する。
-     * @param seconds 秒数
-     * @returns 表示用文字列
-     */
-    const formatTimeForDisplay = (seconds: number): string => {
-        return timerMainLogic.formatTimeForDisplay(seconds);
-    };
-
-    /**
      * 保存済みのサウンドフォルダーを反映する。
      * @returns 処理完了を示す Promise
      */
@@ -374,7 +356,7 @@
         });
 
         electronAPI.onMainTimerUpdate((remainingTime: number): void => {
-            elements.mainCountdownDisplay.textContent = formatTimeForDisplay(remainingTime);
+            elements.mainCountdownDisplay.textContent = timerMainLogic.formatTimeForDisplay(remainingTime);
             elements.mainCountdownDisplay.style.color = remainingTime <= 0 ? '#dc3545' : '#007bff';
         });
 
