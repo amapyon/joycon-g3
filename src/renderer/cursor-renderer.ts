@@ -1,7 +1,7 @@
 // cursor-renderer.ts
 // Joy-Con姿勢データでカーソルを制御するレンダラースクリプト
 
-((): void => {
+{
 type CursorId = 'cursorLeft' | 'cursorRight';
 
 // カーソルのマッピング設定
@@ -181,7 +181,7 @@ electronAPI.onUpdatePointer((pos: UpdatePointerData): void => {
  * カーソルを画面中央にリセットする。
  * @param cursorId 対象カーソル ID
  */
-function resetCursor(cursorId: 'cursorLeft' | 'cursorRight'): void {
+const resetCursor = (cursorId: 'cursorLeft' | 'cursorRight'): void => {
     // console.log(`[cursor-renderer] resetCursor called for ${cursorId}`); // 追加ログ
     const cursorData = cursors[cursorId];
     if (!cursorData) {
@@ -199,27 +199,27 @@ function resetCursor(cursorId: 'cursorLeft' | 'cursorRight'): void {
         cursorData.y = 100;
     }
     updateCursorElementPosition(cursorId);
-}
+};
 
 /**
  * カーソル要素の表示状態を切り替える。
  * @param cursorId 対象カーソル ID
  * @param isVisible 表示状態
  */
-function setElementVisibility(cursorId: CursorId, isVisible: boolean): void {
+const setElementVisibility = (cursorId: CursorId, isVisible: boolean): void => {
     const element = cursorElements[cursorId];
     if (!element) {
         return;
     }
     element.style.visibility = isVisible ? 'visible' : 'hidden';
-}
+};
 
 /**
  * カーソルの表示状態遷移を適用し、必要な副作用をまとめて実行する。
  * @param cursorId 対象カーソル ID
  * @param shouldBeVisible 目標表示状態
  */
-function applyCursorVisibility(cursorId: CursorId, shouldBeVisible: boolean): void {
+const applyCursorVisibility = (cursorId: CursorId, shouldBeVisible: boolean): void => {
     const cursorData = cursors[cursorId];
     const transition = cursorLogic.decideVisibilityTransition(cursorData, shouldBeVisible);
     if (!transition.changed) {
@@ -245,23 +245,23 @@ function applyCursorVisibility(cursorId: CursorId, shouldBeVisible: boolean): vo
 
     setElementVisibility(cursorId, false);
     electronAPI.sendCursorVisibilityUpdate(cursorId, false);
-}
+};
 
 /**
  * カーソル入力が有効な状態か判定する。
  * @param cursorId 対象カーソル ID
  * @returns 入力が有効なら true
  */
-function isCursorInputEnabled(cursorId: CursorId): boolean {
+const isCursorInputEnabled = (cursorId: CursorId): boolean => {
     return cursorId === 'cursorRight' ? isRightXPressed : isLeftDownPressed;
-}
+};
 
 /**
  * ロジック計算用にカーソル状態を抽出する。
  * @param cursorId 対象カーソル ID
  * @returns ロジック計算用スナップショット
  */
-function toCursorStateSnapshot(cursorId: CursorId): CursorStateSnapshot {
+const toCursorStateSnapshot = (cursorId: CursorId): CursorStateSnapshot => {
     const cursorData = cursors[cursorId];
     return {
         x: cursorData.x,
@@ -273,13 +273,13 @@ function toCursorStateSnapshot(cursorId: CursorId): CursorStateSnapshot {
         pendingX: cursorData.pendingX,
         pendingY: cursorData.pendingY,
     };
-}
+};
 
 /**
  * カーソル DOM 要素の位置を更新する。
  * @param cursorId 対象カーソル ID
  */
-function updateCursorElementPosition(cursorId: CursorId): void {
+const updateCursorElementPosition = (cursorId: CursorId): void => {
     const cursorData = cursors[cursorId];
     const element = cursorElements[cursorId];
     if (element && cursorData && !Number.isNaN(cursorData.x) && !Number.isNaN(cursorData.y)) {
@@ -295,7 +295,7 @@ function updateCursorElementPosition(cursorId: CursorId): void {
     } else {
         // console.warn(`[${cursorId}] Skipping pos update.`);
     }
-}
+};
 
 // --- ポインター表示状態管理 ---
 let isRightXPressed = false;
@@ -340,10 +340,10 @@ electronAPI.onJoyConButtonDown((data: ButtonStateData): void => {
 /**
  * ポインター表示状態を一括制御する。
  */
-function updatePointerVisibility(): void {
+const updatePointerVisibility = (): void => {
     applyCursorVisibility('cursorRight', isRightXPressed);
     applyCursorVisibility('cursorLeft', isLeftDownPressed);
-}
+};
 
 // Joy-Con Xボタン押下時のカーソルリセット（右）
 electronAPI.onJoyConButtonXPressed((data: ButtonPressData): void => {
@@ -371,7 +371,7 @@ window.addEventListener('resize', (): void => {
 /**
  * カーソルの描画ループを実行する。
  */
-function renderLoop(): void {
+const renderLoop = (): void => {
     if (!cursorRuntimeLogic.isValidViewport(windowWidth, windowHeight)) {
         windowWidth = window.innerWidth;
         windowHeight = window.innerHeight;
@@ -407,7 +407,7 @@ function renderLoop(): void {
         }
     }
     requestAnimationFrame(renderLoop);
-}
+};
 
 // DOMロード完了時の初期化処理
 document.addEventListener('DOMContentLoaded', (): void => {
@@ -463,4 +463,4 @@ document.addEventListener('DOMContentLoaded', (): void => {
     requestAnimationFrame(renderLoop);
     // console.log('Cursor Renderer script initialized for attitude control.');
 });
-})();
+}
