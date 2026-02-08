@@ -29,6 +29,21 @@ type TimerRendererElectronAPI = {
     onUpdateSoundPlayDelay: (callback: (delayMs: number) => void) => void;
 };
 
+type TimerStorageApi = {
+    loadCountdownInitialValue: (fallback: number) => number;
+    saveCountdownInitialValue: (value: number) => void;
+    loadTimerFontSize: (fallback: number) => number;
+    saveTimerFontSize: (value: number) => void;
+    loadTimerPresets: (fallback: number[]) => number[];
+    saveTimerPresets: (presets: number[]) => void;
+    loadTimerOpacity: (fallback: number) => number;
+    saveTimerOpacity: (opacity: number) => void;
+    loadNotifications: (fallback: TimerNotificationConfig[]) => TimerNotificationConfig[];
+    saveNotifications: (configs: TimerNotificationConfig[]) => void;
+    loadSoundPlayDelay: () => number | null;
+    saveSoundPlayDelay: (delayMs: number) => void;
+};
+
 type CountdownEngineOptions = {
     initialValue?: number;
     minSeconds?: number;
@@ -115,18 +130,14 @@ const countdownMenuElement = document.getElementById('countdownMenu') as HTMLEle
 const countdownMenuValueElement = document.getElementById('countdownMenuValue') as HTMLElement | null;
 const timerPresetsContainer = document.getElementById('timer-presets-container') as HTMLElement | null;
 const wheelZone = document.getElementById('wheel-zone') as HTMLElement | null;
-const storedCountdownInitialValue = localStorage.getItem('countdownInitialValue');
-const storedTimerFontSize = localStorage.getItem('timerFontSize');
-const storedTimerPresets = localStorage.getItem('timerPresets');
-const storedOpacity = localStorage.getItem('timerWindowOpacity');
-const storedNotifications = localStorage.getItem('timerNotifications');
+const timerStorage = (window as unknown as { timerStorage: TimerStorageApi }).timerStorage;
 const CountdownEngine = (window as unknown as { countdownEngine: { CountdownEngine: CountdownEngineClass } })
     .countdownEngine.CountdownEngine;
 const NotificationPlayer = (window as unknown as { notificationPlayer: { NotificationPlayer: NotificationPlayerClass } })
     .notificationPlayer.NotificationPlayer;
 const MenuController = (window as unknown as { menuController: { MenuController: MenuControllerClass } })
     .menuController.MenuController;
-const initialCountdownValue = storedCountdownInitialValue ? Number.parseInt(storedCountdownInitialValue, 10) : 10;
+const initialCountdownValue = timerStorage.loadCountdownInitialValue(10);
 const countdownEngine = new CountdownEngine({ initialValue: initialCountdownValue });
 const notificationPlayer = new NotificationPlayer({
     sendRumble: (seconds: number, shouldRumble: boolean): void => {
@@ -180,10 +191,10 @@ const menuController = new MenuController({
 });
 
 let countdownInterval: ReturnType<typeof setInterval> | null = null;
-let currentFontSize = storedTimerFontSize ? Number.parseInt(storedTimerFontSize, 10) : 100; // 保存値を反映
-let currentPresetValues: number[] = JSON.parse(storedTimerPresets || '[10, 60, 120, 180, 300]');
-let currentOpacity = storedOpacity ? Number.parseFloat(storedOpacity) : 0.9; // 背景の初期透明度
-let timerNotificationConfigs: TimerNotificationConfig[] = JSON.parse(storedNotifications || '[]');
+let currentFontSize = timerStorage.loadTimerFontSize(100); // 保存値を反映
+let currentPresetValues: number[] = timerStorage.loadTimerPresets([10, 60, 120, 180, 300]);
+let currentOpacity = timerStorage.loadTimerOpacity(0.9); // 背景の初期透明度
+let timerNotificationConfigs: TimerNotificationConfig[] = timerStorage.loadNotifications([]);
 
 /**
  * タイマーのフォントサイズを更新する。
@@ -195,7 +206,7 @@ function updateTimerFontSize(delta: number): void {
     if (countdownTimerElement) {
         countdownTimerElement.style.fontSize = `${currentFontSize}px`;
     }
-    localStorage.setItem('timerFontSize', String(currentFontSize));
+    timerStorage.saveTimerFontSize(currentFontSize);
 }
 
 /**
@@ -229,7 +240,7 @@ function stopCountdown(): void {
 function handleAddMinuteAction(): void {
     countdownEngine.addMinute();
     const isActive = countdownEngine.isActive();
-    localStorage.setItem('countdownInitialValue', String(countdownEngine.getCurrentInitialValue()));
+    timerStorage.saveCountdownInitialValue(countdownEngine.getCurrentInitialValue());
 
     if (countdownTimerElement) {
         countdownTimerElement.textContent = formatTime(countdownEngine.getDisplayValue());
@@ -325,7 +336,7 @@ function updateTransparency(delta: number): void {
     currentOpacity = timerStyleState.calcNextOpacity(currentOpacity, delta, 0.1, 1.0);
 
     applyCountdownTimerOpacity(currentOpacity);
-    localStorage.setItem('timerWindowOpacity', String(currentOpacity));
+    timerStorage.saveTimerOpacity(currentOpacity);
 }
 
 
@@ -379,12 +390,12 @@ electronAPI.onUpdateTimerNotifications((configs: TimerNotificationConfig[]): voi
         ...config,
         rumble: !!config.rumble,
     }));
-    localStorage.setItem('timerNotifications', JSON.stringify(configs));
+    timerStorage.saveNotifications(configs);
 });
 
 electronAPI.onUpdateSoundPlayDelay((delayMs: number): void => {
     const normalizedDelay = notificationPlayer.setDelayMs(delayMs);
-    localStorage.setItem('soundPlayDelayMs', String(normalizedDelay));
+    timerStorage.saveSoundPlayDelay(normalizedDelay);
 });
 
 
@@ -412,7 +423,7 @@ if (wheelZone) {
 
 electronAPI.onUpdateCountdownInitialValue((value: number): void => {
     const nextInitialValue = countdownEngine.setInitialValue(value);
-    localStorage.setItem('countdownInitialValue', String(nextInitialValue));
+    timerStorage.saveCountdownInitialValue(nextInitialValue);
     if (countdownTimerElement && !countdownEngine.isActive()) {
         countdownTimerElement.textContent = formatTime(nextInitialValue);
     }
@@ -425,7 +436,7 @@ electronAPI.onUpdateTimerPresets((presets: number[]): void => {
     // console.log('[TimerRenderer] Received presets update:', presets);
     currentPresetValues = presets;
     menuController.setPresets(currentPresetValues);
-    localStorage.setItem('timerPresets', JSON.stringify(presets));
+    timerStorage.saveTimerPresets(presets);
     if (menuController.getIsVisible()) {
         menuController.renderPresets();
     }
@@ -484,9 +495,9 @@ if (countdownTimerElement) {
 applyCountdownTimerOpacity(currentOpacity); // 初期値を適用
 
 // console.log('[TimerRenderer] Initialized.');
-const storedSoundDelay = localStorage.getItem('soundPlayDelayMs');
-if (storedSoundDelay) {
-    const parsedDelay = parseInt(storedSoundDelay, 10);
+const storedSoundDelay = timerStorage.loadSoundPlayDelay();
+if (storedSoundDelay !== null) {
+    const parsedDelay = storedSoundDelay;
     notificationPlayer.setDelayMs(parsedDelay);
 }
 menuController.setPresets(currentPresetValues);
