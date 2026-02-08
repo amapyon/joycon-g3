@@ -2,24 +2,32 @@
 type MessageRendererElectronAPI = {
     onUpdateMessageText: (callback: (text: string) => void) => void;
 };
+type MessageLogicApi = {
+    normalizeFontSize: (value: number, fallback: number, min: number, max: number) => number;
+    normalizeOpacity: (value: number, fallback: number, min: number, max: number) => number;
+    resolveWheelAction: (
+        deltaY: number,
+        shiftKey: boolean
+    ) => { kind: 'fontSize' | 'opacity'; delta: number };
+    isWheelTargetInZone: (target: Node | null, wheelZone: HTMLElement | null) => boolean;
+};
 
 const electronAPI = (window as unknown as { electronAPI: MessageRendererElectronAPI }).electronAPI;
+const messageLogic = (window as unknown as { messageLogic: MessageLogicApi }).messageLogic;
 const messageContent = document.getElementById('messageContent') as HTMLElement | null;
 const wheelZone = document.getElementById('wheel-zone') as HTMLElement | null;
 const storedFontSize = localStorage.getItem('messageFontSize');
 const storedOpacity = localStorage.getItem('messageWindowOpacity');
 
-let currentFontSize = storedFontSize ? Number.parseInt(storedFontSize, 10) : 64;
-let currentOpacity = storedOpacity ? Number.parseFloat(storedOpacity) : 0.8; // Initial default opacity
+let currentFontSize = messageLogic.normalizeFontSize(storedFontSize ? Number.parseInt(storedFontSize, 10) : 64, 64, 10, 1000);
+let currentOpacity = messageLogic.normalizeOpacity(storedOpacity ? Number.parseFloat(storedOpacity) : 0.8, 0.8, 0.1, 1.0);
 
 /**
  * メッセージのフォントサイズを更新する。
  * @param delta 増減量
  */
 function updateFontSize(delta: number): void {
-    currentFontSize += delta;
-    if (currentFontSize < 10) currentFontSize = 10;
-    if (currentFontSize > 1000) currentFontSize = 1000;
+    currentFontSize = messageLogic.normalizeFontSize(currentFontSize + delta, 64, 10, 1000);
     
     // console.log(`[MessageRenderer] Updating font size to: ${currentFontSize}px (delta: ${delta})`);
     
@@ -34,9 +42,7 @@ function updateFontSize(delta: number): void {
  * @param delta 増減量
  */
 function updateTransparency(delta: number): void {
-    currentOpacity += delta;
-    if (currentOpacity < 0.1) currentOpacity = 0.1; // Minimum transparency
-    if (currentOpacity > 1.0) currentOpacity = 1.0; // Maximum transparency
+    currentOpacity = messageLogic.normalizeOpacity(currentOpacity + delta, 0.8, 0.1, 1.0);
 
     document.body.style.backgroundColor = `rgba(70, 70, 70, ${currentOpacity})`;
     localStorage.setItem('messageWindowOpacity', String(currentOpacity));
@@ -51,18 +57,14 @@ if (messageContent) {
 document.body.style.backgroundColor = `rgba(70, 70, 70, ${currentOpacity})`;
 
 window.addEventListener('wheel', (e: WheelEvent): void => {
-    if (e.target === wheelZone || wheelZone?.contains(e.target as Node)) {
+    if (messageLogic.isWheelTargetInZone(e.target as Node | null, wheelZone)) {
         e.preventDefault(); // 既定のスクロール動作を抑止
-
-        if (e.shiftKey) {
-            // 透明度を調整
-            const delta = e.deltaY < 0 ? 0.05 : -0.05; // 上スクロールで不透明、下で透明
-            updateTransparency(delta);
-        } else {
-            // フォントサイズを調整（既存仕様）
-            const delta = e.deltaY < 0 ? 5 : -5;
-            updateFontSize(delta);
+        const action = messageLogic.resolveWheelAction(e.deltaY, e.shiftKey);
+        if (action.kind === 'opacity') {
+            updateTransparency(action.delta);
+            return;
         }
+        updateFontSize(action.delta);
     }
 });
 
