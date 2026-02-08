@@ -1,10 +1,11 @@
 ((): void => {
-    type MainRendererContext = import('../../shared/main-renderer-types').MainRendererContext;
+    type MainRendererAccessApi = import('../../shared/main-renderer-types').MainRendererAccessApi;
     type DisplayInfo = import('../../shared/main-renderer-types').DisplayInfo;
-    const mainRenderer = (window as Window & { mainRenderer?: MainRendererContext }).mainRenderer;
-    if (!mainRenderer) {
-        throw new Error('mainRenderer is not available');
+    const mainRendererAccess = (window as Window & { mainRendererAccess?: MainRendererAccessApi }).mainRendererAccess;
+    if (!mainRendererAccess) {
+        throw new Error('mainRendererAccess is not available');
     }
+    const mainRenderer = mainRendererAccess.getMainRenderer();
     const { electronAPI, elements } = mainRenderer;
 
     /**

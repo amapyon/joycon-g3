@@ -109,3 +109,10 @@ export type MainRendererContext = {
     initTimerSection?: () => void;
     initMessageSection?: () => void;
 };
+
+/**
+ * mainRenderer 取得アクセサAPI。
+ */
+export type MainRendererAccessApi = {
+    getMainRenderer: () => MainRendererContext;
+};
