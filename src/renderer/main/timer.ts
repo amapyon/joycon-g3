@@ -3,9 +3,8 @@
     type MainRendererContext = import('../../shared/main-renderer-types').MainRendererContext;
     type NotificationConfig = import('../../shared/main-renderer-types').NotificationConfig;
     type ParseNumberUtilsApi = import('../../shared/parse-number-utils-types').ParseNumberUtilsApi;
-    type RendererApiResolverUtilsApi = import('../../shared/renderer-api-resolver-types').RendererApiResolverUtilsApi;
     type LocalStorageStoreApi = import('../../shared/local-storage-store-types').LocalStorageStoreApi;
-    type WindowWithRendererApiResolver = Window & { rendererApiResolverUtils?: RendererApiResolverUtilsApi };
+    type WindowWithRendererApiResolver = import('../../shared/renderer-api-resolver-types').WindowWithRendererApiResolver;
 
     const rendererApiResolverUtils = (window as WindowWithRendererApiResolver).rendererApiResolverUtils;
     if (!rendererApiResolverUtils) {

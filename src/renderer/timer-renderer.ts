@@ -86,8 +86,7 @@ type MenuControllerClass = { new (options: MenuControllerOptions): MenuControlle
 
 type TimerRendererLogicApi = import('../shared/timer-renderer-types').TimerRendererLogicApi;
 
-type RendererApiResolverUtilsApi = import('../shared/renderer-api-resolver-types').RendererApiResolverUtilsApi;
-type WindowWithRendererApiResolver = Window & { rendererApiResolverUtils?: RendererApiResolverUtilsApi };
+type WindowWithRendererApiResolver = import('../shared/renderer-api-resolver-types').WindowWithRendererApiResolver;
 
 const rendererApiResolverUtils = (window as WindowWithRendererApiResolver).rendererApiResolverUtils;
 if (!rendererApiResolverUtils) {

@@ -37,6 +37,7 @@ type UpdatePointerData = import('../shared/joycon-event-types').UpdatePointerDat
 type JoyConAttitudeData = import('../shared/joycon-event-types').JoyConAttitudeData;
 type ButtonStateData = import('../shared/joycon-event-types').JoyConButtonStateData;
 type ButtonPressData = import('../shared/joycon-event-types').JoyConCursorIdData;
+type WindowWithRendererApiResolver = import('../shared/renderer-api-resolver-types').WindowWithRendererApiResolver;
 type CursorStateSnapshot = {
     x: number;
     y: number;
@@ -59,8 +60,6 @@ type CursorRendererElectronAPI = {
     send?: (channel: string, ...args: unknown[]) => void;
 };
 type WindowWithIpcRenderer = Window & { ipcRenderer?: { send: (channel: string, ...args: unknown[]) => void } };
-type RendererApiResolverUtilsApi = import('../shared/renderer-api-resolver-types').RendererApiResolverUtilsApi;
-type WindowWithRendererApiResolver = Window & { rendererApiResolverUtils?: RendererApiResolverUtilsApi };
 
 const rendererApiResolverUtils = (window as WindowWithRendererApiResolver).rendererApiResolverUtils;
 if (!rendererApiResolverUtils) {

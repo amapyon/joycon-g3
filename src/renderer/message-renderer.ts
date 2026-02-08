@@ -13,8 +13,7 @@ type MessageLogicApi = {
 };
 type ParseNumberUtilsApi = import('../shared/parse-number-utils-types').ParseNumberUtilsApi;
 type LocalStorageStoreApi = import('../shared/local-storage-store-types').LocalStorageStoreApi;
-type RendererApiResolverUtilsApi = import('../shared/renderer-api-resolver-types').RendererApiResolverUtilsApi;
-type WindowWithRendererApiResolver = Window & { rendererApiResolverUtils?: RendererApiResolverUtilsApi };
+type WindowWithRendererApiResolver = import('../shared/renderer-api-resolver-types').WindowWithRendererApiResolver;
 
 const rendererApiResolverUtils = (window as WindowWithRendererApiResolver).rendererApiResolverUtils;
 if (!rendererApiResolverUtils) {
