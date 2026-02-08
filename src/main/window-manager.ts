@@ -1,6 +1,7 @@
 // window-manager.ts
 import { app, BrowserWindow, screen, Display } from 'electron';
 import path from 'path';
+import { resolveInitialWindowBounds } from './window-bounds-logic';
 
 let mainWindow: BrowserWindow | null = null;
 let cursorWindow: BrowserWindow | null = null;
@@ -152,27 +153,13 @@ export function createTimerWindow(targetDisplay?: Display): BrowserWindow | null
         return timerWindow;
     }
 
-    let initialX: number;
-    let initialY: number;
-    let initialWidth = 300;
-    let initialHeight = 200;
-
-    if (storedTimerBounds) {
-        initialX = storedTimerBounds.x;
-        initialY = storedTimerBounds.y;
-        initialWidth = storedTimerBounds.width;
-        initialHeight = storedTimerBounds.height;
-    } else {
-        // Calculate center position on the display
-        initialX = displayToUse.bounds.x + (displayToUse.bounds.width - initialWidth) / 2;
-        initialY = displayToUse.bounds.y + (displayToUse.bounds.height - initialHeight) / 2;
-    }
+    const initialBounds = resolveInitialWindowBounds(storedTimerBounds, displayToUse.bounds, 300, 200);
 
     timerWindow = new BrowserWindow({
-        x: initialX,
-        y: initialY,
-        width: initialWidth,
-        height: initialHeight,
+        x: initialBounds.x,
+        y: initialBounds.y,
+        width: initialBounds.width,
+        height: initialBounds.height,
         minWidth: 150,
         minHeight: 100,
         fullscreen: false,
@@ -227,26 +214,13 @@ export function createMessageWindow(targetDisplay?: Display): BrowserWindow | nu
     
     const displayToUse = targetDisplay || storedTargetDisplay || screen.getPrimaryDisplay();
     
-    let initialWidth = 600;
-    let initialHeight = 150;
-    let initialX: number;
-    let initialY: number;
-
-    if (storedMessageBounds) {
-        initialX = storedMessageBounds.x;
-        initialY = storedMessageBounds.y;
-        initialWidth = storedMessageBounds.width;
-        initialHeight = storedMessageBounds.height;
-    } else {
-        initialX = displayToUse.bounds.x + (displayToUse.bounds.width - initialWidth) / 2;
-        initialY = displayToUse.bounds.y + (displayToUse.bounds.height - initialHeight) / 2;
-    }
+    const initialBounds = resolveInitialWindowBounds(storedMessageBounds, displayToUse.bounds, 600, 150);
 
     messageWindow = new BrowserWindow({
-        x: initialX,
-        y: initialY,
-        width: initialWidth,
-        height: initialHeight,
+        x: initialBounds.x,
+        y: initialBounds.y,
+        width: initialBounds.width,
+        height: initialBounds.height,
         frame: false,
         transparent: true,
         alwaysOnTop: true,
