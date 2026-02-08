@@ -119,4 +119,32 @@ describe('main IPC の振動トリガー', (): void => {
 
         expect(joyConRumbleApi.playRumblePattern).toHaveBeenCalledTimes(1);
     });
+
+    it('不正なcountdown-initial-valueは状態更新しない', (): void => {
+        const joyConRumbleApi: JoyConRumbleApiMock = {
+            playRumblePattern: jest.fn(),
+        };
+        const { options, listeners } = createRegisterOptions(joyConRumbleApi);
+        const setCountdownInitialValue = jest.fn();
+        options.state.setCountdownInitialValue = setCountdownInitialValue;
+
+        registerMainIpcHandlers(options);
+        listeners['countdown-initial-value']?.({} as IpcMainEvent, 'invalid');
+
+        expect(setCountdownInitialValue).not.toHaveBeenCalled();
+    });
+
+    it('不正なtimer-notification-triggerのshouldRumble値では再生しない', (): void => {
+        const joyConRumbleApi: JoyConRumbleApiMock = {
+            playRumblePattern: jest.fn(),
+            getConnectionStatus: jest.fn(() => ({ leftConnected: true, rightConnected: true })),
+            connectAll: jest.fn(),
+        };
+        const { options, listeners } = createRegisterOptions(joyConRumbleApi);
+
+        registerMainIpcHandlers(options);
+        listeners['timer-notification-trigger']?.({} as IpcMainEvent, 5, 'true');
+
+        expect(joyConRumbleApi.playRumblePattern).not.toHaveBeenCalled();
+    });
 });

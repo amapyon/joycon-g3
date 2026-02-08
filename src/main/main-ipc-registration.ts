@@ -36,6 +36,107 @@ type RegisterMainIpcHandlersOptions = {
 };
 
 type RegisterOnChannel = (channel: string, handler: (event: IpcMainEvent, ...args: unknown[]) => void) => void;
+type CursorVisibilityPayload = { id: CursorId; isVisible: boolean };
+
+/**
+ * 値がオブジェクトかどうかを判定する。
+ * @param value 判定対象
+ * @returns オブジェクトの場合は true
+ */
+function isRecord(value: unknown): value is Record<string, unknown> {
+    return typeof value === 'object' && value !== null;
+}
+
+/**
+ * カーソル ID かどうかを判定する。
+ * @param value 判定対象
+ * @returns カーソル ID の場合は true
+ */
+function isCursorId(value: unknown): value is CursorId {
+    return value === 'cursorLeft' || value === 'cursorRight';
+}
+
+/**
+ * 数値ペイロードを解析する。
+ * @param value 入力値
+ * @returns 数値。無効な場合は null
+ */
+function parseNumberPayload(value: unknown): number | null {
+    return (typeof value === 'number' && Number.isFinite(value)) ? value : null;
+}
+
+/**
+ * 数値配列ペイロードを解析する。
+ * @param value 入力値
+ * @returns 数値配列。無効な場合は null
+ */
+function parseNumberArrayPayload(value: unknown): number[] | null {
+    if (!Array.isArray(value)) {
+        return null;
+    }
+    if (!value.every((item: unknown): boolean => typeof item === 'number' && Number.isFinite(item))) {
+        return null;
+    }
+    return value;
+}
+
+/**
+ * タイマー通知設定配列を解析する。
+ * @param value 入力値
+ * @returns 通知設定配列。無効な場合は null
+ */
+function parseTimerNotificationConfigs(value: unknown): TimerNotificationConfig[] | null {
+    if (!Array.isArray(value)) {
+        return null;
+    }
+    const hasOnlyValidItems = value.every((item: unknown): boolean => {
+        if (!isRecord(item)) {
+            return false;
+        }
+        const time = item.time;
+        const filename = item.filename;
+        const absolutePath = item.absolutePath;
+        const rumble = item.rumble;
+        return (
+            typeof time === 'number'
+            && Number.isFinite(time)
+            && typeof filename === 'string'
+            && typeof absolutePath === 'string'
+            && (rumble === undefined || typeof rumble === 'boolean')
+        );
+    });
+    if (!hasOnlyValidItems) {
+        return null;
+    }
+    return value as TimerNotificationConfig[];
+}
+
+/**
+ * カーソル可視状態ペイロードを解析する。
+ * @param value 入力値
+ * @returns 可視状態。無効な場合は null
+ */
+function parseCursorVisibilityPayload(value: unknown): CursorVisibilityPayload | null {
+    if (!isRecord(value)) {
+        return null;
+    }
+    if (!isCursorId(value.id) || typeof value.isVisible !== 'boolean') {
+        return null;
+    }
+    return { id: value.id, isVisible: value.isVisible };
+}
+
+/**
+ * カーソルマップ設定を解析する。
+ * @param value 入力値
+ * @returns カーソルマップ設定。無効な場合は null
+ */
+function parseCursorMapConfig(value: unknown): CursorMapConfig | null {
+    if (!isRecord(value)) {
+        return null;
+    }
+    return value as CursorMapConfig;
+}
 
 /**
  * 振動実行前に Joy-Con 接続状態を確認し、必要なら再接続を試行する。
@@ -77,30 +178,46 @@ function registerStateSyncHandlers(registerOnChannel: RegisterOnChannel, options
     const { state, windowManager } = options;
 
     registerOnChannel('cursor-map-config', (_event: IpcMainEvent, config: unknown): void => {
-        const nextConfig = config as CursorMapConfig;
+        const nextConfig = parseCursorMapConfig(config);
+        if (!nextConfig) {
+            return;
+        }
         state.setCursorMapConfig(nextConfig);
         // console.log('[main.ts] Received cursorMapConfig from renderer:', nextConfig);
     });
 
     registerOnChannel('cursor-visibility-update', (_event: IpcMainEvent, data: unknown): void => {
-        const typedData = data as { id: CursorId; isVisible: boolean };
+        const typedData = parseCursorVisibilityPayload(data);
+        if (!typedData) {
+            return;
+        }
         state.setCursorVisibility(typedData.id, typedData.isVisible);
     });
 
     registerOnChannel('countdown-initial-value', (_event: IpcMainEvent, value: unknown): void => {
-        state.setCountdownInitialValue(value as number);
+        const nextValue = parseNumberPayload(value);
+        if (nextValue === null) {
+            return;
+        }
+        state.setCountdownInitialValue(nextValue);
         // console.log(`[main.ts] Received countdown initial value: ${state.getCountdownInitialValue()}`);
         broadcastToAppWindows(windowManager, 'update-countdown-initial-value', state.getCountdownInitialValue());
     });
 
     registerOnChannel('update-timer-presets', (_event: IpcMainEvent, presets: unknown): void => {
-        const typedPresets = presets as number[];
+        const typedPresets = parseNumberArrayPayload(presets);
+        if (!typedPresets) {
+            return;
+        }
         // console.log(`[main.ts] Received timer presets: ${typedPresets}`);
         broadcastToAppWindows(windowManager, 'update-timer-presets', typedPresets);
     });
 
     registerOnChannel('update-timer-notifications', (_event: IpcMainEvent, configs: unknown): void => {
-        const typedConfigs = configs as TimerNotificationConfig[];
+        const typedConfigs = parseTimerNotificationConfigs(configs);
+        if (!typedConfigs) {
+            return;
+        }
         // console.log('[main.ts] Received timer notifications update:', typedConfigs);
         broadcastToAppWindows(windowManager, 'update-timer-notifications', typedConfigs);
     });
@@ -115,8 +232,8 @@ function registerTimerHandlers(registerOnChannel: RegisterOnChannel, options: Re
     const { ipcMain, state, windowManager, toggleTimerWindowVisibility, joyConRumbleApi } = options;
 
     registerOnChannel('update-sound-play-delay', (_event: IpcMainEvent, delayMs: unknown): void => {
-        const parsedDelay = delayMs as number;
-        const normalizedDelay = Number.isNaN(parsedDelay) ? 200 : Math.min(Math.max(parsedDelay, 0), 5000);
+        const parsedDelay = parseNumberPayload(delayMs);
+        const normalizedDelay = parsedDelay === null ? 200 : Math.min(Math.max(parsedDelay, 0), 5000);
         state.setSoundPlayDelayMs(normalizedDelay);
         const timerWindow = windowManager.getTimerWindow();
         if (timerWindow && !timerWindow.isDestroyed()) {
@@ -148,14 +265,18 @@ function registerTimerHandlers(registerOnChannel: RegisterOnChannel, options: Re
     });
 
     registerOnChannel('timer-countdown-update', (_event: IpcMainEvent, remainingTime: unknown): void => {
+        const parsedRemaining = parseNumberPayload(remainingTime);
+        if (parsedRemaining === null) {
+            return;
+        }
         const mainWindow = windowManager.getMainWindow();
         if (mainWindow && !mainWindow.isDestroyed()) {
-            mainWindow.webContents.send('main-timer-update', remainingTime as number);
+            mainWindow.webContents.send('main-timer-update', parsedRemaining);
         }
     });
 
     registerOnChannel('timer-notification-trigger', (_event: IpcMainEvent, _seconds: unknown, shouldRumble: unknown): void => {
-        if (shouldRumble as boolean) {
+        if (shouldRumble === true) {
             if (!ensureJoyConReadyForRumble(joyConRumbleApi)) {
                 return;
             }

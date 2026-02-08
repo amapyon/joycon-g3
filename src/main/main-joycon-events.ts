@@ -25,6 +25,119 @@ function isCursorId(value: unknown): value is CursorId {
 }
 
 /**
+ * 値がオブジェクトかどうかを判定する。
+ * @param value 判定対象
+ * @returns オブジェクトの場合は true
+ */
+function isRecord(value: unknown): value is Record<string, unknown> {
+    return typeof value === 'object' && value !== null;
+}
+
+/**
+ * 値が有限数かを判定する。
+ * @param value 判定対象
+ * @returns 有限数の場合は true
+ */
+function isFiniteNumber(value: unknown): value is number {
+    return typeof value === 'number' && Number.isFinite(value);
+}
+
+/**
+ * Joy-Con ボタン状態ペイロードを解析する。
+ * @param value 入力値
+ * @returns 解析結果。無効な場合は null
+ */
+function parseJoyConButtonStateData(value: unknown): JoyConButtonStateData | null {
+    if (!isRecord(value) || typeof value.pressed !== 'boolean') {
+        return null;
+    }
+    return { pressed: value.pressed };
+}
+
+/**
+ * Joy-Con ボタン押下元ペイロードを解析する。
+ * @param value 入力値
+ * @returns 解析結果。無効な場合は null
+ */
+function parseJoyConCursorIdData(value: unknown): JoyConCursorIdData | null {
+    if (!isRecord(value) || !isCursorId(value.id)) {
+        return null;
+    }
+    return { id: value.id };
+}
+
+/**
+ * Joy-Con スティックアナログ値ペイロードを解析する。
+ * @param value 入力値
+ * @returns 解析結果。無効な場合は null
+ */
+function parseJoyConStickAnalogData(value: unknown): JoyConStickAnalogData | null {
+    if (!isRecord(value) || !isFiniteNumber(value.x) || !isFiniteNumber(value.y)) {
+        return null;
+    }
+    return { x: value.x, y: value.y };
+}
+
+/**
+ * Joy-Con 姿勢データを解析する。
+ * @param value 入力値
+ * @returns 解析結果。無効な場合は null
+ */
+function parseAttitudeData(value: unknown): AttitudeData | null {
+    if (!isRecord(value)) {
+        return null;
+    }
+    if (!isCursorId(value.id) || !isFiniteNumber(value.roll) || !isFiniteNumber(value.pitch)) {
+        return null;
+    }
+    if (value.yaw !== undefined && !isFiniteNumber(value.yaw)) {
+        return null;
+    }
+    return {
+        id: value.id,
+        roll: value.roll,
+        pitch: value.pitch,
+        yaw: value.yaw,
+    };
+}
+
+/**
+ * キャリブレーション状態を解析する。
+ * @param value 入力値
+ * @returns 解析結果。無効な場合は null
+ */
+function parseCalibrationStatus(value: unknown): CalibrationStatus | null {
+    if (!isRecord(value) || !isCursorId(value.id) || typeof value.status !== 'string') {
+        return null;
+    }
+    return { id: value.id, status: value.status };
+}
+
+/**
+ * Joy-Con 接続状態を解析する。
+ * @param value 入力値
+ * @returns 解析結果。無効な場合は null
+ */
+function parseJoyConStatus(value: unknown): JoyConStatus | null {
+    if (!isRecord(value) || typeof value.leftConnected !== 'boolean' || typeof value.rightConnected !== 'boolean') {
+        return null;
+    }
+    return { leftConnected: value.leftConnected, rightConnected: value.rightConnected };
+}
+
+/**
+ * Joy-Con バッテリー状態を解析する。
+ * @param value 入力値
+ * @returns 解析結果。無効な場合は null
+ */
+function parseBatteryStatus(value: unknown): BatteryStatus | null {
+    if (!isRecord(value) || typeof value.isLeft !== 'boolean' || !isFiniteNumber(value.level)) {
+        return null;
+    }
+    return { isLeft: value.isLeft, level: value.level };
+}
+
+/**
  * ウィンドウが有効な場合に IPC を送る。
  * @param win 対象ウィンドウ
  * @param channel チャネル名
@@ -86,6 +199,9 @@ function registerImuHandlers(context: JoyConEventsContext): void {
     const { joyConManager, imuProcessor, windowManager } = options;
 
     joyConManager.on('imu-data', (data: unknown): void => {
+        if (!isRecord(data) || (data.id !== 'R' && data.id !== 'cursorRight' && data.id !== 'L' && data.id !== 'cursorLeft')) {
+            return;
+        }
         const imuData = data as ImuData;
         const cursorId = (imuData.id === 'R' || imuData.id === 'cursorRight') ? 'cursorRight' : 'cursorLeft';
         imuProcessor.update({ id: cursorId, accel: imuData.accel, gyro: imuData.gyro });
@@ -121,11 +237,19 @@ function registerImuHandlers(context: JoyConEventsContext): void {
     });
 
     imuProcessor.on('attitude-update', (attitudeData: unknown): void => {
-        sendToWindow(windowManager.getCursorWindow(), 'joycon-attitude', attitudeData as AttitudeData);
+        const typedData = parseAttitudeData(attitudeData);
+        if (!typedData) {
+            return;
+        }
+        sendToWindow(windowManager.getCursorWindow(), 'joycon-attitude', typedData);
     });
 
     imuProcessor.on('calibration-status', (statusInfo: unknown): void => {
-        sendToWindow(windowManager.getMainWindow(), 'calibration-status-update', statusInfo as CalibrationStatus);
+        const typedStatusInfo = parseCalibrationStatus(statusInfo);
+        if (!typedStatusInfo) {
+            return;
+        }
+        sendToWindow(windowManager.getMainWindow(), 'calibration-status-update', typedStatusInfo);
     });
 }
 
@@ -137,11 +261,19 @@ function registerStatusHandlers(context: JoyConEventsContext): void {
     const { joyConManager, windowManager } = context.options;
 
     joyConManager.on('status-update', (status: unknown): void => {
-        sendToWindow(windowManager.getMainWindow(), 'joycon-status-update', status as JoyConStatus);
+        const typedStatus = parseJoyConStatus(status);
+        if (!typedStatus) {
+            return;
+        }
+        sendToWindow(windowManager.getMainWindow(), 'joycon-status-update', typedStatus);
     });
 
     joyConManager.on('battery-status-update', (status: unknown): void => {
-        sendToWindow(windowManager.getMainWindow(), 'joycon-battery-status-update', status as BatteryStatus);
+        const typedStatus = parseBatteryStatus(status);
+        if (!typedStatus) {
+            return;
+        }
+        sendToWindow(windowManager.getMainWindow(), 'joycon-battery-status-update', typedStatus);
     });
 }
 
@@ -160,12 +292,19 @@ function registerButtonHandlers(context: JoyConEventsContext): void {
 
     Object.keys(forwardMap).forEach((eventName: string): void => {
         joyConManager.on(eventName, (data: unknown): void => {
-            sendToWindow(windowManager.getCursorWindow(), forwardMap[eventName], data as JoyConButtonStateData);
+            const typedData = parseJoyConButtonStateData(data);
+            if (!typedData) {
+                return;
+            }
+            sendToWindow(windowManager.getCursorWindow(), forwardMap[eventName], typedData);
         });
     });
 
     joyConManager.on('button-x-pressed', (data: unknown): void => {
-        const typedData = data as JoyConCursorIdData;
+        const typedData = parseJoyConCursorIdData(data);
+        if (!typedData) {
+            return;
+        }
         // console.log(`[Main] button-x-pressed received for ${typedData?.id}`);
         if (isCursorId(typedData.id)) {
             imuProcessor.recenter(typedData.id);
@@ -174,7 +313,10 @@ function registerButtonHandlers(context: JoyConEventsContext): void {
     });
 
     joyConManager.on('button-plus-pressed', (data: unknown): void => {
-        const typedData = data as JoyConCursorIdData;
+        const typedData = parseJoyConCursorIdData(data);
+        if (!typedData) {
+            return;
+        }
         // console.log(`[Main] button-plus-pressed received for ${typedData?.id}. Toggle logic.`);
         toggleTimerWindowVisibility();
         sendToWindow(windowManager.getTimerWindow(), 'button-plus-pressed', typedData);
@@ -182,7 +324,10 @@ function registerButtonHandlers(context: JoyConEventsContext): void {
 
     ['button-minus-pressed', 'button-sr-pressed'].forEach((eventName: string): void => {
         joyConManager.on(eventName, (data: unknown): void => {
-            const typedData = data as JoyConCursorIdData;
+            const typedData = parseJoyConCursorIdData(data);
+            if (!typedData) {
+                return;
+            }
             // console.log(`[Main] ${eventName} received from JoyConManager for ${typedData?.id}`);
             const timerWindow = ensureTimerWindow();
             if (isUsableWindow(timerWindow)) {
@@ -192,7 +337,10 @@ function registerButtonHandlers(context: JoyConEventsContext): void {
     });
 
     joyConManager.on('button-down-pressed', (data: unknown): void => {
-        const typedData = data as JoyConCursorIdData;
+        const typedData = parseJoyConCursorIdData(data);
+        if (!typedData) {
+            return;
+        }
         // console.log(`[Main] button-down-pressed received for ${typedData?.id} -> calling imuProcessor.recenter`);
         if (isCursorId(typedData.id)) {
             imuProcessor.recenter(typedData.id);
@@ -201,7 +349,10 @@ function registerButtonHandlers(context: JoyConEventsContext): void {
     });
 
     joyConManager.on('button-home-pressed', (data: unknown): void => {
-        const typedData = data as JoyConCursorIdData;
+        const typedData = parseJoyConCursorIdData(data);
+        if (!typedData) {
+            return;
+        }
         if (typedData.id === 'cursorRight') {
             // console.log('[Main] R Joy-Con Home button pressed. Closing cursor window.');
             windowManager.closeCursorWindow();
@@ -217,8 +368,12 @@ function registerRStickHandlers(context: JoyConEventsContext): void {
     const { joyConManager, windowManager, ensureTimerWindow } = context.options;
 
     joyConManager.on('r-stick', (data: unknown): void => {
+        const typedData = parseJoyConButtonStateData(data);
+        if (!typedData) {
+            return;
+        }
         const decision = decideRStickPress({
-            pressed: (data as JoyConButtonStateData).pressed,
+            pressed: typedData.pressed,
             now: Date.now(),
             state: context.rStickState,
             config: context.rStickConfig,
@@ -229,8 +384,12 @@ function registerRStickHandlers(context: JoyConEventsContext): void {
     });
 
     joyConManager.on('r-stick-analog', (data: unknown): void => {
+        const analogData = parseJoyConStickAnalogData(data);
+        if (!analogData) {
+            return;
+        }
         const decision = decideRStickAnalog({
-            analog: data as JoyConStickAnalogData,
+            analog: analogData,
             now: Date.now(),
             state: context.rStickState,
             config: context.rStickConfig,
