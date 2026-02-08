@@ -4,47 +4,13 @@
 import HID from 'node-hid';
 import { EventEmitter } from 'events';
 import { createRumbleData } from './joycon-rumble-utils';
-import { decodeRightStickAnalog, extractBatteryLevel } from './joycon-packet-utils';
 import { shouldAttemptAutoConnect, shouldSkipConnect } from './joycon-connection-utils';
-import { buildLeftButtonEvents, buildRightButtonEvents, JoyConButtonStateSnapshot } from './joycon-button-utils';
-import { decodeImuSample } from './joycon-imu-utils';
+import { createInitialButtonState, ButtonState } from './joycon-state';
+import { findJoyConPaths } from './joycon-device-discovery';
+import { parseStandardInputReport, JoyConButtonEvent } from './joycon-input-parser';
 import { canParseStandardInputReport, classifyJoyConReport } from './joycon-report-utils';
 
-const VENDOR_ID = 1406;
-const PRODUCT_ID_L = 8198;
-const PRODUCT_ID_R = 8199;
 const DEFAULT_SCAN_INTERVAL = 5000; // デバイススキャン間隔 (ミリ秒)
-
-interface ButtonState {
-    slPressed: boolean;
-    srPressed: boolean;
-    downPressed: boolean;
-    leftPressed: boolean;
-    rightPressed: boolean;
-    xPressed: boolean;
-    aPressed: boolean;
-    yPressed: boolean;
-    plusPressed: boolean;
-    minusPressed: boolean;
-    rStickPressed: boolean;
-    homePressed: boolean;
-}
-
-interface JoyConPaths {
-    joyconLPath: string | null;
-    joyconRPath: string | null;
-}
-
-interface HidDeviceInfo {
-    vendorId?: number;
-    productId?: number;
-    path?: string;
-}
-
-type JoyConButtonEvent = {
-    name: string;
-    payload?: Record<string, unknown>;
-};
 
 /**
  * Joy-Con の接続・初期化・入力解析を管理し、イベントを発行する。
@@ -73,30 +39,9 @@ export default class JoyConManager extends EventEmitter {
      */
     constructor(scanIntervalMs: number = DEFAULT_SCAN_INTERVAL) {
         super();
-        this.lastButtonStateL = this.resetButtonState();
-        this.lastButtonStateR = this.resetButtonState();
+        this.lastButtonStateL = createInitialButtonState();
+        this.lastButtonStateR = createInitialButtonState();
         this.scanIntervalMs = scanIntervalMs;
-    }
-
-    /**
-     * ボタン状態を初期化する。
-     * @returns 初期化済みボタン状態
-     */
-    resetButtonState(): ButtonState {
-        return {
-            slPressed: false,
-            srPressed: false,
-            downPressed: false,
-            leftPressed: false,
-            rightPressed: false,
-            xPressed: false,
-            aPressed: false,
-            yPressed: false,
-            plusPressed: false,
-            minusPressed: false,
-            rStickPressed: false,
-            homePressed: false,
-        };
     }
 
     /**
@@ -104,39 +49,9 @@ export default class JoyConManager extends EventEmitter {
      * @returns 左右の接続状態
      */
     getConnectionStatus(): { leftConnected: boolean; rightConnected: boolean } {
-        return {
-            leftConnected: !!this.hidL,
-            rightConnected: !!this.hidR,
-        };
+        return { leftConnected: !!this.hidL, rightConnected: !!this.hidR };
     }
 
-    /**
-     * Joy-Con デバイスのパスを検索する。
-     * @returns 左右のデバイスパス
-     */
-    findJoyCons(): JoyConPaths {
-        try {
-            if (!HID || typeof HID.devices !== 'function') {
-                throw new Error('node-hid not available');
-            }
-            const devices = HID.devices();
-            let joyconLPath: string | null = null;
-            let joyconRPath: string | null = null;
-            devices.forEach((device: HidDeviceInfo) => {
-                if (device.vendorId === VENDOR_ID) {
-                    if (device.productId === PRODUCT_ID_L) {
-                        joyconLPath = device.path || null;
-                    } else if (device.productId === PRODUCT_ID_R) {
-                        joyconRPath = device.path || null;
-                    }
-                }
-            });
-            return { joyconLPath, joyconRPath };
-        } catch (error) {
-            // console.error('Error finding HID devices:', error);
-            return { joyconLPath: null, joyconRPath: null };
-        }
-    }
 
     /**
      * コマンドを Joy-Con に送信する。
@@ -289,11 +204,11 @@ export default class JoyConManager extends EventEmitter {
         }
         if (isLeft) {
             this.hidL = null;
-            this.lastButtonStateL = this.resetButtonState();
+            this.lastButtonStateL = createInitialButtonState();
             this.connectingL = false;
         } else {
             this.hidR = null;
-            this.lastButtonStateR = this.resetButtonState();
+            this.lastButtonStateR = createInitialButtonState();
             this.connectingR = false;
         }
         if (wasConnected) {
@@ -306,9 +221,7 @@ export default class JoyConManager extends EventEmitter {
      * 全ての Joy-Con 接続を閉じ、スキャンも停止する。
      */
     closeAll(): void {
-        this.stopScanning();
-        this.closeJoyCon(true);
-        this.closeJoyCon(false);
+        this.stopScanning(); this.closeJoyCon(true); this.closeJoyCon(false);
     }
 
     /**
@@ -317,10 +230,7 @@ export default class JoyConManager extends EventEmitter {
      * @param connecting 接続処理中かどうか
      */
     private setConnectingState(isLeft: boolean, connecting: boolean): void {
-        if (isLeft) {
-            this.connectingL = connecting;
-            return;
-        }
+        if (isLeft) { this.connectingL = connecting; return; }
         this.connectingR = connecting;
     }
 
@@ -330,11 +240,8 @@ export default class JoyConManager extends EventEmitter {
      * @param isLeft 左 Joy-Con かどうか
      */
     private attachConnectedDevice(hidDevice: HID.HID, isLeft: boolean): void {
-        if (isLeft) {
-            this.hidL = hidDevice;
-        } else {
-            this.hidR = hidDevice;
-        }
+        if (isLeft) this.hidL = hidDevice;
+        else this.hidR = hidDevice;
         this.emit('status-update', { leftConnected: !!this.hidL, rightConnected: !!this.hidR });
     }
 
@@ -422,7 +329,7 @@ export default class JoyConManager extends EventEmitter {
      */
     connectAll(): void {
         // console.log('Attempting to connect all available Joy-Cons...');
-        const { joyconLPath, joyconRPath } = this.findJoyCons();
+        const { joyconLPath, joyconRPath } = findJoyConPaths();
         this.connectJoyCon(joyconLPath, true);
         this.connectJoyCon(joyconRPath, false);
     }
@@ -448,7 +355,7 @@ export default class JoyConManager extends EventEmitter {
      */
     scanDevices(): void {
         // console.log('[Debug] scanDevices() called.');
-        const { joyconLPath, joyconRPath } = this.findJoyCons();
+        const { joyconLPath, joyconRPath } = findJoyConPaths();
 
         // Handle Left Joy-Con
         if (this.hidL) {
@@ -514,8 +421,7 @@ export default class JoyConManager extends EventEmitter {
     stopScanning(): void {
         if (this.scanTimer) {
             // console.log('Stopping device scan.');
-            clearInterval(this.scanTimer);
-            this.scanTimer = null;
+            clearInterval(this.scanTimer); this.scanTimer = null;
         }
     }
 
@@ -526,6 +432,7 @@ export default class JoyConManager extends EventEmitter {
      * @param isLeft 左 Joy-Con かどうか
      */
     parseJoyConData(hidDevice: HID.HID, data: Buffer, isLeft: boolean): void {
+        void hidDevice;
         const reportId = data[0];
         const reportKind = classifyJoyConReport(reportId);
 
@@ -533,79 +440,43 @@ export default class JoyConManager extends EventEmitter {
             // console.log(`[Debug] Received 0x21 report from ${isLeft ? 'L' : 'R'}:`, data);
             void data;
             // 0x21 reports are subcommand replies, currently not used for battery
-        } else if (canParseStandardInputReport(reportId, data.length)) {
-            try {
-                // Extract battery status from byte 2
-                const batteryByte = data.readUInt8(2);
-                const level = extractBatteryLevel(batteryByte); // Bits 7-5: battery level (0-4)
-                
-                // Emit battery status update
-                this.emit('battery-status-update', { isLeft, level });
-                
-                const cursorId = isLeft ? 'cursorLeft' : 'cursorRight';
-                const imu = decodeImuSample(data);
+            return;
+        }
 
-                this.emit('imu-data', {
-                    id: cursorId,
-                    accel: imu.accel,
-                    gyro: imu.gyro,
-                });
+        if (!canParseStandardInputReport(reportId, data.length)) {
+            return;
+        }
 
-                const buttonByteIndex = isLeft ? 5 : 3;
-                const lastButtonState = isLeft ? this.lastButtonStateL : this.lastButtonStateR;
+        try {
+            const lastButtonState = isLeft ? this.lastButtonStateL : this.lastButtonStateR;
+            const parsed = parseStandardInputReport(data, isLeft, lastButtonState);
 
-                if (data.length > buttonByteIndex) {
-                    const buttonByte = data[buttonByteIndex];
-                    const sharedButtonByte = data[4]; // Read data[4] for shared buttons
+            this.emit('battery-status-update', { isLeft, level: parsed.batteryLevel });
+            this.emit('imu-data', {
+                id: parsed.cursorId,
+                accel: parsed.imu.accel,
+                gyro: parsed.imu.gyro,
+            });
 
-                    if (isLeft) {
-                        const result = buildLeftButtonEvents(
-                            buttonByte,
-                            sharedButtonByte,
-                            cursorId,
-                            lastButtonState as JoyConButtonStateSnapshot,
-                        );
-                        result.events.forEach((event: JoyConButtonEvent): void => {
-                            // if (event.name === 'r-stick-pressed') {
-                            //     console.log(`[JoyConManager] Emitting r-stick-pressed for ${cursorId}`);
-                            // }
-                            if (event.payload === undefined) {
-                                this.emit(event.name);
-                            } else {
-                                this.emit(event.name, event.payload);
-                            }
-                        });
-                        Object.assign(lastButtonState, result.nextState);
-                    } else {
-                        const result = buildRightButtonEvents(
-                            buttonByte,
-                            sharedButtonByte,
-                            cursorId,
-                            lastButtonState as JoyConButtonStateSnapshot,
-                        );
-                        result.events.forEach((event: JoyConButtonEvent): void => {
-                            if (event.payload === undefined) {
-                                this.emit(event.name);
-                            } else {
-                                this.emit(event.name, event.payload);
-                            }
-                        });
-                        Object.assign(lastButtonState, result.nextState);
-                    }
+            parsed.buttonEvents.forEach((event: JoyConButtonEvent): void => {
+                // if (event.name === 'r-stick-pressed') {
+                //     console.log(`[JoyConManager] Emitting r-stick-pressed for ${parsed.cursorId}`);
+                // }
+                if (event.payload === undefined) {
+                    this.emit(event.name);
+                    return;
                 }
-                // --- Joystick Analog Data ---
-                // Right Joy-Con stick data
-                if (!isLeft && data.length >= 12) {
-                    const b9 = data.readUInt8(9);
-                    const b10 = data.readUInt8(10);
-                    const b11 = data.readUInt8(11);
-                    const analog = decodeRightStickAnalog(b9, b10, b11);
-                    this.emit('r-stick-analog', analog);
-                }
-            } catch (e) {
-                // console.error(`[${isLeft ? 'L' : 'R'}] Parse Error:`, e);
-                void e;
+                this.emit(event.name, event.payload);
+            });
+
+            Object.assign(lastButtonState, parsed.nextButtonState);
+
+            if (parsed.analog) {
+                this.emit('r-stick-analog', parsed.analog);
             }
+        } catch (e) {
+            // console.error(`[${isLeft ? 'L' : 'R'}] Parse Error:`, e);
+            void e;
         }
     }
 }
