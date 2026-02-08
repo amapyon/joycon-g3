@@ -20,6 +20,10 @@ type TimerMainNumberUtilsApi = {
     normalizeNumber: (value: number, fallback: number, min: number, max: number) => number;
 };
 
+type TimerMainFileUrlUtilsApi = {
+    toFileUrl: (path: string) => string;
+};
+
 /**
  * 時刻整形APIを取得する。
  * @returns 時刻整形API
@@ -79,6 +83,26 @@ function resolveTimerMainNumberUtilsApi(): TimerMainNumberUtilsApi {
 }
 
 const timerMainNumberUtilsApi: TimerMainNumberUtilsApi = resolveTimerMainNumberUtilsApi();
+
+/**
+ * URL変換ユーティリティAPIを取得する。
+ * @returns URL変換ユーティリティAPI
+ */
+function resolveTimerMainFileUrlUtilsApi(): TimerMainFileUrlUtilsApi {
+    const fileUrlUtilsRoot = (typeof window !== 'undefined' ? window : globalThis) as unknown as {
+        fileUrlUtils?: TimerMainFileUrlUtilsApi;
+    };
+    if (fileUrlUtilsRoot.fileUrlUtils) {
+        return fileUrlUtilsRoot.fileUrlUtils;
+    }
+    if (typeof require !== 'undefined') {
+        // eslint-disable-next-line @typescript-eslint/no-var-requires -- CommonJS 形式の読み込みが必要
+        return require('../file-url-utils') as TimerMainFileUrlUtilsApi;
+    }
+    throw new Error('fileUrlUtils API is not available');
+}
+
+const timerMainFileUrlUtilsApi: TimerMainFileUrlUtilsApi = resolveTimerMainFileUrlUtilsApi();
 
 /**
  * プリセットの表示ラベルを作成する。
@@ -145,10 +169,7 @@ function buildMediaAbsolutePath(basePath: string, filename: string): string {
  * @returns file URL
  */
 function toFileUrl(absolutePath: string): string {
-    if (!absolutePath) {
-        return '';
-    }
-    return absolutePath.startsWith('file://') ? absolutePath : `file://${absolutePath}`;
+    return timerMainFileUrlUtilsApi.toFileUrl(absolutePath);
 }
 
 const timerMainLogicApi: TimerMainLogicApi = {

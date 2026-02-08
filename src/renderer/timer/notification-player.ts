@@ -12,6 +12,10 @@ type NotificationPlayerNumberUtilsApi = {
     normalizeNumber: (value: number, fallback: number, min: number, max: number) => number;
 };
 
+type NotificationPlayerFileUrlUtilsApi = {
+    toPlayableMediaUrl: (path: string) => string;
+};
+
 /**
  * 数値ユーティリティAPIを取得する。
  * @returns 数値ユーティリティAPI
@@ -31,6 +35,26 @@ function resolveNotificationPlayerNumberUtilsApi(): NotificationPlayerNumberUtil
 }
 
 const notificationPlayerNumberUtilsApi: NotificationPlayerNumberUtilsApi = resolveNotificationPlayerNumberUtilsApi();
+
+/**
+ * URL変換ユーティリティAPIを取得する。
+ * @returns URL変換ユーティリティAPI
+ */
+function resolveNotificationPlayerFileUrlUtilsApi(): NotificationPlayerFileUrlUtilsApi {
+    const fileUrlUtilsRoot = (typeof window !== 'undefined' ? window : globalThis) as unknown as {
+        fileUrlUtils?: NotificationPlayerFileUrlUtilsApi;
+    };
+    if (fileUrlUtilsRoot.fileUrlUtils) {
+        return fileUrlUtilsRoot.fileUrlUtils;
+    }
+    if (typeof require !== 'undefined') {
+        // eslint-disable-next-line @typescript-eslint/no-var-requires -- CommonJS 形式の読み込みが必要
+        return require('../file-url-utils') as NotificationPlayerFileUrlUtilsApi;
+    }
+    throw new Error('fileUrlUtils API is not available');
+}
+
+const notificationPlayerFileUrlUtilsApi: NotificationPlayerFileUrlUtilsApi = resolveNotificationPlayerFileUrlUtilsApi();
 
 /**
  * 通知音と振動の再生を管理する。
@@ -143,10 +167,7 @@ class NotificationPlayer {
      * @returns URL
      */
     private normalizeAudioUrl(path: string): string {
-        if (path.startsWith('file://') || path.startsWith('http')) {
-            return path;
-        }
-        return 'file://' + path.replace(/\\/g, '/');
+        return notificationPlayerFileUrlUtilsApi.toPlayableMediaUrl(path);
     }
 
     /**
