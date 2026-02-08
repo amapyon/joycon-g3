@@ -1,11 +1,4 @@
-type TimerMainLogicApi = {
-    formatPresetLabel: (seconds: number) => string;
-    formatTimeForDisplay: (seconds: number) => string;
-    normalizeSoundPlayDelay: (input: number, defaultDelay: number, min: number, max: number) => number;
-    parseCountdownInitialValue: (rawValue: string, min: number, max: number) => number | null;
-    buildMediaAbsolutePath: (basePath: string, filename: string) => string;
-    toFileUrl: (absolutePath: string) => string;
-};
+type TimerMainLogicApi = import('../../shared/timer-main-logic-types').TimerMainLogicApi;
 
 type TimerMainTimeFormatApi = {
     formatMinutesSeconds: (seconds: number) => string;
