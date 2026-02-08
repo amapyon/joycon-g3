@@ -1,5 +1,15 @@
 ((): void => {
+    type TimerMainLogicApi = {
+        formatPresetLabel: (seconds: number) => string;
+        formatTimeForDisplay: (seconds: number) => string;
+        normalizeSoundPlayDelay: (input: number, defaultDelay: number, min: number, max: number) => number;
+        parseCountdownInitialValue: (rawValue: string, min: number, max: number) => number | null;
+        buildMediaAbsolutePath: (basePath: string, filename: string) => string;
+        toFileUrl: (absolutePath: string) => string;
+    };
+
     const mainRenderer = (window as unknown as { mainRenderer: MainRendererContext }).mainRenderer;
+    const timerMainLogic = (window as unknown as { timerMainLogic: TimerMainLogicApi }).timerMainLogic;
     const { electronAPI, elements, state } = mainRenderer;
 
     /**
@@ -8,12 +18,7 @@
      * @returns 表示ラベル
      */
     const formatMainPresetLabel = (seconds: number): string => {
-        if (seconds < 60) {
-            return `${seconds}s`;
-        }
-        const mins = Math.floor(seconds / 60);
-        const secs = seconds % 60;
-        return secs === 0 ? `${mins}m` : `${mins}m${secs}s`;
+        return timerMainLogic.formatPresetLabel(seconds);
     };
 
     /**
@@ -192,17 +197,13 @@
             {
                 time: parseInt(elements.sound1TimeInput.value, 10) || 0,
                 filename: elements.sound1Select.value,
-                absolutePath: elements.sound1Select.value
-                    ? (basePath + '/' + elements.sound1Select.value).replace(/\\/g, '/')
-                    : '',
+                absolutePath: timerMainLogic.buildMediaAbsolutePath(basePath, elements.sound1Select.value),
                 rumble: elements.sound1RumbleToggle.checked,
             },
             {
                 time: parseInt(elements.sound2TimeInput.value, 10) || 0,
                 filename: elements.sound2Select.value,
-                absolutePath: elements.sound2Select.value
-                    ? (basePath + '/' + elements.sound2Select.value).replace(/\\/g, '/')
-                    : '',
+                absolutePath: timerMainLogic.buildMediaAbsolutePath(basePath, elements.sound2Select.value),
                 rumble: elements.sound2RumbleToggle.checked,
             },
         ];
@@ -245,8 +246,8 @@
             return;
         }
         const basePath = await electronAPI.getMediaBasePath();
-        const absolutePath = (basePath + '/' + filename).replace(/\\/g, '/');
-        const audioUrl = absolutePath.startsWith('file://') ? absolutePath : `file://${absolutePath}`;
+        const absolutePath = timerMainLogic.buildMediaAbsolutePath(basePath, filename);
+        const audioUrl = timerMainLogic.toFileUrl(absolutePath);
         try {
             const audio = new Audio(audioUrl);
             void audio.play();
@@ -261,9 +262,7 @@
      * @returns 表示用文字列
      */
     const formatTimeForDisplay = (seconds: number): string => {
-        const mins = Math.floor(seconds / 60);
-        const secs = seconds % 60;
-        return `${mins}:${String(secs).padStart(2, '0')}`;
+        return timerMainLogic.formatTimeForDisplay(seconds);
     };
 
     /**
@@ -289,19 +288,13 @@
         const storedDelay = localStorage.getItem('soundPlayDelayMs');
         const defaultDelay = 200;
         const initialDelay = storedDelay ? parseInt(storedDelay, 10) : defaultDelay;
-        const normalizedDelay = Number.isNaN(initialDelay) ? defaultDelay : Math.min(Math.max(initialDelay, 0), 5000);
+        const normalizedDelay = timerMainLogic.normalizeSoundPlayDelay(initialDelay, defaultDelay, 0, 5000);
         elements.soundPlayDelayInput.value = String(normalizedDelay);
         electronAPI.updateSoundPlayDelay(normalizedDelay);
 
         elements.soundPlayDelayInput.addEventListener('change', (): void => {
             const nextValue = parseInt(elements.soundPlayDelayInput.value, 10);
-            if (Number.isNaN(nextValue)) {
-                elements.soundPlayDelayInput.value = String(defaultDelay);
-                localStorage.setItem('soundPlayDelayMs', String(defaultDelay));
-                electronAPI.updateSoundPlayDelay(defaultDelay);
-                return;
-            }
-            const clamped = Math.min(Math.max(nextValue, 0), 5000);
+            const clamped = timerMainLogic.normalizeSoundPlayDelay(nextValue, defaultDelay, 0, 5000);
             elements.soundPlayDelayInput.value = String(clamped);
             localStorage.setItem('soundPlayDelayMs', String(clamped));
             electronAPI.updateSoundPlayDelay(clamped);
@@ -309,10 +302,10 @@
     };
 
     /**
-     * タイマーセクションを初期化する。
+     * プリセット編集関連イベントを登録する。
      * @returns なし
      */
-    const initTimerSection = (): void => {
+    const registerPresetEditHandlers = (): void => {
         elements.togglePresetEditBtn.addEventListener('click', (): void => {
             togglePresetEditPanel();
         });
@@ -325,22 +318,13 @@
         elements.applyPresetsBtn.addEventListener('click', (): void => {
             applyPresets();
         });
+    };
 
-        renderPresets();
-        initTimerActionButtons();
-        initNotificationRumbleToggle();
-        initSoundPlayDelay();
-        renderPresetConfig();
-
-        electronAPI.onUpdateTimerPresets((presets: number[]): void => {
-            state.currentPresets = presets;
-            localStorage.setItem('timerPresets', JSON.stringify(state.currentPresets));
-            renderPresets();
-            renderPresetConfig();
-        });
-
-        electronAPI.updateTimerPresets(state.currentPresets);
-
+    /**
+     * サウンド関連イベントを登録する。
+     * @returns なし
+     */
+    const registerSoundHandlers = (): void => {
         [elements.sound1Select, elements.sound2Select, elements.sound1TimeInput, elements.sound2TimeInput]
             .forEach((el: HTMLSelectElement | HTMLInputElement): void => {
                 el.addEventListener('change', (): void => {
@@ -372,11 +356,18 @@
         electronAPI.onUpdateTimerNotifications((configs: NotificationConfig[]): void => {
             localStorage.setItem('timerNotifications', JSON.stringify(configs));
         });
+    };
 
-        void applyStoredMediaDir().then(() => loadMediaFiles());
-
-        elements.toggleTimerWindowBtn.addEventListener('click', (): void => {
-            electronAPI.toggleTimerWindow();
+    /**
+     * タイマー同期関連イベントを登録する。
+     * @returns なし
+     */
+    const registerTimerSyncHandlers = (): void => {
+        electronAPI.onUpdateTimerPresets((presets: number[]): void => {
+            state.currentPresets = presets;
+            localStorage.setItem('timerPresets', JSON.stringify(state.currentPresets));
+            renderPresets();
+            renderPresetConfig();
         });
 
         electronAPI.onMainTimerUpdate((remainingTime: number): void => {
@@ -389,21 +380,60 @@
                 applyCountdownInitialValue(value, false, false);
             }
         });
+    };
 
+    /**
+     * 初期値入力イベントを登録する。
+     * @returns なし
+     */
+    const registerCountdownInputHandler = (): void => {
         elements.countdownInitialValueInput.addEventListener('change', (): void => {
-            const value = parseInt(elements.countdownInitialValueInput.value, 10);
-            if (!Number.isNaN(value) && value >= 1 && value <= 3600) {
+            const value = timerMainLogic.parseCountdownInitialValue(elements.countdownInitialValueInput.value, 1, 3600);
+            if (value !== null) {
                 applyCountdownInitialValue(value, true, false);
             }
         });
+    };
 
+    /**
+     * 保存済みのカウントダウン初期値を反映する。
+     * @returns なし
+     */
+    const applyStoredCountdownInitialValue = (): void => {
         const savedInitialValue = localStorage.getItem('countdownInitialValue');
-        if (savedInitialValue) {
-            const value = parseInt(savedInitialValue, 10);
-            if (!Number.isNaN(value)) {
-                applyCountdownInitialValue(value, true, false);
-            }
+        if (!savedInitialValue) {
+            return;
         }
+        const value = timerMainLogic.parseCountdownInitialValue(savedInitialValue, 1, 3600);
+        if (value !== null) {
+            applyCountdownInitialValue(value, true, false);
+        }
+    };
+
+    /**
+     * タイマーセクションを初期化する。
+     * @returns なし
+     */
+    const initTimerSection = (): void => {
+        registerPresetEditHandlers();
+
+        renderPresets();
+        initTimerActionButtons();
+        initNotificationRumbleToggle();
+        initSoundPlayDelay();
+        renderPresetConfig();
+        registerTimerSyncHandlers();
+        registerSoundHandlers();
+        registerCountdownInputHandler();
+
+        electronAPI.updateTimerPresets(state.currentPresets);
+
+        void applyStoredMediaDir().then(() => loadMediaFiles());
+
+        elements.toggleTimerWindowBtn.addEventListener('click', (): void => {
+            electronAPI.toggleTimerWindow();
+        });
+        applyStoredCountdownInitialValue();
     };
 
     mainRenderer.initTimerSection = initTimerSection;
