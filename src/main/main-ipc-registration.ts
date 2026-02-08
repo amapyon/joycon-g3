@@ -13,6 +13,8 @@ type WindowManagerApi = {
 
 type JoyConRumbleApi = {
     playRumblePattern: (pattern: RumbleStep[]) => void;
+    getConnectionStatus?: () => { leftConnected: boolean; rightConnected: boolean };
+    connectAll?: () => void;
 };
 
 type MainIpcStateAccessors = {
@@ -34,6 +36,23 @@ type RegisterMainIpcHandlersOptions = {
 };
 
 type RegisterOnChannel = (channel: string, handler: (event: IpcMainEvent, ...args: unknown[]) => void) => void;
+
+/**
+ * 振動実行前に Joy-Con 接続状態を確認し、必要なら再接続を試行する。
+ * @param joyConRumbleApi Joy-Con 振動 API
+ * @returns 振動を続行できる場合は true
+ */
+function ensureJoyConReadyForRumble(joyConRumbleApi: JoyConRumbleApi): boolean {
+    if (!joyConRumbleApi.getConnectionStatus || !joyConRumbleApi.connectAll) {
+        return true;
+    }
+    const status = joyConRumbleApi.getConnectionStatus();
+    if (status.leftConnected || status.rightConnected) {
+        return true;
+    }
+    joyConRumbleApi.connectAll();
+    return false;
+}
 
 /**
  * 関連ウィンドウへメッセージを配信する。
@@ -137,6 +156,9 @@ function registerTimerHandlers(registerOnChannel: RegisterOnChannel, options: Re
 
     registerOnChannel('timer-notification-trigger', (_event: IpcMainEvent, _seconds: unknown, shouldRumble: unknown): void => {
         if (shouldRumble as boolean) {
+            if (!ensureJoyConReadyForRumble(joyConRumbleApi)) {
+                return;
+            }
             joyConRumbleApi.playRumblePattern(createStrongTripleRumblePattern());
         }
     });

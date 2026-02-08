@@ -95,6 +95,39 @@
     };
 
     /**
+     * Joy-Con 状態の再同期を要求する。
+     */
+    const requestJoyConStatusSync = (): void => {
+        electronAPI.requestJoyConStatus();
+    };
+
+    /**
+     * 起動直後に状態取得を複数回要求し、初期表示の取りこぼしを防ぐ。
+     */
+    const scheduleInitialJoyConStatusSync = (): void => {
+        requestJoyConStatusSync();
+        [1000, 3000].forEach((delayMs: number): void => {
+            setTimeout((): void => {
+                requestJoyConStatusSync();
+            }, delayMs);
+        });
+    };
+
+    /**
+     * ウィンドウ復帰時に Joy-Con 状態を再取得する。
+     */
+    const registerJoyConStatusResyncHandlers = (): void => {
+        window.addEventListener('focus', (): void => {
+            requestJoyConStatusSync();
+        });
+        document.addEventListener('visibilitychange', (): void => {
+            if (document.visibilityState === 'visible') {
+                requestJoyConStatusSync();
+            }
+        });
+    };
+
+    /**
      * Joy-Con セクションを初期化する。
      * @returns なし
      */
@@ -117,7 +150,8 @@
         });
 
         bindCalibrationHandlers();
-        electronAPI.requestJoyConStatus();
+        registerJoyConStatusResyncHandlers();
+        scheduleInitialJoyConStatusSync();
     };
 
     mainRenderer.initJoyConSection = initJoyConSection;
