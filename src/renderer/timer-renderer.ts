@@ -280,27 +280,7 @@ function resumeCountdown(): void {
     if (!countdownEngine.resume()) return;
     countdownTimerElement.style.color = '#ffffff';
     electronAPI.sendTimerPauseStatus(false);
-    countdownInterval = setInterval((): void => {
-        // カウントが一致したタイミングで通知を再生する
-        const currentValue = countdownEngine.getCountdownValue();
-        notificationPlayer.handleTick(timerNotificationConfigs, currentValue);
-
-        const tickResult = countdownEngine.tick();
-        if (!tickResult) {
-            return;
-        }
-
-        if (!tickResult.shouldStop) {
-            countdownTimerElement.textContent = formatTime(tickResult.remaining);
-            electronAPI.sendTimerCountdownUpdate(tickResult.remaining); // メインプロセスに残り時間を送信
-            return;
-        }
-
-        stopCountdown();
-        countdownTimerElement.style.color = '#888888';
-        countdownTimerElement.textContent = formatTime(countdownEngine.getCurrentInitialValue());
-        electronAPI.sendTimerCountdownUpdate(tickResult.remaining); // 0 になったことを送信
-    }, 1000);
+    startCountdownInterval();
 }
 
 /**
@@ -339,6 +319,53 @@ function updateTransparency(delta: number): void {
     timerStorage.saveTimerOpacity(currentOpacity);
 }
 
+/**
+ * カウントダウン表示を更新する。
+ * @param seconds 表示する秒数
+ */
+function updateCountdownDisplay(seconds: number): void {
+    if (!countdownTimerElement) {
+        return;
+    }
+    countdownTimerElement.textContent = formatTime(seconds);
+}
+
+/**
+ * カウントダウン1ティック分の処理を行う。
+ */
+function processCountdownTick(): void {
+    // カウントが一致したタイミングで通知を再生する
+    const currentValue = countdownEngine.getCountdownValue();
+    notificationPlayer.handleTick(timerNotificationConfigs, currentValue);
+
+    const tickResult = countdownEngine.tick();
+    if (!tickResult) {
+        return;
+    }
+
+    if (!tickResult.shouldStop) {
+        updateCountdownDisplay(tickResult.remaining);
+        electronAPI.sendTimerCountdownUpdate(tickResult.remaining); // メインプロセスに残り時間を送信
+        return;
+    }
+
+    stopCountdown();
+    if (countdownTimerElement) {
+        countdownTimerElement.style.color = '#888888';
+    }
+    updateCountdownDisplay(countdownEngine.getCurrentInitialValue());
+    electronAPI.sendTimerCountdownUpdate(tickResult.remaining); // 0 になったことを送信
+}
+
+/**
+ * カウントダウンの定期実行を開始する。
+ */
+function startCountdownInterval(): void {
+    countdownInterval = setInterval((): void => {
+        processCountdownTick();
+    }, 1000);
+}
+
 
 /**
  * カウントダウンを開始する。
@@ -356,72 +383,51 @@ function startCountdown(duration: number): void {
 
     countdownTimerElement.style.visibility = 'visible';
     countdownTimerElement.style.color = '#ffffff';
-    countdownTimerElement.textContent = formatTime(startValue);
+    updateCountdownDisplay(startValue);
     
     // console.log(`[TimerRenderer] Starting countdown: ${startValue}s`);
     electronAPI.sendTimerStatus(true);
 
-    countdownInterval = setInterval(() => {
-        // カウントが一致したタイミングで通知を再生する
-        const currentValue = countdownEngine.getCountdownValue();
-        notificationPlayer.handleTick(timerNotificationConfigs, currentValue);
-
-        const tickResult = countdownEngine.tick();
-        if (!tickResult) {
-            return;
-        }
-
-        if (!tickResult.shouldStop) {
-            countdownTimerElement.textContent = formatTime(tickResult.remaining);
-            electronAPI.sendTimerCountdownUpdate(tickResult.remaining); // メインプロセスに残り時間を送信
-            return;
-        }
-
-        stopCountdown();
-        countdownTimerElement.style.color = '#888888';
-        countdownTimerElement.textContent = formatTime(countdownEngine.getCurrentInitialValue());
-        electronAPI.sendTimerCountdownUpdate(tickResult.remaining); // 0 になったことを送信
-    }, 1000);
+    startCountdownInterval();
 }
 
-electronAPI.onUpdateTimerNotifications((configs: TimerNotificationConfig[]): void => {
+/**
+ * 通知設定更新イベントを処理する。
+ * @param configs 通知設定
+ */
+function handleUpdateTimerNotifications(configs: TimerNotificationConfig[]): void {
     // console.log('[TimerRenderer] Notifications updated:', configs);
     timerNotificationConfigs = configs.map((config: TimerNotificationConfig) => ({
         ...config,
         rumble: !!config.rumble,
     }));
     timerStorage.saveNotifications(configs);
-});
-
-electronAPI.onUpdateSoundPlayDelay((delayMs: number): void => {
-    const normalizedDelay = notificationPlayer.setDelayMs(delayMs);
-    timerStorage.saveSoundPlayDelay(normalizedDelay);
-});
-
-
-electronAPI.onChangeFontSize((delta: number): void => {
-    // console.log(`[TimerRenderer] Change font size via Joy-Con: ${delta}`);
-    updateTimerFontSize(delta * 2);
-});
-
-if (wheelZone) {
-    wheelZone.addEventListener('wheel', (e: WheelEvent): void => {
-        e.preventDefault(); // 既定のスクロール動作を抑止
-
-        if (e.shiftKey) {
-            // 透明度を調整
-            const delta = e.deltaY < 0 ? 0.05 : -0.05; // 上スクロールで不透明、下で透明
-            updateTransparency(delta);
-        } else {
-            // フォントサイズを調整（既存仕様）
-            const delta = e.deltaY < 0 ? 5 : -5;
-            // console.log(`[TimerRenderer] Wheel detected on zone. Delta: ${delta}, Current: ${currentFontSize}`);
-            updateTimerFontSize(delta);
-        }
-    }, { passive: false });
 }
 
-electronAPI.onUpdateCountdownInitialValue((value: number): void => {
+/**
+ * 通知音遅延設定更新イベントを処理する。
+ * @param delayMs 遅延ミリ秒
+ */
+function handleUpdateSoundPlayDelay(delayMs: number): void {
+    const normalizedDelay = notificationPlayer.setDelayMs(delayMs);
+    timerStorage.saveSoundPlayDelay(normalizedDelay);
+}
+
+
+/**
+ * フォントサイズ変更イベントを処理する。
+ * @param delta 増減量
+ */
+function handleChangeFontSize(delta: number): void {
+    // console.log(`[TimerRenderer] Change font size via Joy-Con: ${delta}`);
+    updateTimerFontSize(delta * 2);
+}
+
+/**
+ * カウントダウン初期値更新イベントを処理する。
+ * @param value 初期値（秒）
+ */
+function handleUpdateCountdownInitialValue(value: number): void {
     const nextInitialValue = countdownEngine.setInitialValue(value);
     timerStorage.saveCountdownInitialValue(nextInitialValue);
     if (countdownTimerElement && !countdownEngine.isActive()) {
@@ -430,9 +436,13 @@ electronAPI.onUpdateCountdownInitialValue((value: number): void => {
     if (menuController.getIsVisible()) {
         menuController.updateMenuDisplay();
     }
-});
+}
 
-electronAPI.onUpdateTimerPresets((presets: number[]): void => {
+/**
+ * プリセット更新イベントを処理する。
+ * @param presets プリセット秒数配列
+ */
+function handleUpdateTimerPresets(presets: number[]): void {
     // console.log('[TimerRenderer] Received presets update:', presets);
     currentPresetValues = presets;
     menuController.setPresets(currentPresetValues);
@@ -440,9 +450,13 @@ electronAPI.onUpdateTimerPresets((presets: number[]): void => {
     if (menuController.getIsVisible()) {
         menuController.renderPresets();
     }
-});
+}
 
-electronAPI.onSetTimerMode((mode: TimerMode): void => {
+/**
+ * タイマーモード更新イベントを処理する。
+ * @param mode タイマーモード
+ */
+function handleSetTimerMode(mode: TimerMode): void {
     // console.log(`[TimerRenderer] Setting mode to: ${mode}`);
     if (mode === 'setup') {
         menuController.setVisible(true);
@@ -453,53 +467,97 @@ electronAPI.onSetTimerMode((mode: TimerMode): void => {
     if (countdownTimerElement) {
         countdownTimerElement.style.fontSize = `${currentFontSize}px`;
     }
-});
+}
 
-// 即時開始のIPCを受信
-electronAPI.onStartCountdown((duration: number): void => {
+/**
+ * カウントダウン開始イベントを処理する。
+ * @param duration 開始秒数
+ */
+function handleStartCountdown(duration: number): void {
     // console.log(`[TimerRenderer] Received start-countdown IPC: ${duration}s`);
     if (menuController.getIsVisible()) {
         menuController.setVisible(false);
     }
     startCountdown(duration);
-});
+}
 
-electronAPI.onJoyConButtonSrPressed((): void => {
-    menuController.toggleVisible();
-});
+/**
+ * ホイール操作イベントを処理する。
+ * @param e ホイールイベント
+ */
+function handleWheelEvent(e: WheelEvent): void {
+    e.preventDefault(); // 既定のスクロール動作を抑止
 
-electronAPI.onTimerMenuNavigate((direction: number): void => {
-    menuController.navigate(direction);
-});
-
-electronAPI.onTimerMenuSelect((): void => {
-    if (!menuController.getIsVisible()) {
-        handleTogglePauseAction();
+    if (e.shiftKey) {
+        // 透明度を調整
+        const delta = e.deltaY < 0 ? 0.05 : -0.05; // 上スクロールで不透明、下で透明
+        updateTransparency(delta);
         return;
     }
-    menuController.selectCurrent();
-});
-
-electronAPI.onToggleTimerPause((): void => {
-    handleTogglePauseAction();
-});
-
-electronAPI.onAddMinuteTimer((): void => {
-    handleAddMinuteAction();
-});
-
-// 初期フォントサイズを反映
-if (countdownTimerElement) {
-    countdownTimerElement.style.fontSize = `${currentFontSize}px`;
+    // フォントサイズを調整（既存仕様）
+    const delta = e.deltaY < 0 ? 5 : -5;
+    // console.log(`[TimerRenderer] Wheel detected on zone. Delta: ${delta}, Current: ${currentFontSize}`);
+    updateTimerFontSize(delta);
 }
-applyCountdownTimerOpacity(currentOpacity); // 初期値を適用
 
-// console.log('[TimerRenderer] Initialized.');
-const storedSoundDelay = timerStorage.loadSoundPlayDelay();
-if (storedSoundDelay !== null) {
-    const parsedDelay = storedSoundDelay;
-    notificationPlayer.setDelayMs(parsedDelay);
+/**
+ * Electron API のイベント購読を登録する。
+ */
+function registerElectronApiHandlers(): void {
+    electronAPI.onUpdateTimerNotifications(handleUpdateTimerNotifications);
+    electronAPI.onUpdateSoundPlayDelay(handleUpdateSoundPlayDelay);
+    electronAPI.onChangeFontSize(handleChangeFontSize);
+    electronAPI.onUpdateCountdownInitialValue(handleUpdateCountdownInitialValue);
+    electronAPI.onUpdateTimerPresets(handleUpdateTimerPresets);
+    electronAPI.onSetTimerMode(handleSetTimerMode);
+    electronAPI.onStartCountdown(handleStartCountdown);
+    electronAPI.onJoyConButtonSrPressed((): void => {
+        menuController.toggleVisible();
+    });
+    electronAPI.onTimerMenuNavigate((direction: number): void => {
+        menuController.navigate(direction);
+    });
+    electronAPI.onTimerMenuSelect((): void => {
+        if (!menuController.getIsVisible()) {
+            handleTogglePauseAction();
+            return;
+        }
+        menuController.selectCurrent();
+    });
+    electronAPI.onToggleTimerPause((): void => {
+        handleTogglePauseAction();
+    });
+    electronAPI.onAddMinuteTimer((): void => {
+        handleAddMinuteAction();
+    });
 }
-menuController.setPresets(currentPresetValues);
-menuController.renderPresets();
+
+/**
+ * 画面初期状態を反映する。
+ */
+function applyInitialState(): void {
+    // 初期フォントサイズを反映
+    if (countdownTimerElement) {
+        countdownTimerElement.style.fontSize = `${currentFontSize}px`;
+    }
+    applyCountdownTimerOpacity(currentOpacity); // 初期値を適用
+
+    // console.log('[TimerRenderer] Initialized.');
+    const storedSoundDelay = timerStorage.loadSoundPlayDelay();
+    if (storedSoundDelay !== null) {
+        const parsedDelay = storedSoundDelay;
+        notificationPlayer.setDelayMs(parsedDelay);
+    }
+    menuController.setPresets(currentPresetValues);
+    menuController.renderPresets();
+}
+
+if (wheelZone) {
+    wheelZone.addEventListener('wheel', (e: WheelEvent): void => {
+        handleWheelEvent(e);
+    }, { passive: false });
+}
+
+registerElectronApiHandlers();
+applyInitialState();
 })();
