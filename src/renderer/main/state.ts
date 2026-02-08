@@ -8,12 +8,7 @@ type PresentationInfo = { id: string; name: string; isRunning: boolean };
 type JoyConStatus = { leftConnected: boolean; rightConnected: boolean };
 type BatteryStatus = { isLeft: boolean; level: number };
 type CalibrationStatus = { id: string; status: string };
-type NotificationConfig = {
-    time: number;
-    filename: string;
-    absolutePath: string;
-    rumble?: boolean;
-};
+type NotificationConfig = import('../../shared/timer-notification-config').TimerNotificationConfig;
 type ElectronAPI = {
     getOpenPowerPointPresentations: () => Promise<PresentationInfo[]>;
     setTargetPresentation: (identifier: string) => void;

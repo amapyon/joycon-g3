@@ -3,8 +3,7 @@ import { createStrongTripleRumblePattern, RumbleStep } from './rumble-pattern';
 import { registerTimerIpcHandlers } from './timer-ipc';
 import { CursorId, CursorMapConfig } from './imu-pointer';
 import { setTimerCounting, setTimerPaused, TimerState } from './timer-state';
-
-type TimerNotificationConfig = Record<string, unknown>;
+import type { TimerNotificationConfig } from '../shared/timer-notification-config';
 
 type WindowManagerApi = {
     getCursorWindow: () => BrowserWindow | null;

@@ -1,10 +1,5 @@
 ((): void => {
-    type TimerNotificationConfig = {
-        time: number;
-        filename: string;
-        absolutePath: string;
-        rumble?: boolean;
-    };
+    type TimerNotificationConfig = import('../../shared/timer-notification-config').TimerNotificationConfig;
 
     type TimerStorageApi = {
         loadCountdownInitialValue: (fallback: number) => number;

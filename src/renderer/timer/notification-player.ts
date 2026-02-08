@@ -1,9 +1,4 @@
-type TimerNotificationConfig = {
-    time: number;
-    filename: string;
-    absolutePath: string;
-    rumble?: boolean;
-};
+type TimerNotificationConfig = import('../../shared/timer-notification-config').TimerNotificationConfig;
 
 type NotificationPlayerOptions = {
     sendRumble: (seconds: number, shouldRumble: boolean) => void;

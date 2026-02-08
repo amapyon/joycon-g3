@@ -1,11 +1,6 @@
 {
 type TimerMode = 'timer' | 'setup';
-type TimerNotificationConfig = {
-    time: number;
-    filename: string;
-    absolutePath: string;
-    rumble?: boolean;
-};
+type TimerNotificationConfig = import('../shared/timer-notification-config').TimerNotificationConfig;
 type TimerStyleStateApi = {
     calcNextFontSize: (current: number, delta: number, min: number, max: number) => number;
     calcNextOpacity: (current: number, delta: number, min: number, max: number) => number;

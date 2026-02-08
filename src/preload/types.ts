@@ -84,12 +84,7 @@ export interface UpdatePointerData {
 /**
  * タイマー通知設定。
  */
-export interface TimerNotificationConfig {
-    time: number;
-    filename: string;
-    absolutePath: string;
-    rumble?: boolean;
-}
+export type TimerNotificationConfig = import('../shared/timer-notification-config').TimerNotificationConfig;
 
 /**
  * キャリブレーション状態。

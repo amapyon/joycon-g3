@@ -1,11 +1,6 @@
 type TimerMode = 'timer' | 'setup';
 
-type TimerRendererLogicNotificationConfig = {
-    time: number;
-    filename: string;
-    absolutePath: string;
-    rumble?: boolean;
-};
+type TimerRendererLogicNotificationConfig = import('../../shared/timer-notification-config').TimerNotificationConfig;
 
 type WheelAction =
     | { kind: 'opacity'; delta: number }
