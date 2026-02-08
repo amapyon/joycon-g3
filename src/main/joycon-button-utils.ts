@@ -25,22 +25,133 @@ type ButtonEventResult = {
     nextState: Partial<JoyConButtonStateSnapshot>;
 };
 
+type ButtonStateKey = keyof JoyConButtonStateSnapshot;
+type ButtonSource = 'button' | 'shared';
+
+type ButtonBinding = {
+    key: ButtonStateKey;
+    source: ButtonSource;
+    mask: number;
+};
+
+type ContinuousEventRule = {
+    name: string;
+    key: ButtonStateKey;
+};
+
+type EdgeEventRule = {
+    key: ButtonStateKey;
+    name: string;
+    withCursorId?: boolean;
+};
+
 /**
- * 立ち上がりエッジ時のみイベントを追加する。
- * @param events 追加先イベント配列
- * @param current 現在状態
- * @param previous 直前状態
- * @param event 追加するイベント
+ * ボタンバイトから状態マップを作成する。
+ * @param buttonByte ボタンバイト
+ * @param sharedButtonByte 共通ボタンバイト
+ * @param bindings 解析定義
+ * @returns 押下状態マップ
  */
-function pushEdgeEvent(
-    events: ButtonEvent[],
-    current: boolean,
-    previous: boolean,
-    event: ButtonEvent,
+function readPressedStates(
+    buttonByte: number,
+    sharedButtonByte: number,
+    bindings: ButtonBinding[],
+): Partial<Record<ButtonStateKey, boolean>> {
+    const result: Partial<Record<ButtonStateKey, boolean>> = {};
+    bindings.forEach((binding: ButtonBinding): void => {
+        const sourceValue = binding.source === 'button' ? buttonByte : sharedButtonByte;
+        result[binding.key] = (sourceValue & binding.mask) !== 0;
+    });
+    return result;
+}
+
+/**
+ * 連続通知イベントを作成する。
+ * @param pressedStates 押下状態マップ
+ * @param rules イベント定義
+ * @returns イベント配列
+ */
+function buildContinuousEvents(
+    pressedStates: Partial<Record<ButtonStateKey, boolean>>,
+    rules: ContinuousEventRule[],
+): ButtonEvent[] {
+    return rules.map((rule: ContinuousEventRule): ButtonEvent => {
+        return { name: rule.name, payload: { pressed: !!pressedStates[rule.key] } };
+    });
+}
+
+/**
+ * 立ち上がりエッジイベントを追加する。
+ * @param events 追加先イベント
+ * @param pressedStates 押下状態マップ
+ * @param lastState 直前状態
+ * @param cursorId カーソル ID
+ * @param rules イベント定義
+ */
+function appendEdgeEvents(
+    input: {
+        events: ButtonEvent[];
+        pressedStates: Partial<Record<ButtonStateKey, boolean>>;
+        lastState: JoyConButtonStateSnapshot;
+        cursorId: CursorId;
+        rules: EdgeEventRule[];
+    },
 ): void {
-    if (current && !previous) {
-        events.push(event);
-    }
+    input.rules.forEach((rule: EdgeEventRule): void => {
+        const current = !!input.pressedStates[rule.key];
+        const previous = !!input.lastState[rule.key];
+        if (current && !previous) {
+            input.events.push(rule.withCursorId ? { name: rule.name, payload: { id: input.cursorId } } : { name: rule.name });
+        }
+    });
+}
+
+/**
+ * 押下状態マップから次状態を作成する。
+ * @param pressedStates 押下状態マップ
+ * @returns 次状態
+ */
+function toNextState(pressedStates: Partial<Record<ButtonStateKey, boolean>>): Partial<JoyConButtonStateSnapshot> {
+    const nextState: Partial<JoyConButtonStateSnapshot> = {};
+    Object.keys(pressedStates).forEach((key: string): void => {
+        const typedKey = key as ButtonStateKey;
+        nextState[typedKey] = !!pressedStates[typedKey];
+    });
+    return nextState;
+}
+
+/**
+ * 右左共通のボタンイベント構築処理。
+ * @param buttonByte ボタンバイト
+ * @param sharedButtonByte 共通ボタンバイト
+ * @param cursorId カーソル ID
+ * @param lastState 直前状態
+ * @param bindings 押下解析定義
+ * @param continuousRules 連続通知定義
+ * @param edgeRules エッジ通知定義
+ * @returns 発行イベントと次状態
+ */
+function buildButtonEvents(
+    input: {
+        buttonByte: number;
+        sharedButtonByte: number;
+        cursorId: CursorId;
+        lastState: JoyConButtonStateSnapshot;
+        bindings: ButtonBinding[];
+        continuousRules: ContinuousEventRule[];
+        edgeRules: EdgeEventRule[];
+    },
+): ButtonEventResult {
+    const pressedStates = readPressedStates(input.buttonByte, input.sharedButtonByte, input.bindings);
+    const events = buildContinuousEvents(pressedStates, input.continuousRules);
+    appendEdgeEvents({
+        events,
+        pressedStates,
+        lastState: input.lastState,
+        cursorId: input.cursorId,
+        rules: input.edgeRules,
+    });
+    return { events, nextState: toNextState(pressedStates) };
 }
 
 /**
@@ -57,39 +168,34 @@ export function buildLeftButtonEvents(
     cursorId: CursorId,
     lastState: JoyConButtonStateSnapshot,
 ): ButtonEventResult {
-    const DOWN_BUTTON_MASK = 0x01;
-    const LEFT_BUTTON_MASK = 0x08;
-    const RIGHT_BUTTON_MASK = 0x04;
-    const SR_BUTTON_MASK = 0x10;
-    const MINUS_BUTTON_MASK = 0x01;
-    const currentDownPressed = (buttonByte & DOWN_BUTTON_MASK) !== 0;
-    const currentLeftPressed = (buttonByte & LEFT_BUTTON_MASK) !== 0;
-    const currentRightPressed = (buttonByte & RIGHT_BUTTON_MASK) !== 0;
-    const currentSrPressed = (buttonByte & SR_BUTTON_MASK) !== 0;
-    const currentMinusPressed = (sharedButtonByte & MINUS_BUTTON_MASK) !== 0;
-
-    const events: ButtonEvent[] = [
-        { name: 'button-down', payload: { pressed: currentDownPressed } },
-        { name: 'button-sr', payload: { pressed: currentSrPressed } },
-        { name: 'button-minus', payload: { pressed: currentMinusPressed } },
+    const bindings: ButtonBinding[] = [
+        { key: 'downPressed', source: 'button', mask: 0x01 },
+        { key: 'leftPressed', source: 'button', mask: 0x08 },
+        { key: 'rightPressed', source: 'button', mask: 0x04 },
+        { key: 'srPressed', source: 'button', mask: 0x10 },
+        { key: 'minusPressed', source: 'shared', mask: 0x01 },
     ];
-
-    pushEdgeEvent(events, currentDownPressed, lastState.downPressed, { name: 'button-down-pressed', payload: { id: cursorId } });
-    pushEdgeEvent(events, currentLeftPressed, lastState.leftPressed, { name: 'ppt-next' });
-    pushEdgeEvent(events, currentRightPressed, lastState.rightPressed, { name: 'ppt-prev' });
-    pushEdgeEvent(events, currentSrPressed, lastState.srPressed, { name: 'button-sr-pressed', payload: { id: cursorId } });
-    pushEdgeEvent(events, currentMinusPressed, lastState.minusPressed, { name: 'button-minus-pressed', payload: { id: cursorId } });
-
-    return {
-        events,
-        nextState: {
-            downPressed: currentDownPressed,
-            leftPressed: currentLeftPressed,
-            rightPressed: currentRightPressed,
-            srPressed: currentSrPressed,
-            minusPressed: currentMinusPressed,
-        },
-    };
+    const continuousRules: ContinuousEventRule[] = [
+        { name: 'button-down', key: 'downPressed' },
+        { name: 'button-sr', key: 'srPressed' },
+        { name: 'button-minus', key: 'minusPressed' },
+    ];
+    const edgeRules: EdgeEventRule[] = [
+        { key: 'downPressed', name: 'button-down-pressed', withCursorId: true },
+        { key: 'leftPressed', name: 'ppt-next' },
+        { key: 'rightPressed', name: 'ppt-prev' },
+        { key: 'srPressed', name: 'button-sr-pressed', withCursorId: true },
+        { key: 'minusPressed', name: 'button-minus-pressed', withCursorId: true },
+    ];
+    return buildButtonEvents({
+        buttonByte,
+        sharedButtonByte,
+        cursorId,
+        lastState,
+        bindings,
+        continuousRules,
+        edgeRules,
+    });
 }
 
 /**
@@ -106,53 +212,41 @@ export function buildRightButtonEvents(
     cursorId: CursorId,
     lastState: JoyConButtonStateSnapshot,
 ): ButtonEventResult {
-    const X_BUTTON_MASK = 0x02;
-    const A_BUTTON_MASK = 0x08;
-    const Y_BUTTON_MASK = 0x01;
-    const PLUS_BUTTON_MASK = 0x02;
-    const MINUS_BUTTON_MASK = 0x01;
-    const R_STICK_BUTTON_MASK = 0x04;
-    const SR_BUTTON_MASK = 0x10;
-    const HOME_BUTTON_MASK = 0x10;
-
-    const currentXPressed = (buttonByte & X_BUTTON_MASK) !== 0;
-    const currentAPressed = (buttonByte & A_BUTTON_MASK) !== 0;
-    const currentYPressed = (buttonByte & Y_BUTTON_MASK) !== 0;
-    const currentPlusPressed = (sharedButtonByte & PLUS_BUTTON_MASK) !== 0;
-    const currentMinusPressed = (sharedButtonByte & MINUS_BUTTON_MASK) !== 0;
-    const currentRStickPressed = (sharedButtonByte & R_STICK_BUTTON_MASK) !== 0;
-    const currentSrPressed = (buttonByte & SR_BUTTON_MASK) !== 0;
-    const currentHomePressed = (sharedButtonByte & HOME_BUTTON_MASK) !== 0;
-
-    const events: ButtonEvent[] = [
-        { name: 'button-x', payload: { pressed: currentXPressed } },
-        { name: 'button-plus', payload: { pressed: currentPlusPressed } },
-        { name: 'button-minus', payload: { pressed: currentMinusPressed } },
-        { name: 'button-sr', payload: { pressed: currentSrPressed } },
-        { name: 'r-stick', payload: { pressed: currentRStickPressed } },
-        { name: 'button-home', payload: { pressed: currentHomePressed } },
+    const bindings: ButtonBinding[] = [
+        { key: 'xPressed', source: 'button', mask: 0x02 },
+        { key: 'aPressed', source: 'button', mask: 0x08 },
+        { key: 'yPressed', source: 'button', mask: 0x01 },
+        { key: 'plusPressed', source: 'shared', mask: 0x02 },
+        { key: 'minusPressed', source: 'shared', mask: 0x01 },
+        { key: 'rStickPressed', source: 'shared', mask: 0x04 },
+        { key: 'srPressed', source: 'button', mask: 0x10 },
+        { key: 'homePressed', source: 'shared', mask: 0x10 },
     ];
-
-    pushEdgeEvent(events, currentXPressed, lastState.xPressed, { name: 'button-x-pressed', payload: { id: cursorId } });
-    pushEdgeEvent(events, currentAPressed, lastState.aPressed, { name: 'ppt-next' });
-    pushEdgeEvent(events, currentYPressed, lastState.yPressed, { name: 'ppt-prev' });
-    pushEdgeEvent(events, currentPlusPressed, lastState.plusPressed, { name: 'button-plus-pressed', payload: { id: cursorId } });
-    pushEdgeEvent(events, currentMinusPressed, lastState.minusPressed, { name: 'button-minus-pressed', payload: { id: cursorId } });
-    pushEdgeEvent(events, currentSrPressed, lastState.srPressed, { name: 'button-sr-pressed', payload: { id: cursorId } });
-    pushEdgeEvent(events, currentRStickPressed, lastState.rStickPressed, { name: 'r-stick-pressed', payload: { id: cursorId } });
-    pushEdgeEvent(events, currentHomePressed, lastState.homePressed, { name: 'button-home-pressed', payload: { id: cursorId } });
-
-    return {
-        events,
-        nextState: {
-            xPressed: currentXPressed,
-            aPressed: currentAPressed,
-            yPressed: currentYPressed,
-            plusPressed: currentPlusPressed,
-            minusPressed: currentMinusPressed,
-            srPressed: currentSrPressed,
-            rStickPressed: currentRStickPressed,
-            homePressed: currentHomePressed,
-        },
-    };
+    const continuousRules: ContinuousEventRule[] = [
+        { name: 'button-x', key: 'xPressed' },
+        { name: 'button-plus', key: 'plusPressed' },
+        { name: 'button-minus', key: 'minusPressed' },
+        { name: 'button-sr', key: 'srPressed' },
+        { name: 'r-stick', key: 'rStickPressed' },
+        { name: 'button-home', key: 'homePressed' },
+    ];
+    const edgeRules: EdgeEventRule[] = [
+        { key: 'xPressed', name: 'button-x-pressed', withCursorId: true },
+        { key: 'aPressed', name: 'ppt-next' },
+        { key: 'yPressed', name: 'ppt-prev' },
+        { key: 'plusPressed', name: 'button-plus-pressed', withCursorId: true },
+        { key: 'minusPressed', name: 'button-minus-pressed', withCursorId: true },
+        { key: 'srPressed', name: 'button-sr-pressed', withCursorId: true },
+        { key: 'rStickPressed', name: 'r-stick-pressed', withCursorId: true },
+        { key: 'homePressed', name: 'button-home-pressed', withCursorId: true },
+    ];
+    return buildButtonEvents({
+        buttonByte,
+        sharedButtonByte,
+        cursorId,
+        lastState,
+        bindings,
+        continuousRules,
+        edgeRules,
+    });
 }
