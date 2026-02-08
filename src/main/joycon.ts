@@ -133,7 +133,7 @@ export default class JoyConManager extends EventEmitter {
             });
             return { joyconLPath, joyconRPath };
         } catch (error) {
-            console.error('Error finding HID devices:', error);
+            // console.error('Error finding HID devices:', error);
             return { joyconLPath: null, joyconRPath: null };
         }
     }
@@ -156,7 +156,7 @@ export default class JoyConManager extends EventEmitter {
             }
             return true;
         } catch (e) {
-            console.error(`SendCommand Error (${isLeft ? 'L' : 'R'}):`, e);
+            // console.error(`SendCommand Error (${isLeft ? 'L' : 'R'}):`, e);
             this.closeJoyCon(isLeft);
             return false;
         }
@@ -171,7 +171,7 @@ export default class JoyConManager extends EventEmitter {
     async initializeJoyCon(hidDevice: HID.HID, isLeft: boolean): Promise<boolean> {
         const packetNumber = (): number => (isLeft ? this.globalPacketNumberL : this.globalPacketNumberR);
         const delay = (ms: number): Promise<void> => new Promise((resolve: () => void) => setTimeout(resolve, ms));
-        console.log(`Initializing ${isLeft ? 'L' : 'R'} Joy-Con...`);
+        // console.log(`Initializing ${isLeft ? 'L' : 'R'} Joy-Con...`);
         try {
             // 振動を有効化する
             const enableRumbleCommand = [0x01, 0x00, ...JoyConManager.RUMBLE_OFF_DATA, 0x48, 0x01];
@@ -189,10 +189,10 @@ export default class JoyConManager extends EventEmitter {
                 }
                 await delay(100);
             }
-            console.log(`Initialization ${isLeft ? 'L' : 'R'} OK.`);
+            // console.log(`Initialization ${isLeft ? 'L' : 'R'} OK.`);
             return true;
         } catch (error) {
-            console.error(`Initialization Error (${isLeft ? 'L' : 'R'}):`, error);
+            // console.error(`Initialization Error (${isLeft ? 'L' : 'R'}):`, error);
             return false;
         }
     }
@@ -207,9 +207,10 @@ export default class JoyConManager extends EventEmitter {
                 hidDevice.removeAllListeners('data');
                 hidDevice.removeAllListeners('error');
                 hidDevice.close();
-                console.log('HID device closed.');
+                // console.log('HID device closed.');
             } catch (e) {
-                console.error('Close HID Error:', e);
+                // console.error('Close HID Error:', e);
+                void e;
             }
         }
     }
@@ -283,7 +284,7 @@ export default class JoyConManager extends EventEmitter {
         const targetHid = isLeft ? this.hidL : this.hidR;
         const wasConnected = !!targetHid;
         if (targetHid) {
-            console.log(`Closing ${isLeft ? 'L' : 'R'} Joy-Con...`);
+            // console.log(`Closing ${isLeft ? 'L' : 'R'} Joy-Con...`);
             this.closeHidDevice(targetHid);
         }
         if (isLeft) {
@@ -296,7 +297,7 @@ export default class JoyConManager extends EventEmitter {
             this.connectingR = false;
         }
         if (wasConnected) {
-            console.log(`Joy-Con ${isLeft ? 'L' : 'R'} disconnected.`);
+            // console.log(`Joy-Con ${isLeft ? 'L' : 'R'} disconnected.`);
             this.emit('status-update', { leftConnected: !!this.hidL, rightConnected: !!this.hidR });
         }
     }
@@ -365,9 +366,9 @@ export default class JoyConManager extends EventEmitter {
         let hidDevice: HID.HID | null = null;
         try {
             this.setConnectingState(isLeft, true);
-            console.log(`Connecting to ${isLeft ? 'L' : 'R'} Joy-Con: ${path}`);
+            // console.log(`Connecting to ${isLeft ? 'L' : 'R'} Joy-Con: ${path}`);
             hidDevice = new HID.HID(path);
-            console.log(`Connected (${isLeft ? 'L' : 'R'}). Initializing...`);
+            // console.log(`Connected (${isLeft ? 'L' : 'R'}). Initializing...`);
 
             let isDeviceClosed = false;
             const closedHandler = (): void => {
@@ -381,34 +382,36 @@ export default class JoyConManager extends EventEmitter {
                         hidDevice.on('data', (data: Buffer) => {
                             this.parseJoyConData(hidDevice as HID.HID, data, isLeft);
                         });
-                        console.log(`Listener attached (${isLeft ? 'L' : 'R'}).`);
+                        // console.log(`Listener attached (${isLeft ? 'L' : 'R'}).`);
                         this.attachConnectedDevice(hidDevice, isLeft);
                     } else {
-                        console.error(`Init failed or device closed during init (${isLeft ? 'L' : 'R'}).`);
+                        // console.error(`Init failed or device closed during init (${isLeft ? 'L' : 'R'}).`);
                         this.cleanupFailedConnection(hidDevice, isLeft);
                     }
                 })
                 .catch((initError: unknown) => {
                     hidDevice?.removeListener('close', closedHandler);
-                    console.error(`Async Init Error (${isLeft ? 'L' : 'R'}):`, initError);
+                    // console.error(`Async Init Error (${isLeft ? 'L' : 'R'}):`, initError);
+                    void initError;
                     this.cleanupFailedConnection(hidDevice, isLeft);
                 })
                 .finally(() => {
-                    console.log(`Connect attempt finished for ${isLeft ? 'L' : 'R'}.`);
+                    // console.log(`Connect attempt finished for ${isLeft ? 'L' : 'R'}.`);
                     this.setConnectingState(isLeft, false);
                 });
             hidDevice.on('error', (err: Error) => {
                 hidDevice?.removeListener('close', closedHandler);
-                console.error(`HID Error (${path}, ${isLeft ? 'L' : 'R'}):`, err.message);
+                // console.error(`HID Error (${path}, ${isLeft ? 'L' : 'R'}):`, err.message);
                 if (/(read|write|find|found|open|close)/i.test(err.message)) {
-                    console.log(`Assuming disconnection due to error for ${isLeft ? 'L' : 'R'}`);
+                    // console.log(`Assuming disconnection due to error for ${isLeft ? 'L' : 'R'}`);
                     this.closeJoyCon(isLeft);
                 }
                 this.setConnectingState(isLeft, false);
             });
         } catch (err: unknown) {
-            const message = err instanceof Error ? err.message : String(err);
-            console.error(`Connection failed (${path}):`, message);
+            // const message = err instanceof Error ? err.message : String(err);
+            // console.error(`Connection failed (${path}):`, message);
+            void err;
             this.closeHidDevice(hidDevice);
             this.setConnectingState(isLeft, false);
         }
@@ -418,7 +421,7 @@ export default class JoyConManager extends EventEmitter {
      * 全ての Joy-Con に接続を試行する。
      */
     connectAll(): void {
-        console.log('Attempting to connect all available Joy-Cons...');
+        // console.log('Attempting to connect all available Joy-Cons...');
         const { joyconLPath, joyconRPath } = this.findJoyCons();
         this.connectJoyCon(joyconLPath, true);
         this.connectJoyCon(joyconRPath, false);
@@ -432,7 +435,7 @@ export default class JoyConManager extends EventEmitter {
     requestBatteryStatus(isLeft: boolean): void {
         const hidDevice = isLeft ? this.hidL : this.hidR;
         if (hidDevice) {
-            console.log(`[JoyConManager] Requesting battery status for ${isLeft ? 'L' : 'R'} Joy-Con...`);
+            // console.log(`[JoyConManager] Requesting battery status for ${isLeft ? 'L' : 'R'} Joy-Con...`);
             const packetNumber = isLeft ? this.globalPacketNumberL : this.globalPacketNumberR;
             // Subcommand 0x50: Request Device Info, which includes battery data in its response (0x21 report type)
             const command = [0x01, packetNumber, 0x00, 0x01, 0x40, 0x40, 0x00, 0x01, 0x40, 0x40, 0x50];
@@ -444,24 +447,24 @@ export default class JoyConManager extends EventEmitter {
      * 定期的にデバイスをスキャンして未接続の Joy-Con に接続を試行する。
      */
     scanDevices(): void {
-        console.log('[Debug] scanDevices() called.');
+        // console.log('[Debug] scanDevices() called.');
         const { joyconLPath, joyconRPath } = this.findJoyCons();
 
         // Handle Left Joy-Con
         if (this.hidL) {
-            console.log('[Debug] Left Joy-Con is connected. Requesting battery status.');
+            // console.log('[Debug] Left Joy-Con is connected. Requesting battery status.');
             this.requestBatteryStatus(true);
         } else if (shouldAttemptAutoConnect(joyconLPath, false, this.autoConnectL)) { // Check autoConnectL
-            console.log('[Debug] Found disconnected Left Joy-Con. Attempting to connect.');
+            // console.log('[Debug] Found disconnected Left Joy-Con. Attempting to connect.');
             this.connectJoyCon(joyconLPath, true);
         }
 
         // Handle Right Joy-Con
         if (this.hidR) {
-            console.log('[Debug] Right Joy-Con is connected. Requesting battery status.');
+            // console.log('[Debug] Right Joy-Con is connected. Requesting battery status.');
             this.requestBatteryStatus(false);
         } else if (shouldAttemptAutoConnect(joyconRPath, false, this.autoConnectR)) { // Check autoConnectR
-            console.log('[Debug] Found disconnected Right Joy-Con. Attempting to connect.');
+            // console.log('[Debug] Found disconnected Right Joy-Con. Attempting to connect.');
             this.connectJoyCon(joyconRPath, false);
         }
     }
@@ -473,7 +476,7 @@ export default class JoyConManager extends EventEmitter {
     shutdownJoyCon(isLeft: boolean): void {
         const hidDevice = isLeft ? this.hidL : this.hidR;
         if (hidDevice) {
-            console.log(`[JoyConManager] Shutting down and powering off ${isLeft ? 'L' : 'R'} Joy-Con...`);
+            // console.log(`[JoyConManager] Shutting down and powering off ${isLeft ? 'L' : 'R'} Joy-Con...`);
             const packetNumber = isLeft ? this.globalPacketNumberL : this.globalPacketNumberR;
             // Subcommand 0x06: Set ship mode (power off)
             const command = [0x01, packetNumber, 0x00, 0x01, 0x40, 0x40, 0x00, 0x01, 0x40, 0x40, 0x06];
@@ -495,10 +498,10 @@ export default class JoyConManager extends EventEmitter {
      */
     startScanningAndConnect(): void {
         if (this.scanTimer) {
-            console.log('Device scanner already running.');
+            // console.log('Device scanner already running.');
             return;
         }
-        console.log(`Starting device scan and initial connection (Interval: ${this.scanIntervalMs}ms)`);
+        // console.log(`Starting device scan and initial connection (Interval: ${this.scanIntervalMs}ms)`);
         this.connectAll();
         this.scanTimer = setInterval(() => {
             this.scanDevices();
@@ -510,7 +513,7 @@ export default class JoyConManager extends EventEmitter {
      */
     stopScanning(): void {
         if (this.scanTimer) {
-            console.log('Stopping device scan.');
+            // console.log('Stopping device scan.');
             clearInterval(this.scanTimer);
             this.scanTimer = null;
         }
@@ -527,7 +530,8 @@ export default class JoyConManager extends EventEmitter {
         const reportKind = classifyJoyConReport(reportId);
 
         if (reportKind === 'subcommand-reply') {
-            console.log(`[Debug] Received 0x21 report from ${isLeft ? 'L' : 'R'}:`, data);
+            // console.log(`[Debug] Received 0x21 report from ${isLeft ? 'L' : 'R'}:`, data);
+            void data;
             // 0x21 reports are subcommand replies, currently not used for battery
         } else if (canParseStandardInputReport(reportId, data.length)) {
             try {
@@ -562,6 +566,9 @@ export default class JoyConManager extends EventEmitter {
                             lastButtonState as JoyConButtonStateSnapshot,
                         );
                         result.events.forEach((event: JoyConButtonEvent): void => {
+                            // if (event.name === 'r-stick-pressed') {
+                            //     console.log(`[JoyConManager] Emitting r-stick-pressed for ${cursorId}`);
+                            // }
                             if (event.payload === undefined) {
                                 this.emit(event.name);
                             } else {
@@ -577,9 +584,6 @@ export default class JoyConManager extends EventEmitter {
                             lastButtonState as JoyConButtonStateSnapshot,
                         );
                         result.events.forEach((event: JoyConButtonEvent): void => {
-                            if (event.name === 'r-stick-pressed') {
-                                console.log(`[JoyConManager] Emitting r-stick-pressed for ${cursorId}`);
-                            }
                             if (event.payload === undefined) {
                                 this.emit(event.name);
                             } else {
@@ -599,7 +603,8 @@ export default class JoyConManager extends EventEmitter {
                     this.emit('r-stick-analog', analog);
                 }
             } catch (e) {
-                console.error(`[${isLeft ? 'L' : 'R'}] Parse Error:`, e);
+                // console.error(`[${isLeft ? 'L' : 'R'}] Parse Error:`, e);
+                void e;
             }
         }
     }
