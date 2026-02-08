@@ -359,6 +359,9 @@ export default class JoyConManager extends EventEmitter {
         if (shouldSkipConnect(path, state)) {
             return;
         }
+        if (path === null) {
+            return;
+        }
         let hidDevice: HID.HID | null = null;
         try {
             this.setConnectingState(isLeft, true);

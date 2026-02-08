@@ -23,12 +23,14 @@ type OpenDialogResult = {
     filePaths: string[];
 };
 
+type OpenDialogOptions = {
+    title: string;
+    properties: Array<'openFile' | 'openDirectory'>;
+    filters: Array<{ name: string; extensions: string[] }>;
+};
+
 type DialogAdapter = {
-    showOpenDialog: (owner: BrowserWindow | undefined, options: {
-        title: string;
-        properties: Array<'openFile' | 'openDirectory'>;
-        filters: Array<{ name: string; extensions: string[] }>;
-    }) => Promise<OpenDialogResult>;
+    showOpenDialog: (owner: BrowserWindow | undefined, options: OpenDialogOptions) => Promise<OpenDialogResult>;
 };
 
 /**
@@ -146,12 +148,12 @@ export class MediaDirectoryStore {
             {
                 showOpenDialog: (
                     owner: BrowserWindow | undefined,
-                    options: {
-                        title: string;
-                        properties: Array<'openFile' | 'openDirectory'>;
-                        filters: Array<{ name: string; extensions: string[] }>;
-                    },
-                ): Promise<OpenDialogResult> => dialog.showOpenDialog(owner, options),
+                    options: OpenDialogOptions,
+                ): Promise<OpenDialogResult> => {
+                    return owner
+                        ? dialog.showOpenDialog(owner, options)
+                        : dialog.showOpenDialog(options);
+                },
             },
         );
     }

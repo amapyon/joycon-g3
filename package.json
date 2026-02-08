@@ -4,6 +4,8 @@
   "description": "Select display, control cursors with Joy-Cons (Gyro, Button Toggles/Resets), PowerPoint control via COM",
   "main": "dist/main/main.js",
   "scripts": {
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "typecheck:test": "tsc --noEmit -p tsconfig.test.json",
     "copy-renderer": "powershell -NoProfile -Command \"New-Item -ItemType Directory -Force -Path dist/renderer/styles | Out-Null; Copy-Item src/renderer/*.html dist/renderer/; Copy-Item src/renderer/styles/*.css dist/renderer/styles/\"",
     "lint": "eslint --cache --cache-location .eslintcache \"src/**/*.ts\"",
     "build": "npm run lint && tsc && npm run copy-renderer",

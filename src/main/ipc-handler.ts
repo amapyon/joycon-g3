@@ -1,5 +1,5 @@
 // ipc-handler.ts
-import { ipcMain, screen, IpcMainEvent, BrowserWindow } from 'electron';
+import { ipcMain, screen, IpcMainEvent, IpcMainInvokeEvent, BrowserWindow } from 'electron';
 import WindowManager from './window-manager';
 import powerpointControl from './powerpoint-control';
 import imuProcessor from './imu-processor';
@@ -215,8 +215,7 @@ export function setupIpcHandlers(
     ipcMain.handle('select-media-folder', async () => selectMediaFolder());
     ipcMain.handle('get-media-files', async () => getMediaFiles());
     ipcMain.handle('get-media-base-path', () => getMediaBasePath());
-    ipcMain.handle('set-media-base-path', (event: IpcMainEvent, dir: string) => {
-        void event;
+    ipcMain.handle('set-media-base-path', (_event: IpcMainInvokeEvent, dir: string) => {
         return mediaDirectoryStore.setMediaBasePath(dir);
     });
 
