@@ -15,6 +15,8 @@ import {
     RegisterMainJoyConEventsOptions,
 } from './main-joycon-events-types';
 
+let pointerPositions: PointerPositions | null = null;
+
 /**
  * カーソル ID かどうかを判定する。
  * @param value 判定対象
@@ -40,6 +42,35 @@ function isRecord(value: unknown): value is Record<string, unknown> {
  */
 function isFiniteNumber(value: unknown): value is number {
     return typeof value === 'number' && Number.isFinite(value);
+}
+
+/**
+ * 3次元ベクトルを解析する。
+ * @param value 入力値
+ * @returns 解析結果。無効な場合は null
+ */
+function parseVector3(value: unknown): { x: number; y: number; z: number } | null {
+    if (!isRecord(value) || !isFiniteNumber(value.x) || !isFiniteNumber(value.y) || !isFiniteNumber(value.z)) {
+        return null;
+    }
+    return { x: value.x, y: value.y, z: value.z };
+}
+
+/**
+ * IMU データを解析する。
+ * @param value 入力値
+ * @returns 解析結果。無効な場合は null
+ */
+function parseImuData(value: unknown): ImuData | null {
+    if (!isRecord(value) || typeof value.id !== 'string') {
+        return null;
+    }
+    const accel = parseVector3(value.accel);
+    const gyro = parseVector3(value.gyro);
+    if (!accel || !gyro) {
+        return null;
+    }
+    return { id: value.id, accel, gyro };
 }
 
 /**
@@ -199,17 +230,16 @@ function registerImuHandlers(context: JoyConEventsContext): void {
     const { joyConManager, imuProcessor, windowManager } = options;
 
     joyConManager.on('imu-data', (data: unknown): void => {
-        if (!isRecord(data) || (data.id !== 'R' && data.id !== 'cursorRight' && data.id !== 'L' && data.id !== 'cursorLeft')) {
+        const imuData = parseImuData(data);
+        if (!imuData || (imuData.id !== 'R' && imuData.id !== 'cursorRight' && imuData.id !== 'L' && imuData.id !== 'cursorLeft')) {
             return;
         }
-        const imuData = data as ImuData;
         const cursorId = (imuData.id === 'R' || imuData.id === 'cursorRight') ? 'cursorRight' : 'cursorLeft';
         imuProcessor.update({ id: cursorId, accel: imuData.accel, gyro: imuData.gyro });
 
         const state = imuProcessor.states[cursorId];
-        const g = globalThis as typeof globalThis & { pointerPositions?: PointerPositions };
-        if (!g.pointerPositions) {
-            g.pointerPositions = { cursorLeft: { x: 600, y: 300 }, cursorRight: { x: 600, y: 300 } };
+        if (!pointerPositions) {
+            pointerPositions = { cursorLeft: { x: 600, y: 300 }, cursorRight: { x: 600, y: 300 } };
         }
 
         const decision = decidePointerUpdate({
@@ -219,7 +249,7 @@ function registerImuHandlers(context: JoyConEventsContext): void {
             isCalibrating: imuProcessor.isCalibrating[cursorId],
             gyroBias: { x: state.gyroBiasX, y: state.gyroBiasY, z: state.gyroBiasZ },
             cursorMapConfig: options.getCursorMapConfig(),
-            currentPosition: g.pointerPositions[cursorId],
+            currentPosition: pointerPositions[cursorId],
             defaultPosition: { x: 600, y: 300 },
             screenSize: getScreenSize(),
             moveSpeed: 0.1,
@@ -232,7 +262,7 @@ function registerImuHandlers(context: JoyConEventsContext): void {
         if (decision.configMissing) {
             // console.warn(`[main.ts] cursorMapConfig for ${cursorId} is undefined. Using default signs.`);
         }
-        g.pointerPositions[cursorId] = decision.position;
+        pointerPositions[cursorId] = decision.position;
         sendToWindow(windowManager.getCursorWindow(), 'update-pointer', decision.sendPayload);
     });
 

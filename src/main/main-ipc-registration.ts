@@ -89,26 +89,30 @@ function parseTimerNotificationConfigs(value: unknown): TimerNotificationConfig[
     if (!Array.isArray(value)) {
         return null;
     }
-    const hasOnlyValidItems = value.every((item: unknown): boolean => {
+    const parsedConfigs: TimerNotificationConfig[] = [];
+    for (const item of value) {
         if (!isRecord(item)) {
-            return false;
+            return null;
         }
         const time = item.time;
         const filename = item.filename;
         const absolutePath = item.absolutePath;
         const rumble = item.rumble;
-        return (
-            typeof time === 'number'
-            && Number.isFinite(time)
-            && typeof filename === 'string'
-            && typeof absolutePath === 'string'
-            && (rumble === undefined || typeof rumble === 'boolean')
-        );
-    });
-    if (!hasOnlyValidItems) {
+        if (
+            typeof time !== 'number'
+            || !Number.isFinite(time)
+            || typeof filename !== 'string'
+            || typeof absolutePath !== 'string'
+            || (rumble !== undefined && typeof rumble !== 'boolean')
+        ) {
+            return null;
+        }
+        parsedConfigs.push({ time, filename, absolutePath, rumble });
+    }
+    if (parsedConfigs.length !== value.length) {
         return null;
     }
-    return value as TimerNotificationConfig[];
+    return parsedConfigs;
 }
 
 /**
@@ -135,7 +139,24 @@ function parseCursorMapConfig(value: unknown): CursorMapConfig | null {
     if (!isRecord(value)) {
         return null;
     }
-    return value as CursorMapConfig;
+    const nextConfig: CursorMapConfig = {};
+    const cursorIds: CursorId[] = ['cursorLeft', 'cursorRight'];
+    cursorIds.forEach((cursorId: CursorId): void => {
+        const entry = value[cursorId];
+        if (!isRecord(entry)) {
+            return;
+        }
+        const xSign = parseNumberPayload(entry.xSign);
+        const ySign = parseNumberPayload(entry.ySign);
+        if (xSign === null || ySign === null) {
+            return;
+        }
+        nextConfig[cursorId] = {
+            xSign,
+            ySign,
+        };
+    });
+    return nextConfig;
 }
 
 /**
