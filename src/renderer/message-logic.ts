@@ -24,45 +24,22 @@ type MessageNumberUtilsApi = {
     normalizeNumber: (value: number, fallback: number, min: number, max: number) => number;
 };
 
-/**
- * ホイール操作ユーティリティAPIを取得する。
- * @returns ホイール操作ユーティリティAPI
- */
-function resolveMessageWheelActionUtilsApi(): MessageWheelActionUtilsApi {
-    const wheelActionUtilsRoot = (typeof window !== 'undefined' ? window : globalThis) as unknown as {
-        wheelActionUtils?: MessageWheelActionUtilsApi;
+const messageApiResolverUtils = ((): { resolveApi: <T>(globalKey: string, requirePath: string) => T } => {
+    const root = (typeof window !== 'undefined' ? window : globalThis) as unknown as {
+        rendererApiResolverUtils?: { resolveApi: <T>(globalKey: string, requirePath: string) => T };
     };
-    if (wheelActionUtilsRoot.wheelActionUtils) {
-        return wheelActionUtilsRoot.wheelActionUtils;
+    if (root.rendererApiResolverUtils) {
+        return root.rendererApiResolverUtils;
     }
     if (typeof require !== 'undefined') {
         // eslint-disable-next-line @typescript-eslint/no-var-requires -- CommonJS 形式の読み込みが必要
-        return require('./wheel-action-utils') as MessageWheelActionUtilsApi;
+        return require('./api-resolver-utils') as { resolveApi: <T>(globalKey: string, requirePath: string) => T };
     }
-    throw new Error('wheelActionUtils API is not available');
-}
+    throw new Error('rendererApiResolverUtils API is not available');
+})();
 
-const messageWheelActionUtilsApi: MessageWheelActionUtilsApi = resolveMessageWheelActionUtilsApi();
-
-/**
- * 数値ユーティリティAPIを取得する。
- * @returns 数値ユーティリティAPI
- */
-function resolveMessageNumberUtilsApi(): MessageNumberUtilsApi {
-    const numberUtilsRoot = (typeof window !== 'undefined' ? window : globalThis) as unknown as {
-        numberUtils?: MessageNumberUtilsApi;
-    };
-    if (numberUtilsRoot.numberUtils) {
-        return numberUtilsRoot.numberUtils;
-    }
-    if (typeof require !== 'undefined') {
-        // eslint-disable-next-line @typescript-eslint/no-var-requires -- CommonJS 形式の読み込みが必要
-        return require('./number-utils') as MessageNumberUtilsApi;
-    }
-    throw new Error('numberUtils API is not available');
-}
-
-const messageNumberUtilsApi: MessageNumberUtilsApi = resolveMessageNumberUtilsApi();
+const messageWheelActionUtilsApi: MessageWheelActionUtilsApi = messageApiResolverUtils.resolveApi<MessageWheelActionUtilsApi>('wheelActionUtils', './wheel-action-utils');
+const messageNumberUtilsApi: MessageNumberUtilsApi = messageApiResolverUtils.resolveApi<MessageNumberUtilsApi>('numberUtils', './number-utils');
 
 /**
  * フォントサイズを範囲内に正規化する。

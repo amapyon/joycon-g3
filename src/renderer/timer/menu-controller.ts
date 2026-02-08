@@ -29,25 +29,21 @@ type MenuControllerPresetLabelApi = {
     formatTimerPresetLabel: (seconds: number) => string;
 };
 
-/**
- * プリセットラベルAPIを取得する。
- * @returns プリセットラベルAPI
- */
-function resolveMenuControllerPresetLabelApi(): MenuControllerPresetLabelApi {
-    const timerPresetLabelRoot = (typeof window !== 'undefined' ? window : globalThis) as unknown as {
-        timerPresetLabel?: MenuControllerPresetLabelApi;
+const menuControllerApiResolverUtils = ((): { resolveApi: <T>(globalKey: string, requirePath: string) => T } => {
+    const root = (typeof window !== 'undefined' ? window : globalThis) as unknown as {
+        rendererApiResolverUtils?: { resolveApi: <T>(globalKey: string, requirePath: string) => T };
     };
-    if (timerPresetLabelRoot.timerPresetLabel) {
-        return timerPresetLabelRoot.timerPresetLabel;
+    if (root.rendererApiResolverUtils) {
+        return root.rendererApiResolverUtils;
     }
     if (typeof require !== 'undefined') {
         // eslint-disable-next-line @typescript-eslint/no-var-requires -- CommonJS 形式の読み込みが必要
-        return require('../preset-label-utils') as MenuControllerPresetLabelApi;
+        return require('../api-resolver-utils') as { resolveApi: <T>(globalKey: string, requirePath: string) => T };
     }
-    throw new Error('timerPresetLabel API is not available');
-}
+    throw new Error('rendererApiResolverUtils API is not available');
+})();
 
-const menuControllerPresetLabelApi: MenuControllerPresetLabelApi = resolveMenuControllerPresetLabelApi();
+const menuControllerPresetLabelApi: MenuControllerPresetLabelApi = menuControllerApiResolverUtils.resolveApi<MenuControllerPresetLabelApi>('timerPresetLabel', './preset-label-utils');
 
 /**
  * タイマーメニューの表示と操作を管理する。

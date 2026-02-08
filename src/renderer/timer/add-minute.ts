@@ -8,22 +8,18 @@ type AddMinuteNumberUtilsApi = {
     normalizeNumber: (value: number, fallback: number, min: number, max: number) => number;
 };
 
-/**
- * 数値ユーティリティAPIを取得する。
- * @returns 数値ユーティリティAPI
- */
-function resolveAddMinuteNumberUtilsApi(): AddMinuteNumberUtilsApi {
-    const numberUtilsRoot = (typeof window !== 'undefined' ? window : globalThis) as unknown as {
-        numberUtils?: AddMinuteNumberUtilsApi;
+const addMinuteApiResolverUtils = ((): { resolveApi: <T>(globalKey: string, requirePath: string) => T } => {
+    const root = (typeof window !== 'undefined' ? window : globalThis) as unknown as {
+        rendererApiResolverUtils?: { resolveApi: <T>(globalKey: string, requirePath: string) => T };
     };
-    if (numberUtilsRoot.numberUtils) {
-        return numberUtilsRoot.numberUtils;
+    if (root.rendererApiResolverUtils) {
+        return root.rendererApiResolverUtils;
     }
     // eslint-disable-next-line @typescript-eslint/no-var-requires -- CommonJS 形式の読み込みが必要
-    return require('../number-utils') as AddMinuteNumberUtilsApi;
-}
+    return require('../api-resolver-utils') as { resolveApi: <T>(globalKey: string, requirePath: string) => T };
+})();
 
-const addMinuteNumberUtilsApi: AddMinuteNumberUtilsApi = resolveAddMinuteNumberUtilsApi();
+const addMinuteNumberUtilsApi: AddMinuteNumberUtilsApi = addMinuteApiResolverUtils.resolveApi<AddMinuteNumberUtilsApi>('numberUtils', './number-utils');
 
 /**
  * +1分の反映結果を計算する。

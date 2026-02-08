@@ -39,25 +39,21 @@ type TimerRendererWheelActionUtilsApi = {
     resolveWheelAction: (deltaY: number, shiftKey: boolean) => WheelAction;
 };
 
-/**
- * ホイール操作ユーティリティAPIを取得する。
- * @returns ホイール操作ユーティリティAPI
- */
-function resolveTimerRendererWheelActionUtilsApi(): TimerRendererWheelActionUtilsApi {
-    const wheelActionUtilsRoot = (typeof window !== 'undefined' ? window : globalThis) as unknown as {
-        wheelActionUtils?: TimerRendererWheelActionUtilsApi;
+const timerRendererLogicApiResolverUtils = ((): { resolveApi: <T>(globalKey: string, requirePath: string) => T } => {
+    const root = (typeof window !== 'undefined' ? window : globalThis) as unknown as {
+        rendererApiResolverUtils?: { resolveApi: <T>(globalKey: string, requirePath: string) => T };
     };
-    if (wheelActionUtilsRoot.wheelActionUtils) {
-        return wheelActionUtilsRoot.wheelActionUtils;
+    if (root.rendererApiResolverUtils) {
+        return root.rendererApiResolverUtils;
     }
     if (typeof require !== 'undefined') {
         // eslint-disable-next-line @typescript-eslint/no-var-requires -- CommonJS 形式の読み込みが必要
-        return require('../wheel-action-utils') as TimerRendererWheelActionUtilsApi;
+        return require('../api-resolver-utils') as { resolveApi: <T>(globalKey: string, requirePath: string) => T };
     }
-    throw new Error('wheelActionUtils API is not available');
-}
+    throw new Error('rendererApiResolverUtils API is not available');
+})();
 
-const timerRendererWheelActionUtilsApi: TimerRendererWheelActionUtilsApi = resolveTimerRendererWheelActionUtilsApi();
+const timerRendererWheelActionUtilsApi: TimerRendererWheelActionUtilsApi = timerRendererLogicApiResolverUtils.resolveApi<TimerRendererWheelActionUtilsApi>('wheelActionUtils', './wheel-action-utils');
 
 /**
  * 通知設定の rumble 値を明示的な真偽値へ正規化する。

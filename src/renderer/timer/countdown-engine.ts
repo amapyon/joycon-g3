@@ -25,45 +25,22 @@ type CountdownNumberUtilsApi = {
     normalizeNumber: (value: number, fallback: number, min: number, max: number) => number;
 };
 
-/**
- * 時刻整形APIを取得する。
- * @returns 時刻整形API
- */
-function resolveCountdownTimeFormatApi(): CountdownTimeFormatApi {
-    const timerTimeFormatRoot = (typeof window !== 'undefined' ? window : globalThis) as unknown as {
-        timerTimeFormat?: CountdownTimeFormatApi;
+const countdownApiResolverUtils = ((): { resolveApi: <T>(globalKey: string, requirePath: string) => T } => {
+    const root = (typeof window !== 'undefined' ? window : globalThis) as unknown as {
+        rendererApiResolverUtils?: { resolveApi: <T>(globalKey: string, requirePath: string) => T };
     };
-    if (timerTimeFormatRoot.timerTimeFormat) {
-        return timerTimeFormatRoot.timerTimeFormat;
+    if (root.rendererApiResolverUtils) {
+        return root.rendererApiResolverUtils;
     }
     if (typeof require !== 'undefined') {
         // eslint-disable-next-line @typescript-eslint/no-var-requires -- CommonJS 形式の読み込みが必要
-        return require('../time-format-utils') as CountdownTimeFormatApi;
+        return require('../api-resolver-utils') as { resolveApi: <T>(globalKey: string, requirePath: string) => T };
     }
-    throw new Error('timerTimeFormat API is not available');
-}
+    throw new Error('rendererApiResolverUtils API is not available');
+})();
 
-const countdownTimeFormatApi: CountdownTimeFormatApi = resolveCountdownTimeFormatApi();
-
-/**
- * 数値ユーティリティAPIを取得する。
- * @returns 数値ユーティリティAPI
- */
-function resolveCountdownNumberUtilsApi(): CountdownNumberUtilsApi {
-    const numberUtilsRoot = (typeof window !== 'undefined' ? window : globalThis) as unknown as {
-        numberUtils?: CountdownNumberUtilsApi;
-    };
-    if (numberUtilsRoot.numberUtils) {
-        return numberUtilsRoot.numberUtils;
-    }
-    if (typeof require !== 'undefined') {
-        // eslint-disable-next-line @typescript-eslint/no-var-requires -- CommonJS 形式の読み込みが必要
-        return require('../number-utils') as CountdownNumberUtilsApi;
-    }
-    throw new Error('numberUtils API is not available');
-}
-
-const countdownNumberUtilsApi: CountdownNumberUtilsApi = resolveCountdownNumberUtilsApi();
+const countdownTimeFormatApi: CountdownTimeFormatApi = countdownApiResolverUtils.resolveApi<CountdownTimeFormatApi>('timerTimeFormat', './time-format-utils');
+const countdownNumberUtilsApi: CountdownNumberUtilsApi = countdownApiResolverUtils.resolveApi<CountdownNumberUtilsApi>('numberUtils', './number-utils');
 
 /**
  * カウントダウンの状態と進行を管理する。

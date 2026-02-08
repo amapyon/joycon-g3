@@ -24,85 +24,24 @@ type TimerMainFileUrlUtilsApi = {
     toFileUrl: (path: string) => string;
 };
 
-/**
- * 時刻整形APIを取得する。
- * @returns 時刻整形API
- */
-function resolveTimerMainTimeFormatApi(): TimerMainTimeFormatApi {
-    const timerTimeFormatRoot = (typeof window !== 'undefined' ? window : globalThis) as unknown as {
-        timerTimeFormat?: TimerMainTimeFormatApi;
+const timerMainApiResolverUtils = ((): { resolveApi: <T>(globalKey: string, requirePath: string) => T } => {
+    const root = (typeof window !== 'undefined' ? window : globalThis) as unknown as {
+        rendererApiResolverUtils?: { resolveApi: <T>(globalKey: string, requirePath: string) => T };
     };
-    if (timerTimeFormatRoot.timerTimeFormat) {
-        return timerTimeFormatRoot.timerTimeFormat;
+    if (root.rendererApiResolverUtils) {
+        return root.rendererApiResolverUtils;
     }
     if (typeof require !== 'undefined') {
         // eslint-disable-next-line @typescript-eslint/no-var-requires -- CommonJS 形式の読み込みが必要
-        return require('../time-format-utils') as TimerMainTimeFormatApi;
+        return require('../api-resolver-utils') as { resolveApi: <T>(globalKey: string, requirePath: string) => T };
     }
-    throw new Error('timerTimeFormat API is not available');
-}
+    throw new Error('rendererApiResolverUtils API is not available');
+})();
 
-const timerMainTimeFormatApi: TimerMainTimeFormatApi = resolveTimerMainTimeFormatApi();
-
-/**
- * プリセットラベルAPIを取得する。
- * @returns プリセットラベルAPI
- */
-function resolveTimerMainPresetLabelApi(): TimerMainPresetLabelApi {
-    const timerPresetLabelRoot = (typeof window !== 'undefined' ? window : globalThis) as unknown as {
-        timerPresetLabel?: TimerMainPresetLabelApi;
-    };
-    if (timerPresetLabelRoot.timerPresetLabel) {
-        return timerPresetLabelRoot.timerPresetLabel;
-    }
-    if (typeof require !== 'undefined') {
-        // eslint-disable-next-line @typescript-eslint/no-var-requires -- CommonJS 形式の読み込みが必要
-        return require('../preset-label-utils') as TimerMainPresetLabelApi;
-    }
-    throw new Error('timerPresetLabel API is not available');
-}
-
-const timerMainPresetLabelApi: TimerMainPresetLabelApi = resolveTimerMainPresetLabelApi();
-
-/**
- * 数値ユーティリティAPIを取得する。
- * @returns 数値ユーティリティAPI
- */
-function resolveTimerMainNumberUtilsApi(): TimerMainNumberUtilsApi {
-    const numberUtilsRoot = (typeof window !== 'undefined' ? window : globalThis) as unknown as {
-        numberUtils?: TimerMainNumberUtilsApi;
-    };
-    if (numberUtilsRoot.numberUtils) {
-        return numberUtilsRoot.numberUtils;
-    }
-    if (typeof require !== 'undefined') {
-        // eslint-disable-next-line @typescript-eslint/no-var-requires -- CommonJS 形式の読み込みが必要
-        return require('../number-utils') as TimerMainNumberUtilsApi;
-    }
-    throw new Error('numberUtils API is not available');
-}
-
-const timerMainNumberUtilsApi: TimerMainNumberUtilsApi = resolveTimerMainNumberUtilsApi();
-
-/**
- * URL変換ユーティリティAPIを取得する。
- * @returns URL変換ユーティリティAPI
- */
-function resolveTimerMainFileUrlUtilsApi(): TimerMainFileUrlUtilsApi {
-    const fileUrlUtilsRoot = (typeof window !== 'undefined' ? window : globalThis) as unknown as {
-        fileUrlUtils?: TimerMainFileUrlUtilsApi;
-    };
-    if (fileUrlUtilsRoot.fileUrlUtils) {
-        return fileUrlUtilsRoot.fileUrlUtils;
-    }
-    if (typeof require !== 'undefined') {
-        // eslint-disable-next-line @typescript-eslint/no-var-requires -- CommonJS 形式の読み込みが必要
-        return require('../file-url-utils') as TimerMainFileUrlUtilsApi;
-    }
-    throw new Error('fileUrlUtils API is not available');
-}
-
-const timerMainFileUrlUtilsApi: TimerMainFileUrlUtilsApi = resolveTimerMainFileUrlUtilsApi();
+const timerMainTimeFormatApi: TimerMainTimeFormatApi = timerMainApiResolverUtils.resolveApi<TimerMainTimeFormatApi>('timerTimeFormat', './time-format-utils');
+const timerMainPresetLabelApi: TimerMainPresetLabelApi = timerMainApiResolverUtils.resolveApi<TimerMainPresetLabelApi>('timerPresetLabel', './preset-label-utils');
+const timerMainNumberUtilsApi: TimerMainNumberUtilsApi = timerMainApiResolverUtils.resolveApi<TimerMainNumberUtilsApi>('numberUtils', './number-utils');
+const timerMainFileUrlUtilsApi: TimerMainFileUrlUtilsApi = timerMainApiResolverUtils.resolveApi<TimerMainFileUrlUtilsApi>('fileUrlUtils', './file-url-utils');
 
 /**
  * プリセットの表示ラベルを作成する。

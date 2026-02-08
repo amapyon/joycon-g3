@@ -16,45 +16,22 @@ type NotificationPlayerFileUrlUtilsApi = {
     toPlayableMediaUrl: (path: string) => string;
 };
 
-/**
- * 数値ユーティリティAPIを取得する。
- * @returns 数値ユーティリティAPI
- */
-function resolveNotificationPlayerNumberUtilsApi(): NotificationPlayerNumberUtilsApi {
-    const numberUtilsRoot = (typeof window !== 'undefined' ? window : globalThis) as unknown as {
-        numberUtils?: NotificationPlayerNumberUtilsApi;
+const notificationPlayerApiResolverUtils = ((): { resolveApi: <T>(globalKey: string, requirePath: string) => T } => {
+    const root = (typeof window !== 'undefined' ? window : globalThis) as unknown as {
+        rendererApiResolverUtils?: { resolveApi: <T>(globalKey: string, requirePath: string) => T };
     };
-    if (numberUtilsRoot.numberUtils) {
-        return numberUtilsRoot.numberUtils;
+    if (root.rendererApiResolverUtils) {
+        return root.rendererApiResolverUtils;
     }
     if (typeof require !== 'undefined') {
         // eslint-disable-next-line @typescript-eslint/no-var-requires -- CommonJS 形式の読み込みが必要
-        return require('../number-utils') as NotificationPlayerNumberUtilsApi;
+        return require('../api-resolver-utils') as { resolveApi: <T>(globalKey: string, requirePath: string) => T };
     }
-    throw new Error('numberUtils API is not available');
-}
+    throw new Error('rendererApiResolverUtils API is not available');
+})();
 
-const notificationPlayerNumberUtilsApi: NotificationPlayerNumberUtilsApi = resolveNotificationPlayerNumberUtilsApi();
-
-/**
- * URL変換ユーティリティAPIを取得する。
- * @returns URL変換ユーティリティAPI
- */
-function resolveNotificationPlayerFileUrlUtilsApi(): NotificationPlayerFileUrlUtilsApi {
-    const fileUrlUtilsRoot = (typeof window !== 'undefined' ? window : globalThis) as unknown as {
-        fileUrlUtils?: NotificationPlayerFileUrlUtilsApi;
-    };
-    if (fileUrlUtilsRoot.fileUrlUtils) {
-        return fileUrlUtilsRoot.fileUrlUtils;
-    }
-    if (typeof require !== 'undefined') {
-        // eslint-disable-next-line @typescript-eslint/no-var-requires -- CommonJS 形式の読み込みが必要
-        return require('../file-url-utils') as NotificationPlayerFileUrlUtilsApi;
-    }
-    throw new Error('fileUrlUtils API is not available');
-}
-
-const notificationPlayerFileUrlUtilsApi: NotificationPlayerFileUrlUtilsApi = resolveNotificationPlayerFileUrlUtilsApi();
+const notificationPlayerNumberUtilsApi: NotificationPlayerNumberUtilsApi = notificationPlayerApiResolverUtils.resolveApi<NotificationPlayerNumberUtilsApi>('numberUtils', './number-utils');
+const notificationPlayerFileUrlUtilsApi: NotificationPlayerFileUrlUtilsApi = notificationPlayerApiResolverUtils.resolveApi<NotificationPlayerFileUrlUtilsApi>('fileUrlUtils', './file-url-utils');
 
 /**
  * 通知音と振動の再生を管理する。
