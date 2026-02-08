@@ -2,6 +2,7 @@ import { BrowserWindow } from 'electron';
 import { CursorId, ImuData, PointerPositions, decidePointerUpdate } from './imu-pointer';
 import { RStickAction, RStickConfig, RStickState, decideRStickAnalog, decideRStickPress } from './r-stick-handler';
 import { getScreenSize } from './screen-state';
+import { isUsableWindow } from './browser-window-utils';
 import {
     AttitudeData,
     BatteryStatus,
@@ -30,7 +31,7 @@ function isCursorId(value: unknown): value is CursorId {
  * @param payload ペイロード
  */
 function sendToWindow(win: BrowserWindow | null, channel: string, payload?: unknown): void {
-    if (!win || win.isDestroyed()) {
+    if (!isUsableWindow(win)) {
         return;
     }
     if (payload === undefined) {
@@ -50,7 +51,7 @@ function sendToTimerWhenReady(timerWindow: BrowserWindow, channel: string, paylo
     timerWindow.show();
     if (timerWindow.webContents.isLoading()) {
         timerWindow.webContents.once('did-finish-load', () => {
-            if (timerWindow && !timerWindow.isDestroyed()) {
+            if (isUsableWindow(timerWindow)) {
                 timerWindow.webContents.send(channel, payload);
             }
         });
@@ -184,7 +185,7 @@ function registerButtonHandlers(context: JoyConEventsContext): void {
             const typedData = data as JoyConCursorIdData;
             // console.log(`[Main] ${eventName} received from JoyConManager for ${typedData?.id}`);
             const timerWindow = ensureTimerWindow();
-            if (timerWindow && !timerWindow.isDestroyed()) {
+            if (isUsableWindow(timerWindow)) {
                 sendToTimerWhenReady(timerWindow, eventName, typedData);
             }
         });

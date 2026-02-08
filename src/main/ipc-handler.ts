@@ -7,6 +7,7 @@ import JoyConManager from './joycon';
 import { setScreenSize } from './screen-state';
 import { MediaDirectoryStore } from './media-directory-store';
 import { findDisplayById, resolveDisplayId, toPhysicalScreenSize } from './ipc-handler-logic';
+import { isUsableWindow } from './browser-window-utils';
 
 type IpcHandlerDependencies = {
     mediaDirectoryStore?: MediaDirectoryStore;
@@ -31,7 +32,7 @@ function sendStartCountdownToTimerWindow(timerWin: BrowserWindow, duration: numb
 
     if (timerWin.webContents.isLoading()) {
         timerWin.webContents.once('did-finish-load', () => {
-            if (timerWin && !timerWin.isDestroyed()) {
+            if (isUsableWindow(timerWin)) {
                 sendPayload();
             }
         });
@@ -71,14 +72,14 @@ function registerCursorWindowHandlers(context: IpcHandlerContext): void {
     ipcMain.on('close-cursor-window', () => {
         // console.log("IPC Handler: Received 'close-cursor-window' request.");
         const windowToClose = windowManagerInstance.getCursorWindow();
-        if (windowToClose && !windowToClose.isDestroyed()) {
+        if (isUsableWindow(windowToClose)) {
             windowToClose.close();
             return;
         }
 
         // console.log('IPC Handler: Cursor window already closed or not found.');
         const mainWin = windowManagerInstance.getMainWindow();
-        if (mainWin && !mainWin.isDestroyed()) {
+        if (isUsableWindow(mainWin)) {
             mainWin.webContents.send('cursor-window-closed');
         }
     });
@@ -126,7 +127,7 @@ function registerCalibrationAndStatusHandlers(context: IpcHandlerContext): void 
         // console.log("IPC Handler: Received 'request-joycon-status'.");
         const status = joyconManager.getConnectionStatus();
         const mainWin = windowManagerInstance.getMainWindow();
-        if (mainWin && !mainWin.isDestroyed()) {
+        if (isUsableWindow(mainWin)) {
             mainWin.webContents.send('joycon-status-update', status);
         }
     });
@@ -147,7 +148,7 @@ function registerTimerHandlers(context: IpcHandlerContext): void {
     ipcMain.on('start-countdown-timer', (_event: IpcMainEvent, duration: number) => {
         // console.log(`[IPC Handler] Received 'start-countdown-timer': ${duration}s`);
         const timerWin = windowManagerInstance.getTimerWindow();
-        if (timerWin && !timerWin.isDestroyed()) {
+        if (isUsableWindow(timerWin)) {
             timerWin.show();
             sendStartCountdownToTimerWindow(timerWin, duration);
             return;
@@ -164,14 +165,14 @@ function registerTimerHandlers(context: IpcHandlerContext): void {
 
     ipcMain.on('toggle-timer-pause', () => {
         const timerWin = windowManagerInstance.getTimerWindow();
-        if (timerWin && !timerWin.isDestroyed()) {
+        if (isUsableWindow(timerWin)) {
             timerWin.webContents.send('timer-toggle-pause');
         }
     });
 
     ipcMain.on('add-minute-timer', () => {
         const timerWin = windowManagerInstance.getTimerWindow();
-        if (timerWin && !timerWin.isDestroyed()) {
+        if (isUsableWindow(timerWin)) {
             timerWin.webContents.send('timer-add-minute');
         }
     });
@@ -248,14 +249,14 @@ function registerMessageHandlers(context: IpcHandlerContext): void {
     ipcMain.on('send-message-text', (_event: IpcMainEvent, text: string) => {
         lastMessageText = text;
         const msgWin = windowManagerInstance.getMessageWindow();
-        if (msgWin && !msgWin.isDestroyed()) {
+        if (isUsableWindow(msgWin)) {
             msgWin.webContents.send('update-message-text', text);
         }
     });
 
     ipcMain.on('toggle-message-window', () => {
         let msgWin = windowManagerInstance.getMessageWindow();
-        if (msgWin && !msgWin.isDestroyed()) {
+        if (isUsableWindow(msgWin)) {
             if (msgWin.isVisible()) {
                 msgWin.hide();
             } else {
@@ -273,7 +274,7 @@ function registerMessageHandlers(context: IpcHandlerContext): void {
             return;
         }
         msgWin.webContents.once('did-finish-load', () => {
-            if (msgWin && !msgWin.isDestroyed()) {
+            if (isUsableWindow(msgWin)) {
                 msgWin.webContents.send('update-message-text', lastMessageText);
             }
         });

@@ -2,6 +2,7 @@
 import { app, BrowserWindow, screen, Display } from 'electron';
 import path from 'path';
 import { resolveInitialWindowBounds } from './window-bounds-logic';
+import { isUsableWindow } from './browser-window-utils';
 
 let mainWindow: BrowserWindow | null = null;
 let cursorWindow: BrowserWindow | null = null;
@@ -13,7 +14,7 @@ let messageWindow: BrowserWindow | null = null;
  * @returns メインウィンドウ
  */
 export function createMainWindow(): BrowserWindow {
-    if (mainWindow && !mainWindow.isDestroyed()) {
+    if (isUsableWindow(mainWindow)) {
         mainWindow.focus();
         return mainWindow;
     }
@@ -37,13 +38,13 @@ export function createMainWindow(): BrowserWindow {
     mainWindow.on('closed', () => {
         mainWindow = null;
         // Close other windows to ensure app.quit() is triggered via window-all-closed
-        if (cursorWindow && !cursorWindow.isDestroyed()) {
+        if (isUsableWindow(cursorWindow)) {
             cursorWindow.close();
         }
-        if (timerWindow && !timerWindow.isDestroyed()) {
+        if (isUsableWindow(timerWindow)) {
             timerWindow.close();
         }
-        if (messageWindow && !messageWindow.isDestroyed()) {
+        if (isUsableWindow(messageWindow)) {
             messageWindow.close();
         }
     });
@@ -57,7 +58,7 @@ export function createMainWindow(): BrowserWindow {
 export function createCursorWindow(targetDisplay: Display): void {
     // console.log(`[WindowManager] createCursorWindow called for display ID: ${targetDisplay.id}`); // 追加ログ
     if (!targetDisplay || typeof targetDisplay.id !== 'number') return;
-    if (cursorWindow && !cursorWindow.isDestroyed()) {
+    if (isUsableWindow(cursorWindow)) {
         // console.log('[WindowManager] Existing cursorWindow found, closing it before creating a new one.'); // 追加ログ
         cursorWindow.close();
     }
@@ -101,7 +102,7 @@ function createCursorWindowInternal(targetDisplay: Display): void {
     cursorWindow.loadFile(path.join(__dirname, '..', 'renderer', 'cursor-window.html'));
     // cursorWindow.webContents.openDevTools({ mode: 'detach' });
     cursorWindow.once('ready-to-show', () => {
-        if (!cursorWindow || cursorWindow.isDestroyed()) return;
+        if (!isUsableWindow(cursorWindow)) return;
         cursorWindow.setBounds(cursorBounds);
         cursorWindow.show();
     });
@@ -149,7 +150,7 @@ export function createTimerWindow(targetDisplay?: Display): BrowserWindow | null
     // (Note: storedTargetDisplay is separate from bounds, we might want to prioritize bounds' display if available, but keeping it simple)
     const displayToUse = targetDisplay || storedTargetDisplay || screen.getPrimaryDisplay();
     
-    if (timerWindow && !timerWindow.isDestroyed()) {
+    if (isUsableWindow(timerWindow)) {
         return timerWindow;
     }
 
@@ -186,7 +187,7 @@ export function createTimerWindow(targetDisplay?: Display): BrowserWindow | null
     // timerWindow.webContents.openDevTools({ mode: 'detach' });
 
     const updateBounds = (): void => {
-        if (timerWindow && !timerWindow.isDestroyed()) {
+        if (isUsableWindow(timerWindow)) {
             const bounds = timerWindow.getBounds();
             storedTimerBounds = bounds;
         }
@@ -210,7 +211,7 @@ let storedMessageBounds: { x: number, y: number, width: number, height: number }
  * @returns メッセージウィンドウ
  */
 export function createMessageWindow(targetDisplay?: Display): BrowserWindow | null {
-    if (messageWindow && !messageWindow.isDestroyed()) return messageWindow;
+    if (isUsableWindow(messageWindow)) return messageWindow;
     
     const displayToUse = targetDisplay || storedTargetDisplay || screen.getPrimaryDisplay();
     
@@ -239,7 +240,7 @@ export function createMessageWindow(targetDisplay?: Display): BrowserWindow | nu
     messageWindow.show();
 
     const updateBounds = (): void => {
-        if (messageWindow && !messageWindow.isDestroyed()) {
+        if (isUsableWindow(messageWindow)) {
             storedMessageBounds = messageWindow.getBounds();
         }
     };
@@ -258,7 +259,7 @@ export function createMessageWindow(targetDisplay?: Display): BrowserWindow | nu
  * @returns メッセージウィンドウ
  */
 export function getMessageWindow(): BrowserWindow | null {
-    if (messageWindow && !messageWindow.isDestroyed()) return messageWindow;
+    if (isUsableWindow(messageWindow)) return messageWindow;
     return null;
 }
 
@@ -267,7 +268,7 @@ export function getMessageWindow(): BrowserWindow | null {
  * @returns タイマーウィンドウ
  */
 export function getTimerWindow(): BrowserWindow | null {
-    if (timerWindow && !timerWindow.isDestroyed()) return timerWindow;
+    if (isUsableWindow(timerWindow)) return timerWindow;
     return null;
 }
 
@@ -275,7 +276,7 @@ export function getTimerWindow(): BrowserWindow | null {
  * 利用可能なディスプレイ一覧をメインウィンドウへ送信する。
  */
 export function sendAvailableDisplays(): void {
-    if (!mainWindow || mainWindow.isDestroyed()) return;
+    if (!isUsableWindow(mainWindow)) return;
     try {
         const displays = screen.getAllDisplays();
         mainWindow.webContents.send('available-displays', displays);
@@ -288,7 +289,7 @@ export function sendAvailableDisplays(): void {
  * カーソルウィンドウの起動完了を通知する。
  */
 export function sendCursorWindowOpenedToMain(): void {
-    if (mainWindow && !mainWindow.isDestroyed()) {
+    if (isUsableWindow(mainWindow)) {
         mainWindow.webContents.send('cursor-window-opened');
     }
 }
@@ -297,7 +298,7 @@ export function sendCursorWindowOpenedToMain(): void {
  * カーソルウィンドウの終了を通知する。
  */
 export function sendCursorWindowClosedToMain(): void {
-    if (mainWindow && !mainWindow.isDestroyed()) {
+    if (isUsableWindow(mainWindow)) {
         mainWindow.webContents.send('cursor-window-closed');
     }
 }
@@ -307,7 +308,7 @@ export function sendCursorWindowClosedToMain(): void {
  * @param message エラーメッセージ
  */
 export function sendLaunchErrorToMain(message: string): void {
-    if (mainWindow && !mainWindow.isDestroyed()) {
+    if (isUsableWindow(mainWindow)) {
         mainWindow.webContents.send('launch-error', message);
     }
 }
@@ -317,7 +318,7 @@ export function sendLaunchErrorToMain(message: string): void {
  * @returns メインウィンドウ
  */
 export function getMainWindow(): BrowserWindow | null {
-    if (mainWindow && !mainWindow.isDestroyed()) return mainWindow;
+    if (isUsableWindow(mainWindow)) return mainWindow;
     return null;
 }
 
@@ -326,7 +327,7 @@ export function getMainWindow(): BrowserWindow | null {
  * @returns カーソルウィンドウ
  */
 export function getCursorWindow(): BrowserWindow | null {
-    if (cursorWindow && !cursorWindow.isDestroyed()) return cursorWindow;
+    if (isUsableWindow(cursorWindow)) return cursorWindow;
     return null;
 }
 
@@ -348,7 +349,7 @@ export function closeAllWindows(): void {
  * カーソルウィンドウを閉じる。
  */
 export function closeCursorWindow(): void {
-    if (cursorWindow && !cursorWindow.isDestroyed()) {
+    if (isUsableWindow(cursorWindow)) {
         // console.log('[WindowManager] Closing cursor window due to external request.');
         cursorWindow.close();
     }
