@@ -14,7 +14,6 @@ export type DisplayInfo = {
 };
 
 export type PresentationInfo = { id: string; name: string; isRunning: boolean };
-export type NotificationConfig = TimerNotificationConfig;
 
 export type ElectronAPI = {
     getOpenPowerPointPresentations: () => Promise<PresentationInfo[]>;
@@ -43,8 +42,8 @@ export type ElectronAPI = {
     selectMediaFolder: () => Promise<string>;
     setMediaBasePath: (dir: string) => Promise<boolean>;
     updateSoundPlayDelay: (delayMs: number) => void;
-    updateTimerNotifications: (configs: NotificationConfig[]) => void;
-    onUpdateTimerNotifications: (callback: (configs: NotificationConfig[]) => void) => void;
+    updateTimerNotifications: (configs: TimerNotificationConfig[]) => void;
+    onUpdateTimerNotifications: (callback: (configs: TimerNotificationConfig[]) => void) => void;
     onUpdateSoundPlayDelay: (callback: (delayMs: number) => void) => void;
     toggleTimerWindow: () => void;
     toggleTimerPause: () => void;

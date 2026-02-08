@@ -1,7 +1,7 @@
 {
     type TimerMainLogicApi = import('../../shared/timer-main-logic-types').TimerMainLogicApi;
     type MainRendererContext = import('../../shared/main-renderer-types').MainRendererContext;
-    type NotificationConfig = import('../../shared/main-renderer-types').NotificationConfig;
+    type TimerNotificationConfig = import('../../shared/timer-notification-config').TimerNotificationConfig;
     type ParseNumberUtilsApi = import('../../shared/parse-number-utils-types').ParseNumberUtilsApi;
     type LocalStorageStoreApi = import('../../shared/local-storage-store-types').LocalStorageStoreApi;
     type WindowWithRendererApiResolver = import('../../shared/renderer-api-resolver-types').WindowWithRendererApiResolver;
@@ -164,7 +164,7 @@
      * @returns なし
      */
     const restoreNotificationSettings = (): void => {
-        const configs = localStorageStore.getJsonValue<NotificationConfig[]>('timerNotifications', []);
+        const configs = localStorageStore.getJsonValue<TimerNotificationConfig[]>('timerNotifications', []);
         if (configs.length > 0) {
             if (configs[0]) {
                 elements.sound1TimeInput.value = String(configs[0].time);
@@ -186,7 +186,7 @@
      */
     const broadcastNotificationUpdate = async (): Promise<void> => {
         const basePath = await electronAPI.getMediaBasePath();
-        const configs: NotificationConfig[] = [
+        const configs: TimerNotificationConfig[] = [
             {
                 time: parseNumberUtils.parseIntOrFallback(elements.sound1TimeInput.value, 0),
                 filename: elements.sound1Select.value,
@@ -337,7 +337,7 @@
             void loadMediaFiles();
         });
 
-        electronAPI.onUpdateTimerNotifications((configs: NotificationConfig[]): void => {
+        electronAPI.onUpdateTimerNotifications((configs: TimerNotificationConfig[]): void => {
             localStorageStore.setJsonValue('timerNotifications', configs);
         });
     };
