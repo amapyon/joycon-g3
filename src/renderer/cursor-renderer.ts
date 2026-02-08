@@ -84,9 +84,21 @@ type CursorRendererElectronAPI = {
     send?: (channel: string, ...args: unknown[]) => void;
 };
 type WindowWithIpcRenderer = Window & { ipcRenderer?: { send: (channel: string, ...args: unknown[]) => void } };
+type CursorRuntimeLogicApi = {
+    isValidViewport: (width: number, height: number) => boolean;
+    resolveResetPosition: (width: number, height: number, fallback: number) => { x: number; y: number };
+    resolveCursorMapSendDecision: (input: {
+        hasSendCursorMapConfig: boolean;
+        hasSend: boolean;
+        hasIpcRenderer: boolean;
+        retry: number;
+        maxRetry: number;
+    }) => { method: 'api' | 'send' | 'ipc' | 'retry' | 'none'; nextRetry: number | null };
+};
 
 const electronAPI = (window as unknown as { electronAPI: CursorRendererElectronAPI }).electronAPI;
 const cursorLogic = (window as unknown as { cursorLogic: CursorLogicApi }).cursorLogic;
+const cursorRuntimeLogic = (window as unknown as { cursorRuntimeLogic: CursorRuntimeLogicApi }).cursorRuntimeLogic;
 const CURSOR_IDS: ReadonlyArray<CursorId> = ['cursorLeft', 'cursorRight'];
 
 // カーソルDOM要素の参照
@@ -176,27 +188,11 @@ function resetCursor(cursorId: 'cursorLeft' | 'cursorRight'): void {
         // console.error(`[${cursorId}] Cannot reset cursor: cursorData is null.`);
         return;
     }
-    const centerX = windowWidth / 2;
-    const centerY = windowHeight / 2;
-    if (
-        typeof windowWidth !== 'number' ||
-        typeof windowHeight !== 'number' ||
-        Number.isNaN(windowWidth) ||
-        Number.isNaN(windowHeight) ||
-        windowWidth <= 0 ||
-        windowHeight <= 0
-    ) {
-        // console.error(`[${cursorId}] Cannot reset cursor: Invalid window dimensions! w=${windowWidth}, h=${windowHeight}. Using default position.`);
-        cursorData.x = 100;
-        cursorData.y = 100;
-        cursorData.targetX = 100;
-        cursorData.targetY = 100;
-    } else {
-        cursorData.x = centerX;
-        cursorData.y = centerY;
-        cursorData.targetX = centerX;
-        cursorData.targetY = centerY;
-    }
+    const resetPos = cursorRuntimeLogic.resolveResetPosition(windowWidth, windowHeight, 100);
+    cursorData.x = resetPos.x;
+    cursorData.y = resetPos.y;
+    cursorData.targetX = resetPos.x;
+    cursorData.targetY = resetPos.y;
     if (Number.isNaN(cursorData.x) || Number.isNaN(cursorData.y)) {
         // console.error(`[${cursorId}] NaN DETECTED after reset! x=${cursorData.x}, y=${cursorData.y}. Setting to default.`);
         cursorData.x = 100;
@@ -376,7 +372,7 @@ window.addEventListener('resize', (): void => {
  * カーソルの描画ループを実行する。
  */
 function renderLoop(): void {
-    if (typeof windowWidth !== 'number' || typeof windowHeight !== 'number' || windowWidth <= 0 || windowHeight <= 0) {
+    if (!cursorRuntimeLogic.isValidViewport(windowWidth, windowHeight)) {
         windowWidth = window.innerWidth;
         windowHeight = window.innerHeight;
         requestAnimationFrame(renderLoop);
@@ -436,25 +432,31 @@ document.addEventListener('DOMContentLoaded', (): void => {
      * @param retry リトライ回数
      */
     function sendCursorMapConfigWithRetry(retry: number = 0): void {
-        if (electronAPI.sendCursorMapConfig) {
-            electronAPI.sendCursorMapConfig(cursorMapConfig);
+        const windowWithIpc = window as WindowWithIpcRenderer;
+        const sendCursorMapConfig = electronAPI.sendCursorMapConfig;
+        const fallbackSend = electronAPI.send;
+        const sendDecision = cursorRuntimeLogic.resolveCursorMapSendDecision({
+            hasSendCursorMapConfig: !!sendCursorMapConfig,
+            hasSend: !!fallbackSend,
+            hasIpcRenderer: !!windowWithIpc.ipcRenderer,
+            retry,
+            maxRetry: 10,
+        });
+        if (sendDecision.method === 'api') {
+            sendCursorMapConfig(cursorMapConfig);
             // console.log('[cursor-renderer] Sent cursorMapConfig to main:', cursorMapConfig, `(retry=${retry})`);
-        } else if (electronAPI.send) {
-            electronAPI.send('cursor-map-config', cursorMapConfig);
+        } else if (sendDecision.method === 'send') {
+            fallbackSend?.('cursor-map-config', cursorMapConfig);
             // console.log('[cursor-renderer] Sent cursorMapConfig to main (fallback):', cursorMapConfig, `(retry=${retry})`);
+        } else if (sendDecision.method === 'ipc') {
+            windowWithIpc.ipcRenderer?.send('cursor-map-config', cursorMapConfig);
+            // console.log('[cursor-renderer] Sent cursorMapConfig to main (ipcRenderer):', cursorMapConfig, `(retry=${retry})`);
+            return;
+        } else if (sendDecision.method === 'retry') {
+            setTimeout((): void => sendCursorMapConfigWithRetry(sendDecision.nextRetry ?? retry + 1), 200);
+            // console.warn(`[cursor-renderer] IPC bridge not ready, retrying... (${retry + 1})`);
         } else {
-            const windowWithIpc = window as WindowWithIpcRenderer;
-            if (windowWithIpc.ipcRenderer) {
-                windowWithIpc.ipcRenderer.send('cursor-map-config', cursorMapConfig);
-                // console.log('[cursor-renderer] Sent cursorMapConfig to main (ipcRenderer):', cursorMapConfig, `(retry=${retry})`);
-                return;
-            }
-            if (retry < 10) {
-                setTimeout((): void => sendCursorMapConfigWithRetry(retry + 1), 200);
-                // console.warn(`[cursor-renderer] IPC bridge not ready, retrying... (${retry + 1})`);
-            } else {
-                // console.warn('[cursor-renderer] Could not send cursorMapConfig to main: no IPC method found after retries.');
-            }
+            // console.warn('[cursor-renderer] Could not send cursorMapConfig to main: no IPC method found after retries.');
         }
     }
     sendCursorMapConfigWithRetry();
