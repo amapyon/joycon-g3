@@ -63,6 +63,16 @@ npm start
 | `npm run rebuild` | `electron-rebuild` を使い、`node-hid` や `winax` を現在の Electron バージョンに合わせて再ビルドします。 |
 | `npm run package-win` | Windows 用の実行ファイル (`.exe`) をビルド・パッケージングします。 |
 
+## 🤖 CI
+
+GitHub Actions で `push` / `pull_request` 時に以下を実行します。
+
+1. `npm ci`
+2. `npm run test`
+3. `npm run build`
+
+ワークフロー定義: `.github/workflows/ci.yml`
+
 ## 📦 ビルドとパッケージング (配布用)
 
 配布用の `.exe` ファイルを作成する手順です。

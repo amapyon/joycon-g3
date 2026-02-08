@@ -1,4 +1,5 @@
 export {};
+import { createNotificationPlayerHarness } from './test-utils/notification-player-mocks';
 // eslint-disable-next-line @typescript-eslint/no-var-requires -- CommonJS 形式の読み込みが必要
 const { NotificationPlayer } = require('../renderer/timer/notification-player') as {
     NotificationPlayer: {
@@ -25,20 +26,7 @@ describe('通知プレイヤー', (): void => {
     });
 
     it('一致した通知で振動トリガーが呼ばれる', (): void => {
-        const rumbleCalls: Array<{ seconds: number; shouldRumble: boolean }> = [];
-        const player = new NotificationPlayer({
-            sendRumble: (seconds: number, shouldRumble: boolean): void => {
-                rumbleCalls.push({ seconds, shouldRumble });
-            },
-            createAudio: (): { play: () => Promise<void>; volume: number } => ({
-                volume: 1,
-                play: async (): Promise<void> => {
-                    return;
-                },
-            }),
-            now: (): number => 0,
-            initialDelayMs: 0,
-        });
+        const { player, rumbleCalls } = createNotificationPlayerHarness(NotificationPlayer, 0);
 
         const configs = [
             { time: 5, filename: '', absolutePath: '', rumble: true },
@@ -51,20 +39,7 @@ describe('通知プレイヤー', (): void => {
     });
 
     it('同じインデックスは重複再生しない', (): void => {
-        const rumbleCalls: Array<{ seconds: number; shouldRumble: boolean }> = [];
-        const player = new NotificationPlayer({
-            sendRumble: (seconds: number, shouldRumble: boolean): void => {
-                rumbleCalls.push({ seconds, shouldRumble });
-            },
-            createAudio: (): { play: () => Promise<void>; volume: number } => ({
-                volume: 1,
-                play: async (): Promise<void> => {
-                    return;
-                },
-            }),
-            now: (): number => 0,
-            initialDelayMs: 0,
-        });
+        const { player, rumbleCalls } = createNotificationPlayerHarness(NotificationPlayer, 0);
 
         const configs = [{ time: 5, filename: '', absolutePath: '', rumble: true }];
 

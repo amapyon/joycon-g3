@@ -1,56 +1,30 @@
 // ipc-handler.ts
-import { ipcMain, screen, IpcMainEvent, Display, dialog, BrowserWindow } from 'electron';
-import fs from 'fs';
-import path from 'path';
+import { ipcMain, screen, IpcMainEvent, BrowserWindow } from 'electron';
 import WindowManager from './window-manager';
 import powerpointControl from './powerpoint-control';
 import imuProcessor from './imu-processor';
 import JoyConManager from './joycon';
 import { setScreenSize } from './screen-state';
+import { MediaDirectoryStore } from './media-directory-store';
+import { findDisplayById, resolveDisplayId, toPhysicalScreenSize } from './ipc-handler-logic';
+
+type IpcHandlerDependencies = {
+    mediaDirectoryStore?: MediaDirectoryStore;
+};
 
 /**
  * IPC ハンドラを登録する。
  * @param windowManagerInstance ウィンドウ管理インスタンス
  * @param joyconManager Joy-Con 管理インスタンス
+ * @param dependencies 外部依存の差し替え定義
  */
-export function setupIpcHandlers(windowManagerInstance: typeof WindowManager = WindowManager, joyconManager: JoyConManager): void {
+export function setupIpcHandlers(
+    windowManagerInstance: typeof WindowManager = WindowManager,
+    joyconManager: JoyConManager,
+    dependencies: IpcHandlerDependencies = {},
+): void {
     console.log('Setting up IPC Handlers...');
-    const defaultMediaDir = path.join(process.cwd(), 'media');
-    let selectedMediaDir = defaultMediaDir;
-
-    /**
-     * メディアディレクトリを準備してパスを返す。
-     * @param dir 対象ディレクトリ
-     * @returns 有効なディレクトリパス
-     */
-    const ensureMediaDir = (dir: string): string => {
-        const targetDir = dir || defaultMediaDir;
-        if (!fs.existsSync(targetDir)) {
-            try {
-                fs.mkdirSync(targetDir, { recursive: true });
-            } catch (e) {
-                console.error('Failed to create media directory:', e);
-                return defaultMediaDir;
-            }
-        }
-        return targetDir;
-    };
-
-    /**
-     * メディアディレクトリを設定する。
-     * @param dir 設定するディレクトリ
-     * @returns 設定に成功したかどうか
-     */
-    const setMediaBasePath = (dir: string): boolean => {
-        if (!dir) {
-            return false;
-        }
-        if (!fs.existsSync(dir)) {
-            return false;
-        }
-        selectedMediaDir = dir;
-        return true;
-    };
+    const mediaDirectoryStore = dependencies.mediaDirectoryStore ?? MediaDirectoryStore.createDefault();
 
     /**
      * タイマーウィンドウへ安全にメッセージを送る。
@@ -78,15 +52,15 @@ export function setupIpcHandlers(windowManagerInstance: typeof WindowManager = W
     ipcMain.on('launch-cursor-window', (event: IpcMainEvent, displayId: string) => {
         console.log(`IPC Handler: Received 'launch-cursor-window' for display ID: ${displayId}`);
         try {
-            const targetId = parseInt(displayId, 10);
-            if (isNaN(targetId)) {
+            const targetId = resolveDisplayId(displayId);
+            if (targetId === null) {
                 throw new Error(`Invalid display ID received: ${displayId}`);
             }
             const displays = screen.getAllDisplays();
             if (!displays) {
                 throw new Error('Screen API unavailable or returned invalid display list.');
             }
-            const selectedDisplay = displays.find((d: Display) => d.id === targetId);
+            const selectedDisplay = findDisplayById(displays, targetId);
             if (selectedDisplay) {
                 windowManagerInstance.createCursorWindow(selectedDisplay);
             } else {
@@ -187,15 +161,15 @@ export function setupIpcHandlers(windowManagerInstance: typeof WindowManager = W
 
     ipcMain.on('set-target-display', (event: IpcMainEvent, displayId: number | string) => {
         console.log(`[IPC Handler] Received 'set-target-display': ${displayId}`);
-        const id = typeof displayId === 'string' ? parseInt(displayId, 10) : displayId;
-        if (!process.platform || !Number.isNaN(id)) { // Basic check
-            windowManagerInstance.setTargetDisplay(id);
-            const target = screen.getAllDisplays().find((display: Display) => display.id === id);
-            if (target) {
-                const width = target.size.width * target.scaleFactor;
-                const height = target.size.height * target.scaleFactor;
-                setScreenSize(width, height);
-            }
+        const id = resolveDisplayId(displayId);
+        if (id === null) {
+            return;
+        }
+        windowManagerInstance.setTargetDisplay(id);
+        const target = findDisplayById(screen.getAllDisplays(), id);
+        if (target) {
+            const physicalSize = toPhysicalScreenSize(target);
+            setScreenSize(physicalSize.width, physicalSize.height);
         }
     });
 
@@ -219,25 +193,7 @@ export function setupIpcHandlers(windowManagerInstance: typeof WindowManager = W
      */
     const selectMediaFolder = async (): Promise<string> => {
         const mainWin = windowManagerInstance.getMainWindow();
-        const result = await dialog.showOpenDialog(mainWin ?? undefined, {
-            title: 'Select Sound Folder or File',
-            properties: ['openFile', 'openDirectory'],
-            filters: [
-                { name: 'Audio', extensions: ['mp3', 'wav', 'ogg'] },
-                { name: 'All Files', extensions: ['*'] },
-            ],
-        });
-        if (result.canceled || result.filePaths.length === 0) {
-            return '';
-        }
-        const selectedPath = result.filePaths[0];
-        const stats = fs.statSync(selectedPath);
-        const nextDir = stats.isDirectory() ? selectedPath : path.dirname(selectedPath);
-        if (!fs.existsSync(nextDir)) {
-            return '';
-        }
-        selectedMediaDir = nextDir;
-        return selectedMediaDir;
+        return mediaDirectoryStore.selectMediaFolder(mainWin ?? undefined);
     };
 
     /**
@@ -245,14 +201,7 @@ export function setupIpcHandlers(windowManagerInstance: typeof WindowManager = W
      * @returns メディアファイル名一覧
      */
     const getMediaFiles = async (): Promise<string[]> => {
-        const mediaDir = ensureMediaDir(selectedMediaDir);
-        try {
-            const files = fs.readdirSync(mediaDir);
-            return files.filter((f: string) => /\.(mp3|wav|ogg)$/i.test(f));
-        } catch (e) {
-            console.error('Failed to read media directory:', e);
-            return [];
-        }
+        return mediaDirectoryStore.getMediaFiles();
     };
 
     /**
@@ -260,7 +209,7 @@ export function setupIpcHandlers(windowManagerInstance: typeof WindowManager = W
      * @returns ベースパス
      */
     const getMediaBasePath = (): string => {
-        return ensureMediaDir(selectedMediaDir);
+        return mediaDirectoryStore.getMediaBasePath();
     };
 
     ipcMain.handle('select-media-folder', async () => selectMediaFolder());
@@ -268,7 +217,7 @@ export function setupIpcHandlers(windowManagerInstance: typeof WindowManager = W
     ipcMain.handle('get-media-base-path', () => getMediaBasePath());
     ipcMain.handle('set-media-base-path', (event: IpcMainEvent, dir: string) => {
         void event;
-        return setMediaBasePath(dir);
+        return mediaDirectoryStore.setMediaBasePath(dir);
     });
 
     // --- Message Window Handlers ---

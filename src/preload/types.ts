@@ -1,28 +1,109 @@
+/**
+ * カーソル識別子。
+ */
 export type CursorId = 'cursorLeft' | 'cursorRight';
+
+/**
+ * タイマーウィンドウの表示モード。
+ */
 export type TimerMode = 'timer' | 'setup';
+
+/**
+ * カーソル座標変換設定。
+ */
 export type CursorMapConfig = Record<CursorId, { xSign: number; ySign: number }>;
-export type JoyConStatus = { leftConnected: boolean; rightConnected: boolean };
-export type JoyConAttitude = { id: CursorId; roll: number; pitch: number; yaw?: number };
-export type JoyConButtonState = { pressed: boolean };
-export type JoyConButtonPress = { id: CursorId };
-export type DisplayInfo = {
+
+/**
+ * Joy-Con の接続状態。
+ */
+export interface JoyConStatus {
+    leftConnected: boolean;
+    rightConnected: boolean;
+}
+
+/**
+ * Joy-Con の姿勢情報。
+ */
+export interface JoyConAttitude {
+    id: CursorId;
+    roll: number;
+    pitch: number;
+    yaw?: number;
+}
+
+/**
+ * Joy-Con ボタンの押下状態。
+ */
+export interface JoyConButtonState {
+    pressed: boolean;
+}
+
+/**
+ * Joy-Con ボタン押下イベントの発生元。
+ */
+export interface JoyConButtonPress {
+    id: CursorId;
+}
+
+/**
+ * ディスプレイ情報。
+ */
+export interface DisplayInfo {
     id: number;
     label?: string;
     size: { width: number; height: number };
     scaleFactor?: number;
-};
-export type PresentationInfo = { id: string; name: string; isRunning: boolean };
-export type BatteryStatus = { isLeft: boolean; level: number };
-export type UpdatePointerData = { id: CursorId; x: number; y: number };
-export type TimerNotificationConfig = {
+}
+
+/**
+ * PowerPoint プレゼン情報。
+ */
+export interface PresentationInfo {
+    id: string;
+    name: string;
+    isRunning: boolean;
+}
+
+/**
+ * Joy-Con バッテリー状態。
+ */
+export interface BatteryStatus {
+    isLeft: boolean;
+    level: number;
+}
+
+/**
+ * カーソル更新イベント。
+ */
+export interface UpdatePointerData {
+    id: CursorId;
+    x: number;
+    y: number;
+}
+
+/**
+ * タイマー通知設定。
+ */
+export interface TimerNotificationConfig {
     time: number;
     filename: string;
     absolutePath: string;
     rumble?: boolean;
-};
-export type CalibrationStatus = { id: string; status: string };
+}
 
-export type ElectronAPI = {
+/**
+ * キャリブレーション状態。
+ */
+export interface CalibrationStatus {
+    id: string;
+    status: string;
+}
+
+/**
+ * プリロード経由でレンダラーへ公開する Electron API 契約。
+ * 各メソッドの引数・戻り値は IPC ペイロード仕様として扱う。
+ */
+export interface ElectronAPI {
     getOpenPowerPointPresentations: () => Promise<PresentationInfo[]>;
     connectJoyCon: (isLeft: boolean) => void;
     shutdownJoyCon: (isLeft: boolean) => void;
@@ -85,4 +166,4 @@ export type ElectronAPI = {
     onUpdateMessageText: (callback: (text: string) => void) => void;
     onMainTimerUpdate: (callback: (remainingTime: number) => void) => void;
     sendTimerNotificationTrigger: (seconds: number, shouldRumble: boolean) => void;
-};
+}
