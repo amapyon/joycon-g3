@@ -83,6 +83,103 @@ class PowerPointControl {
     }
 
     /**
+     * 対象プレゼンテーションかどうかを判定する。
+     * @param presentation 判定対象
+     * @returns 一致する場合は true
+     */
+    private isTargetPresentation(presentation?: Presentation): boolean {
+        if (!presentation || !this.targetPresentationIdentifier) {
+            return false;
+        }
+        return presentation.FullName === this.targetPresentationIdentifier || presentation.Name === this.targetPresentationIdentifier;
+    }
+
+    /**
+     * スライドショーウィンドウ一覧を取得する。
+     * @param ppApp PowerPoint アプリケーション
+     * @returns スライドショーウィンドウ配列
+     */
+    private getSlideShowWindows(ppApp: PowerPointApp): SlideShowWindow[] {
+        const windows: SlideShowWindow[] = [];
+        const count = ppApp.SlideShowWindows?.Count;
+        if (typeof count !== 'number') {
+            return windows;
+        }
+        for (let i = 1; i <= count; i++) {
+            const window = ppApp.SlideShowWindows?.Item?.(i);
+            if (window) {
+                windows.push(window);
+            }
+        }
+        return windows;
+    }
+
+    /**
+     * プレゼンテーション一覧を取得する。
+     * @param ppApp PowerPoint アプリケーション
+     * @returns プレゼンテーション配列
+     */
+    private getPresentations(ppApp: PowerPointApp): Presentation[] {
+        const presentations: Presentation[] = [];
+        const count = ppApp.Presentations?.Count;
+        if (typeof count !== 'number') {
+            return presentations;
+        }
+        for (let i = 1; i <= count; i++) {
+            const presentation = ppApp.Presentations?.Item?.(i);
+            if (presentation) {
+                presentations.push(presentation);
+            }
+        }
+        return presentations;
+    }
+
+    /**
+     * 対象スライドショーウィンドウを探索する。
+     * @param ppApp PowerPoint アプリケーション
+     * @returns 対象ウィンドウ
+     */
+    private findTargetSlideShowWindow(ppApp: PowerPointApp): SlideShowWindow | null {
+        const target = this.getSlideShowWindows(ppApp).find((window: SlideShowWindow): boolean => {
+            return this.isTargetPresentation(window.Presentation);
+        });
+        return target ?? null;
+    }
+
+    /**
+     * 対象プレゼンテーションを探索する。
+     * @param ppApp PowerPoint アプリケーション
+     * @returns 対象プレゼンテーション
+     */
+    private findTargetPresentation(ppApp: PowerPointApp): Presentation | null {
+        const target = this.getPresentations(ppApp).find((presentation: Presentation): boolean => {
+            return this.isTargetPresentation(presentation);
+        });
+        return target ?? null;
+    }
+
+    /**
+     * アクティブウィンドウから再開スライド番号を取得する。
+     * @param ppApp PowerPoint アプリケーション
+     * @param targetPres 対象プレゼンテーション
+     * @returns スライド番号
+     */
+    private getCurrentSlideIndex(ppApp: PowerPointApp, targetPres: Presentation): number {
+        try {
+            const activePresentation = ppApp.ActiveWindow?.Presentation;
+            const activeSlideIndex = ppApp.ActiveWindow?.View?.Slide?.SlideIndex;
+            const isSamePresentation = activePresentation
+                && (activePresentation.FullName === targetPres.FullName || activePresentation.Name === targetPres.Name);
+            if (isSamePresentation && typeof activeSlideIndex === 'number') {
+                return activeSlideIndex;
+            }
+        } catch (e: unknown) {
+            void e;
+        }
+        return 1;
+    }
+
+    /**
      * 開いているプレゼンテーション一覧を取得する。
      * @returns プレゼンテーション一覧
      */
@@ -93,37 +190,25 @@ class PowerPointControl {
         if (!ppApp) return presentations;
         try {
             const runningSlideShowPaths = new Set<string>();
-            // 実行中のスライドショーウィンドウからパスを収集
-            if (ppApp.SlideShowWindows && typeof ppApp.SlideShowWindows.Count === 'number') {
-                for (let i = 1; i <= ppApp.SlideShowWindows.Count; i++) {
-                    const slideShowWindow = ppApp.SlideShowWindows.Item?.(i);
-                    if (slideShowWindow && slideShowWindow.Presentation) {
-                        const fullName = slideShowWindow.Presentation.FullName;
-                        if (fullName) {
-                            runningSlideShowPaths.add(fullName);
-                        }
-                    }
+            this.getSlideShowWindows(ppApp).forEach((slideShowWindow: SlideShowWindow): void => {
+                const fullName = slideShowWindow.Presentation?.FullName;
+                if (fullName) {
+                    runningSlideShowPaths.add(fullName);
                 }
-            }
+            });
 
-            // 開いているすべてのプレゼンテーションを列挙
-            if (ppApp.Presentations && typeof ppApp.Presentations.Count === 'number') {
-                for (let i = 1; i <= ppApp.Presentations.Count; i++) {
-                    const presentation = ppApp.Presentations.Item?.(i);
-                    if (presentation) {
-                        const fullName = presentation.FullName;
-                        const id = fullName || presentation.Name; // FullNameがなければNameを使用
-                        if (!id) {
-                            continue;
-                        }
-                        presentations.push({
-                            id: id,
-                            name: presentation.Name || id,
-                            isRunning: fullName ? runningSlideShowPaths.has(fullName) : false,
-                        });
-                    }
+            this.getPresentations(ppApp).forEach((presentation: Presentation): void => {
+                const fullName = presentation.FullName;
+                const id = fullName || presentation.Name;
+                if (!id) {
+                    return;
                 }
-            }
+                presentations.push({
+                    id: id,
+                    name: presentation.Name || id,
+                    isRunning: fullName ? runningSlideShowPaths.has(fullName) : false,
+                });
+            });
         } catch (e: unknown) {
             // console.error('[PPControl] Error getting presentations list:', getErrorMessage(e));
             void e;
@@ -150,31 +235,19 @@ class PowerPointControl {
         const ppApp = this.ppApp;
         if (!ppApp) return false;
         try {
-            // 1. まず実行中のスライドショーウィンドウを探してアクティブにする
-            if (ppApp.SlideShowWindows && typeof ppApp.SlideShowWindows.Count === 'number') {
-                for (let i = 1; i <= ppApp.SlideShowWindows.Count; i++) {
-                    const ssw = ppApp.SlideShowWindows.Item?.(i);
-                    if (ssw && ssw.Presentation && (ssw.Presentation.FullName === this.targetPresentationIdentifier || ssw.Presentation.Name === this.targetPresentationIdentifier)) {
-                        // console.log(`[PPControl] Activating SlideShowWindow for: ${ssw.Presentation.Name}`);
-                        ssw.Activate?.();
-                        return true;
-                    }
-                }
+            const targetSlideShowWindow = this.findTargetSlideShowWindow(ppApp);
+            if (targetSlideShowWindow) {
+                // console.log(`[PPControl] Activating SlideShowWindow for: ${targetSlideShowWindow.Presentation?.Name}`);
+                targetSlideShowWindow.Activate?.();
+                return true;
             }
 
-            // 2. スライドショーがない場合はプレゼンテーションウィンドウをアクティブにする
-            if (ppApp.Presentations && typeof ppApp.Presentations.Count === 'number') {
-                for (let i = 1; i <= ppApp.Presentations.Count; i++) {
-                    const pres = ppApp.Presentations.Item?.(i);
-                    if (pres && (pres.FullName === this.targetPresentationIdentifier || pres.Name === this.targetPresentationIdentifier)) {
-                        const windowCount = pres.Windows?.Count;
-                        if (typeof windowCount === 'number' && windowCount > 0) {
-                            // console.log(`[PPControl] Activating Presentation Window for: ${pres.Name}`);
-                            pres.Windows?.Item?.(1)?.Activate?.();
-                            return true;
-                        }
-                    }
-                }
+            const targetPresentation = this.findTargetPresentation(ppApp);
+            const windowCount = targetPresentation?.Windows?.Count;
+            if (targetPresentation && typeof windowCount === 'number' && windowCount > 0) {
+                // console.log(`[PPControl] Activating Presentation Window for: ${targetPresentation.Name}`);
+                targetPresentation.Windows?.Item?.(1)?.Activate?.();
+                return true;
             }
         } catch (e: unknown) {
             // console.error('[PPControl] Error activating target:', getErrorMessage(e));
@@ -193,21 +266,9 @@ class PowerPointControl {
         const ppApp = this.ppApp;
         if (!ppApp) return null;
         try {
-            if (ppApp.SlideShowWindows && typeof ppApp.SlideShowWindows.Count === 'number') {
-                const count = ppApp.SlideShowWindows.Count;
-                for (let i = 1; i <= count; i++) {
-                    try {
-                        const ssw = ppApp.SlideShowWindows.Item?.(i);
-                        if (ssw && ssw.Presentation && (ssw.Presentation.FullName === this.targetPresentationIdentifier || ssw.Presentation.Name === this.targetPresentationIdentifier)) {
-                            if (ssw.View) {
-                                return ssw.View;
-                            }
-                        }
-                    } catch (e: unknown) {
-                        // console.warn(`[PPControl] Error checking SlideShowWindow at index ${i}:`, getErrorMessage(e));
-                        void e;
-                    }
-                }
+            const targetWindow = this.findTargetSlideShowWindow(ppApp);
+            if (targetWindow?.View) {
+                return targetWindow.View;
             }
         } catch (e: unknown) {
             // console.error('[PPControl] Error accessing SlideShowWindows collection:', getErrorMessage(e));
@@ -215,6 +276,35 @@ class PowerPointControl {
             this.ppApp = null;
         }
         return null;
+    }
+
+    /**
+     * 対象プレゼンテーションのスライドショーを開始しビューを返す。
+     * @param ppApp PowerPoint アプリケーション
+     * @returns スライドショービュー
+     */
+    private startTargetSlideShow(ppApp: PowerPointApp): SlideShowView | null {
+        const targetPres = this.findTargetPresentation(ppApp);
+        if (!targetPres) {
+            return null;
+        }
+
+        // console.log(`[PPControl] Starting slide show for: ${targetPres.Name}`);
+        const currentSlideIndex = this.getCurrentSlideIndex(ppApp, targetPres);
+        const slideShowWindow = targetPres.SlideShowSettings?.Run?.();
+        if (!slideShowWindow?.View) {
+            return null;
+        }
+
+        if (currentSlideIndex > 1) {
+            try {
+                slideShowWindow.View.GotoSlide?.(currentSlideIndex);
+            } catch (e: unknown) {
+                void e;
+                // 再開失敗時は初期位置で継続
+            }
+        }
+        return slideShowWindow.View;
     }
 
     /**
@@ -227,53 +317,44 @@ class PowerPointControl {
         const ppApp = this.ppApp;
         if (!ppApp) return null;
         try {
-            let targetPres: Presentation | null = null;
-            if (ppApp.Presentations && typeof ppApp.Presentations.Count === 'number') {
-                const count = ppApp.Presentations.Count;
-                for (let i = 1; i <= count; i++) {
-                    const pres = ppApp.Presentations.Item?.(i);
-                    if (pres && (pres.FullName === this.targetPresentationIdentifier || pres.Name === this.targetPresentationIdentifier)) {
-                        targetPres = pres;
-                        break;
-                    }
-                }
-            }
-
-            if (targetPres) {
-                // console.log(`[PPControl] Starting slide show for: ${targetPres.Name}`);
-                
-                // Get current slide index from active window if it matches
-                let currentSlideIndex = 1;
-                try {
-                    if (ppApp.ActiveWindow && ppApp.ActiveWindow.Presentation && (ppApp.ActiveWindow.Presentation.FullName === targetPres.FullName || ppApp.ActiveWindow.Presentation.Name === targetPres.Name)) {
-                        const slideIndex = ppApp.ActiveWindow.View?.Slide?.SlideIndex;
-                        if (typeof slideIndex === 'number') {
-                            currentSlideIndex = slideIndex;
-                        }
-                    }
-                } catch (e) {
-                    // 取得に失敗した場合は先頭から開始
-                    currentSlideIndex = 1;
-                }
-
-                const ssw = targetPres.SlideShowSettings?.Run?.();
-                if (ssw && ssw.View) {
-                    if (currentSlideIndex > 1) {
-                        try {
-                            ssw.View.GotoSlide?.(currentSlideIndex);
-                        } catch (e) {
-                            // 再開失敗時は初期位置で継続
-                            currentSlideIndex = 1;
-                        }
-                    }
-                    return ssw.View;
-                }
-            }
+            return this.startTargetSlideShow(ppApp);
         } catch (e: unknown) {
             // console.error('[PPControl] Error starting slide show:', getErrorMessage(e));
             void e;
+            return null;
         }
-        return null;
+    }
+
+    /**
+     * スライドショービューを取得する。なければ開始を試みる。
+     * @returns スライドショービュー
+     */
+    private resolveSlideShowView(): SlideShowView | null {
+        const view = this._getSlideShowView();
+        if (view) {
+            return view;
+        }
+        return this._startSlideShow();
+    }
+
+    /**
+     * スライド操作関数を実行する。
+     * @param action 操作関数
+     * @returns 実行成功かどうか
+     */
+    private runSlideAction(action: (view: SlideShowView) => void): boolean {
+        if (!this.isWindows) return false;
+        const view = this.resolveSlideShowView();
+        if (!view) {
+            return false;
+        }
+        try {
+            action(view);
+            return true;
+        } catch (e: unknown) {
+            void e;
+            return false;
+        }
     }
 
     /**
@@ -281,25 +362,9 @@ class PowerPointControl {
      * @returns 実行成功かどうか
      */
     next(): boolean {
-        if (!this.isWindows) return false;
-        let view = this._getSlideShowView();
-        if (!view) {
-            view = this._startSlideShow();
-            if (view) return true; // スライドショーを開始した場合は、その回はページ送りをスキップ
-        }
-        
-        if (view && view.Next) {
-            try {
-                view.Next();
-                return true;
-            } catch (e: unknown) {
-                // console.warn('[PowerPointControl] Next() failed:', getErrorMessage(e));
-                void e;
-            }
-        } else {
-            // console.warn('[PowerPointControl] Cannot execute Next(): Slide show view not found and could not be started.');
-        }
-        return false;
+        return this.runSlideAction((view: SlideShowView): void => {
+            view.Next?.();
+        });
     }
 
     /**
@@ -307,25 +372,9 @@ class PowerPointControl {
      * @returns 実行成功かどうか
      */
     previous(): boolean {
-        if (!this.isWindows) return false;
-        let view = this._getSlideShowView();
-        if (!view) {
-            view = this._startSlideShow();
-            if (view) return true; // スライドショーを開始した場合は、その回はページ戻りをスキップ
-        }
-
-        if (view && view.Previous) {
-            try {
-                view.Previous();
-                return true;
-            } catch (e: unknown) {
-                // console.warn('[PowerPointControl] Previous() failed:', getErrorMessage(e));
-                void e;
-            }
-        } else {
-            // console.warn('[PowerPointControl] Cannot execute Previous(): Slide show view not found and could not be started.');
-        }
-        return false;
+        return this.runSlideAction((view: SlideShowView): void => {
+            view.Previous?.();
+        });
     }
 }
 
