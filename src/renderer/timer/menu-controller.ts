@@ -25,6 +25,30 @@ type MenuControllerOptions = {
     onPresetFocus: (seconds: number) => void;
 };
 
+type MenuControllerPresetLabelApi = {
+    formatTimerPresetLabel: (seconds: number) => string;
+};
+
+/**
+ * プリセットラベルAPIを取得する。
+ * @returns プリセットラベルAPI
+ */
+function resolveMenuControllerPresetLabelApi(): MenuControllerPresetLabelApi {
+    const timerPresetLabelRoot = (typeof window !== 'undefined' ? window : globalThis) as unknown as {
+        timerPresetLabel?: MenuControllerPresetLabelApi;
+    };
+    if (timerPresetLabelRoot.timerPresetLabel) {
+        return timerPresetLabelRoot.timerPresetLabel;
+    }
+    if (typeof require !== 'undefined') {
+        // eslint-disable-next-line @typescript-eslint/no-var-requires -- CommonJS 形式の読み込みが必要
+        return require('../preset-label-utils') as MenuControllerPresetLabelApi;
+    }
+    throw new Error('timerPresetLabel API is not available');
+}
+
+const menuControllerPresetLabelApi: MenuControllerPresetLabelApi = resolveMenuControllerPresetLabelApi();
+
 /**
  * タイマーメニューの表示と操作を管理する。
  */
@@ -231,23 +255,11 @@ class MenuController {
         const items: TimerMenuItem[] = presets.map((time: number) => ({
             type: 'preset',
             time,
-            label: MenuController.formatPresetLabel(time),
+            label: menuControllerPresetLabelApi.formatTimerPresetLabel(time),
         }));
 
         items.push({ type: 'add-minute', label: '+1分' });
         return items;
-    }
-
-    /**
-     * プリセットのラベルを生成する。
-     * @param seconds 秒数
-     * @returns 表示ラベル
-     */
-    private static formatPresetLabel(seconds: number): string {
-        if (seconds < 60) return `${seconds}s`;
-        const mins = Math.floor(seconds / 60);
-        const secs = seconds % 60;
-        return secs === 0 ? `${mins}m` : `${mins}m${secs}s`;
     }
 
     /**

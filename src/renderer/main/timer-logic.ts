@@ -11,6 +11,10 @@ type TimerMainTimeFormatApi = {
     formatMinutesSeconds: (seconds: number) => string;
 };
 
+type TimerMainPresetLabelApi = {
+    formatTimerPresetLabel: (seconds: number) => string;
+};
+
 /**
  * 時刻整形APIを取得する。
  * @returns 時刻整形API
@@ -32,17 +36,32 @@ function resolveTimerMainTimeFormatApi(): TimerMainTimeFormatApi {
 const timerMainTimeFormatApi: TimerMainTimeFormatApi = resolveTimerMainTimeFormatApi();
 
 /**
+ * プリセットラベルAPIを取得する。
+ * @returns プリセットラベルAPI
+ */
+function resolveTimerMainPresetLabelApi(): TimerMainPresetLabelApi {
+    const timerPresetLabelRoot = (typeof window !== 'undefined' ? window : globalThis) as unknown as {
+        timerPresetLabel?: TimerMainPresetLabelApi;
+    };
+    if (timerPresetLabelRoot.timerPresetLabel) {
+        return timerPresetLabelRoot.timerPresetLabel;
+    }
+    if (typeof require !== 'undefined') {
+        // eslint-disable-next-line @typescript-eslint/no-var-requires -- CommonJS 形式の読み込みが必要
+        return require('../preset-label-utils') as TimerMainPresetLabelApi;
+    }
+    throw new Error('timerPresetLabel API is not available');
+}
+
+const timerMainPresetLabelApi: TimerMainPresetLabelApi = resolveTimerMainPresetLabelApi();
+
+/**
  * プリセットの表示ラベルを作成する。
  * @param seconds 秒数
  * @returns 表示ラベル
  */
 function formatPresetLabel(seconds: number): string {
-    if (seconds < 60) {
-        return `${seconds}s`;
-    }
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return secs === 0 ? `${mins}m` : `${mins}m${secs}s`;
+    return timerMainPresetLabelApi.formatTimerPresetLabel(seconds);
 }
 
 /**
