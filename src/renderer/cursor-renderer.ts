@@ -371,6 +371,36 @@ window.addEventListener('resize', (): void => {
 /**
  * カーソルの描画ループを実行する。
  */
+const updateVisibleCursorPosition = (id: CursorId): void => {
+    const cursorData = cursors[id];
+    const element = cursorElements[id];
+    if (!element || !cursorData.isVisible) {
+        return;
+    }
+    const smoothing = cursorData.smoothing || 0.1;
+    cursorData.x += (cursorData.targetX - cursorData.x) * smoothing;
+    cursorData.y += (cursorData.targetY - cursorData.y) * smoothing;
+    const halfWidth = element.offsetWidth / 2;
+    const halfHeight = element.offsetHeight / 2;
+    if (Number.isNaN(halfWidth) || Number.isNaN(halfHeight) || halfWidth < 0 || halfHeight < 0) {
+        return;
+    }
+    if (Number.isNaN(cursorData.x) || Number.isNaN(cursorData.y)) {
+        return;
+    }
+    const clamped = cursorLogic.clampToViewport({
+        x: cursorData.x,
+        y: cursorData.y,
+        viewportWidth: windowWidth,
+        viewportHeight: windowHeight,
+        halfWidth,
+        halfHeight,
+    });
+    cursorData.x = clamped.x;
+    cursorData.y = clamped.y;
+    updateCursorElementPosition(id);
+};
+
 const renderLoop = (): void => {
     if (!cursorRuntimeLogic.isValidViewport(windowWidth, windowHeight)) {
         windowWidth = window.innerWidth;
@@ -379,32 +409,7 @@ const renderLoop = (): void => {
         return;
     }
     for (const id of CURSOR_IDS) {
-        const cursorData = cursors[id];
-        const element = cursorElements[id];
-        if (element && cursorData.isVisible) {
-            const smoothing = cursorData.smoothing || 0.1;
-            cursorData.x += (cursorData.targetX - cursorData.x) * smoothing;
-            cursorData.y += (cursorData.targetY - cursorData.y) * smoothing;
-            const halfWidth = element.offsetWidth / 2;
-            const halfHeight = element.offsetHeight / 2;
-            if (!Number.isNaN(halfWidth) && !Number.isNaN(halfHeight) && halfWidth >= 0 && halfHeight >= 0) {
-                if (!Number.isNaN(cursorData.x) && !Number.isNaN(cursorData.y)) {
-                    const clamped = cursorLogic.clampToViewport({
-                        x: cursorData.x,
-                        y: cursorData.y,
-                        viewportWidth: windowWidth,
-                        viewportHeight: windowHeight,
-                        halfWidth,
-                        halfHeight,
-                    });
-                    cursorData.x = clamped.x;
-                    cursorData.y = clamped.y;
-                    updateCursorElementPosition(id);
-                } else {
-                    // console.error(`[${id}] Skipping pos update due to NaN coord.`);
-                }
-            }
-        }
+        updateVisibleCursorPosition(id);
     }
     requestAnimationFrame(renderLoop);
 };
