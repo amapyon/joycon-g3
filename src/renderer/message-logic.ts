@@ -15,6 +15,30 @@ type MessageLogicApi = {
     isWheelTargetInZone: (target: Node | null, wheelZone: HTMLElement | null) => boolean;
 };
 
+type MessageWheelActionUtilsApi = {
+    resolveWheelAction: (deltaY: number, shiftKey: boolean) => MessageWheelAction;
+};
+
+/**
+ * ホイール操作ユーティリティAPIを取得する。
+ * @returns ホイール操作ユーティリティAPI
+ */
+function resolveMessageWheelActionUtilsApi(): MessageWheelActionUtilsApi {
+    const wheelActionUtilsRoot = (typeof window !== 'undefined' ? window : globalThis) as unknown as {
+        wheelActionUtils?: MessageWheelActionUtilsApi;
+    };
+    if (wheelActionUtilsRoot.wheelActionUtils) {
+        return wheelActionUtilsRoot.wheelActionUtils;
+    }
+    if (typeof require !== 'undefined') {
+        // eslint-disable-next-line @typescript-eslint/no-var-requires -- CommonJS 形式の読み込みが必要
+        return require('./wheel-action-utils') as MessageWheelActionUtilsApi;
+    }
+    throw new Error('wheelActionUtils API is not available');
+}
+
+const messageWheelActionUtilsApi: MessageWheelActionUtilsApi = resolveMessageWheelActionUtilsApi();
+
 /**
  * フォントサイズを範囲内に正規化する。
  * @param value 値
@@ -52,16 +76,7 @@ function normalizeOpacity(value: number, fallback: number, min: number, max: num
  * @returns 操作種別と増減量
  */
 function resolveMessageWheelAction(deltaY: number, shiftKey: boolean): MessageWheelAction {
-    if (shiftKey) {
-        return {
-            kind: 'opacity',
-            delta: deltaY < 0 ? 0.05 : -0.05,
-        };
-    }
-    return {
-        kind: 'fontSize',
-        delta: deltaY < 0 ? 5 : -5,
-    };
+    return messageWheelActionUtilsApi.resolveWheelAction(deltaY, shiftKey);
 }
 
 /**

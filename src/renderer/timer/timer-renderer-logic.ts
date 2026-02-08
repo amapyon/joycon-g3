@@ -35,6 +35,30 @@ type TimerRendererLogicApi = {
     shouldShowSetupMenu: (mode: TimerMode) => boolean;
 };
 
+type TimerRendererWheelActionUtilsApi = {
+    resolveWheelAction: (deltaY: number, shiftKey: boolean) => WheelAction;
+};
+
+/**
+ * ホイール操作ユーティリティAPIを取得する。
+ * @returns ホイール操作ユーティリティAPI
+ */
+function resolveTimerRendererWheelActionUtilsApi(): TimerRendererWheelActionUtilsApi {
+    const wheelActionUtilsRoot = (typeof window !== 'undefined' ? window : globalThis) as unknown as {
+        wheelActionUtils?: TimerRendererWheelActionUtilsApi;
+    };
+    if (wheelActionUtilsRoot.wheelActionUtils) {
+        return wheelActionUtilsRoot.wheelActionUtils;
+    }
+    if (typeof require !== 'undefined') {
+        // eslint-disable-next-line @typescript-eslint/no-var-requires -- CommonJS 形式の読み込みが必要
+        return require('../wheel-action-utils') as TimerRendererWheelActionUtilsApi;
+    }
+    throw new Error('wheelActionUtils API is not available');
+}
+
+const timerRendererWheelActionUtilsApi: TimerRendererWheelActionUtilsApi = resolveTimerRendererWheelActionUtilsApi();
+
 /**
  * 通知設定の rumble 値を明示的な真偽値へ正規化する。
  * @param configs 通知設定一覧
@@ -56,16 +80,7 @@ function normalizeNotifications(
  * @returns 操作種別と増減量
  */
 function resolveWheelAction(deltaY: number, shiftKey: boolean): WheelAction {
-    if (shiftKey) {
-        return {
-            kind: 'opacity',
-            delta: deltaY < 0 ? 0.05 : -0.05,
-        };
-    }
-    return {
-        kind: 'fontSize',
-        delta: deltaY < 0 ? 5 : -5,
-    };
+    return timerRendererWheelActionUtilsApi.resolveWheelAction(deltaY, shiftKey);
 }
 
 /**
