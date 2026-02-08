@@ -1,8 +1,4 @@
-type ParseNumberUtilsApi = {
-    parseIntOrFallback: (raw: string | null | undefined, fallback: number) => number;
-    parseFloatOrFallback: (raw: string | null | undefined, fallback: number) => number;
-    parseIntOrNull: (raw: string | null | undefined) => number | null;
-};
+type ParseNumberUtilsApi = import('../shared/parse-number-utils-types').ParseNumberUtilsApi;
 
 /**
  * 文字列を整数として読み取り、失敗時は既定値を返す。

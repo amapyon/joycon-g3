@@ -7,11 +7,7 @@
         buildMediaAbsolutePath: (basePath: string, filename: string) => string;
         toFileUrl: (absolutePath: string) => string;
     };
-    type ParseNumberUtilsApi = {
-        parseIntOrFallback: (raw: string | null | undefined, fallback: number) => number;
-        parseFloatOrFallback: (raw: string | null | undefined, fallback: number) => number;
-        parseIntOrNull: (raw: string | null | undefined) => number | null;
-    };
+    type ParseNumberUtilsApi = import('../../shared/parse-number-utils-types').ParseNumberUtilsApi;
     type RendererApiResolverUtilsApi = import('../../shared/renderer-api-resolver-types').RendererApiResolverUtilsApi;
     type WindowWithRendererApiResolver = Window & { rendererApiResolverUtils?: RendererApiResolverUtilsApi };
 

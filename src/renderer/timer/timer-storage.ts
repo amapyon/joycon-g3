@@ -15,11 +15,7 @@
         loadSoundPlayDelay: () => number | null;
         saveSoundPlayDelay: (delayMs: number) => void;
     };
-    type ParseNumberUtilsApi = {
-        parseIntOrFallback: (raw: string | null | undefined, fallback: number) => number;
-        parseFloatOrFallback: (raw: string | null | undefined, fallback: number) => number;
-        parseIntOrNull: (raw: string | null | undefined) => number | null;
-    };
+    type ParseNumberUtilsApi = import('../../shared/parse-number-utils-types').ParseNumberUtilsApi;
 
     const KEY_COUNTDOWN_INITIAL_VALUE = 'countdownInitialValue';
     const KEY_TIMER_FONT_SIZE = 'timerFontSize';
