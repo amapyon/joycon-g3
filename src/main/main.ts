@@ -1,5 +1,5 @@
 // main.ts
-import { app, BrowserWindow, ipcMain, screen, IpcMainEvent } from 'electron';
+import { app, BrowserWindow, ipcMain, screen } from 'electron';
 import JoyConManager from './joycon';
 import powerpointControl from './powerpoint-control';
 import googleSlidesControl from './google-slides-control';
@@ -11,11 +11,8 @@ import {
     createTimerState,
     decideToggleTimerWindow,
     getTimerWindowMode,
-    setTimerCounting,
-    setTimerPaused,
 } from './timer-state';
-import { registerTimerIpcHandlers } from './timer-ipc';
-import { createStrongTripleRumblePattern } from './rumble-pattern';
+import { registerMainIpcHandlers } from './main-ipc-registration';
 import {
     CursorId,
     CursorMapConfig,
@@ -31,7 +28,6 @@ import {
     decideRStickPress,
 } from './r-stick-handler';
 
-type TimerNotificationConfig = Record<string, unknown>;
 type JoyConEventData = { id?: string } & Record<string, unknown>;
 type JoyConStatus = Record<string, unknown>;
 type AttitudeData = Record<string, unknown>;
@@ -222,115 +218,31 @@ app.whenReady().then(() => {
         });
     }
 
-    // --- IPCでcursorMapConfigを受信 ---
-    if (!ipcMain.listenerCount('cursor-map-config')) {
-        ipcMain.on('cursor-map-config', (event: IpcMainEvent, config: CursorMapConfig) => {
-            cursorMapConfig = config;
-            console.log('[main.ts] Received cursorMapConfig from renderer:', cursorMapConfig);
-        });
-    }
-
-    // Add IPC listener for cursor visibility updates
-    if (!ipcMain.listenerCount('cursor-visibility-update')) {
-        ipcMain.on('cursor-visibility-update', (event: IpcMainEvent, data: { id: CursorId; isVisible: boolean }) => {
-            isCursorVisible[data.id] = data.isVisible;
-            // console.log(`[main.ts] Cursor ${data.id} visibility updated to ${data.isVisible}`);
-        });
-    }
-    // --- IPCでcountdown-initial-valueを受信 ---
-    if (!ipcMain.listenerCount('countdown-initial-value')) {
-        ipcMain.on('countdown-initial-value', (event: IpcMainEvent, value: number) => {
-            countdownInitialValue = value;
-            console.log(`[main.ts] Received countdown initial value: ${countdownInitialValue}`);
-            // Broadcast to all windows
-            [WindowManager.getCursorWindow(), WindowManager.getTimerWindow(), WindowManager.getMainWindow()].forEach((win: BrowserWindow | null) => {
-                if (win && !win.isDestroyed()) win.webContents.send('update-countdown-initial-value', countdownInitialValue);
-            });
-        });
-    }
-
-    // --- IPCでtimer presetsを受信 ---
-    if (!ipcMain.listenerCount('update-timer-presets')) {
-        ipcMain.on('update-timer-presets', (event: IpcMainEvent, presets: number[]) => {
-            console.log(`[main.ts] Received timer presets: ${presets}`);
-            // Broadcast to all windows
-            [WindowManager.getCursorWindow(), WindowManager.getTimerWindow(), WindowManager.getMainWindow()].forEach((win: BrowserWindow | null) => {
-                if (win && !win.isDestroyed()) win.webContents.send('update-timer-presets', presets);
-            });
-        });
-    }
-
-    // --- IPCでtimer notificationsを受信 ---
-    if (!ipcMain.listenerCount('update-timer-notifications')) {
-        ipcMain.on('update-timer-notifications', (event: IpcMainEvent, configs: TimerNotificationConfig[]) => {
-            console.log('[main.ts] Received timer notifications update:', configs);
-            // Broadcast to all windows
-            [WindowManager.getCursorWindow(), WindowManager.getTimerWindow(), WindowManager.getMainWindow()].forEach((win: BrowserWindow | null) => {
-                if (win && !win.isDestroyed()) win.webContents.send('update-timer-notifications', configs);
-            });
-        });
-    }
-
-    if (!ipcMain.listenerCount('update-sound-play-delay')) {
-        ipcMain.on('update-sound-play-delay', (event: IpcMainEvent, delayMs: number) => {
-            void event;
-            const normalizedDelay = Number.isNaN(delayMs) ? 200 : Math.min(Math.max(delayMs, 0), 5000);
-            soundPlayDelayMs = normalizedDelay;
-            const timerWindow = WindowManager.getTimerWindow();
-            if (timerWindow && !timerWindow.isDestroyed()) {
-                timerWindow.webContents.send('update-sound-play-delay', normalizedDelay);
-            }
-        });
-    }
-
-    // --- IPC for Timer Status ---
-    registerTimerIpcHandlers(ipcMain, {
-        onStatusUpdate: (isCountingUpdate: boolean): void => {
-            console.log(`[main.ts] Timer status update: ${isCountingUpdate}`);
-            timerState = setTimerCounting(timerState, isCountingUpdate);
+    registerMainIpcHandlers({
+        ipcMain,
+        windowManager: WindowManager,
+        joyConRumbleApi: joyconManager,
+        state: {
+            setCursorMapConfig: (config: CursorMapConfig): void => {
+                cursorMapConfig = config;
+            },
+            setCursorVisibility: (id: CursorId, isVisible: boolean): void => {
+                isCursorVisible[id] = isVisible;
+            },
+            setCountdownInitialValue: (value: number): void => {
+                countdownInitialValue = value;
+            },
+            getCountdownInitialValue: (): number => countdownInitialValue,
+            getTimerState: (): typeof timerState => timerState,
+            setTimerState: (nextState: typeof timerState): void => {
+                timerState = nextState;
+            },
+            setSoundPlayDelayMs: (delayMs: number): void => {
+                soundPlayDelayMs = delayMs;
+            },
         },
-        onPauseUpdate: (isPausedUpdate: boolean): void => {
-            console.log(`[main.ts] Timer pause update: ${isPausedUpdate}`);
-            timerState = setTimerPaused(timerState, isPausedUpdate);
-        },
+        toggleTimerWindowVisibility,
     });
-    if (!ipcMain.listenerCount('hide-timer-window')) {
-        ipcMain.on('hide-timer-window', () => {
-            const timerWindow = WindowManager.getTimerWindow();
-            if (timerWindow && !timerWindow.isDestroyed()) {
-                timerWindow.hide();
-            }
-        });
-    }
-
-    // Add IPC listener for toggling timer window from main-renderer
-    if (!ipcMain.listenerCount('toggle-timer-window')) {
-        ipcMain.on('toggle-timer-window', () => {
-            console.log('[Main] Received toggle-timer-window IPC from renderer.');
-            toggleTimerWindowVisibility();
-        });
-    }
-
-    // Add IPC listener for timer countdown updates from timer-renderer
-    if (!ipcMain.listenerCount('timer-countdown-update')) {
-        ipcMain.on('timer-countdown-update', (event: IpcMainEvent, remainingTime: number) => {
-            // console.log(`[Main] Received timer countdown update: ${remainingTime}`);
-            const mainWindow = WindowManager.getMainWindow();
-            if (mainWindow && !mainWindow.isDestroyed()) {
-                mainWindow.webContents.send('main-timer-update', remainingTime);
-            }
-        });
-    }
-
-    if (!ipcMain.listenerCount('timer-notification-trigger')) {
-        ipcMain.on('timer-notification-trigger', (event: IpcMainEvent, seconds: number, shouldRumble: boolean) => {
-            void event;
-            void seconds;
-            if (shouldRumble) {
-                joyconManager.playRumblePattern(createStrongTripleRumblePattern());
-            }
-        });
-    }
 
     joyconManager.on('imu-data', handleImuData);
 

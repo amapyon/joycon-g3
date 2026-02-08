@@ -132,6 +132,29 @@ npm run build
 - 既知不具合に対応する回帰テストが維持されているか
 - テストが環境差分に依存して不安定化していないか
 
+## 高リスクファイル分解ロードマップ
+編集容易性の改善対象として、次の順で分解してください。
+
+1) `src/main/main.ts`  
+- 目標: 初期化、IPC登録、Joy-Conイベント転送を別モジュールへ分離する  
+- 分割単位: `main-bootstrap.ts`, `main-ipc-registration.ts`, `main-joycon-events.ts`  
+- 完了条件: `main.ts` がオーケストレーションのみ（200行以下目安）
+
+2) `src/main/joycon.ts`  
+- 目標: デバイス接続、レポート解析、振動制御を責務分離する  
+- 分割単位: `joycon-connection.ts`, `joycon-parser.ts`, `joycon-rumble.ts`  
+- 完了条件: I/O境界と計算ロジックが分離され、計算部を単体テスト可能
+
+3) `src/renderer/timer-renderer.ts`  
+- 目標: 画面更新、タイマー状態制御、永続化を分離する  
+- 分割単位: `timer-ui.ts`, `timer-storage.ts`, `timer-ipc-bindings.ts`  
+- 完了条件: `localStorage` と IPC 直接参照を境界モジュールに集約
+
+4) `src/preload/expose.ts`（並行）  
+- 目標: IPCチャンネル定義の重複を削減する  
+- 分割単位: チャンネル定義マップ + 汎用 `on/send/invoke` ヘルパー  
+- 完了条件: チャンネル追加時の修正箇所を1箇所化
+
 ## 作業後の必須手順
 - コード変更後は必ず `npm run build` を実行して `dist/` に反映する
 
