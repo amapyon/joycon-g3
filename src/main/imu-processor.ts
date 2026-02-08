@@ -9,7 +9,7 @@ const ACCEL_SCALE_G = 1 / 16384;
 const GYRO_SCALE_DPS = 2000 / 32768;
 
 // カーソルID型
-type CursorId = 'cursorLeft' | 'cursorRight';
+type CursorId = import('../shared/cursor-types').CursorId;
 
 // IMUベクトル型
 interface IMUVector {

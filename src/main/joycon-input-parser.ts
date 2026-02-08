@@ -2,7 +2,7 @@ import { buildLeftButtonEvents, buildRightButtonEvents, JoyConButtonStateSnapsho
 import { decodeImuSample } from './joycon-imu-utils';
 import { decodeRightStickAnalog, extractBatteryLevel, RightStickAnalog } from './joycon-packet-utils';
 
-type CursorId = 'cursorLeft' | 'cursorRight';
+type CursorId = import('../shared/cursor-types').CursorId;
 
 export type JoyConButtonEvent = {
     name: string;

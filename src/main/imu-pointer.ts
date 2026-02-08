@@ -1,9 +1,9 @@
-export type CursorId = 'cursorLeft' | 'cursorRight';
+export type CursorId = import('../shared/cursor-types').CursorId;
 export type Vector3 = { x: number; y: number; z: number };
 export type ImuData = { id: string; accel: Vector3; gyro: Vector3 };
 export type PointerPosition = { x: number; y: number };
 export type PointerPositions = { [key in CursorId]: PointerPosition };
-export type CursorMapConfig = Partial<Record<CursorId, { xSign: number; ySign: number }>>;
+export type CursorMapConfig = import('../shared/cursor-types').PartialCursorMapConfig;
 
 export type PointerUpdateInput = {
     data: ImuData;

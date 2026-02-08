@@ -1,4 +1,4 @@
-type CursorId = 'cursorLeft' | 'cursorRight';
+type CursorId = import('../shared/cursor-types').CursorId;
 
 export type JoyConButtonStateSnapshot = {
     slPressed: boolean;

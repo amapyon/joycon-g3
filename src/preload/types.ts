@@ -1,7 +1,7 @@
 /**
  * カーソル識別子。
  */
-export type CursorId = 'cursorLeft' | 'cursorRight';
+export type CursorId = import('../shared/cursor-types').CursorId;
 
 /**
  * タイマーウィンドウの表示モード。
@@ -11,7 +11,7 @@ export type TimerMode = 'timer' | 'setup';
 /**
  * カーソル座標変換設定。
  */
-export type CursorMapConfig = Record<CursorId, { xSign: number; ySign: number }>;
+export type CursorMapConfig = import('../shared/cursor-types').CursorMapConfig;
 
 /**
  * Joy-Con の接続状態。

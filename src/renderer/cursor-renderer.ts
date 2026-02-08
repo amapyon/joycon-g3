@@ -2,7 +2,7 @@
 // Joy-Con姿勢データでカーソルを制御するレンダラースクリプト
 
 {
-type CursorId = 'cursorLeft' | 'cursorRight';
+type CursorId = import('../shared/cursor-types').CursorId;
 
 // カーソルのマッピング設定
 interface CursorMap {
@@ -30,7 +30,7 @@ interface CursorData {
     lastExternalUpdate: number;
 }
 
-type CursorMapConfig = { [key in CursorId]: { xSign: number; ySign: number } };
+type CursorMapConfig = import('../shared/cursor-types').CursorMapConfig;
 type UpdatePointerData = { id: CursorId; x: number; y: number };
 type JoyConAttitudeData = { id: CursorId; roll: number; pitch: number; yaw?: number };
 type ButtonStateData = { pressed: boolean };
