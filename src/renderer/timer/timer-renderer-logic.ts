@@ -1,4 +1,4 @@
-type TimerMode = 'timer' | 'setup';
+type TimerMode = import('../../shared/timer-mode').TimerMode;
 
 type TimerRendererLogicNotificationConfig = import('../../shared/timer-notification-config').TimerNotificationConfig;
 

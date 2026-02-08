@@ -1,5 +1,5 @@
 {
-type TimerMode = 'timer' | 'setup';
+type TimerMode = import('../shared/timer-mode').TimerMode;
 type TimerNotificationConfig = import('../shared/timer-notification-config').TimerNotificationConfig;
 type TimerStyleStateApi = {
     calcNextFontSize: (current: number, delta: number, min: number, max: number) => number;

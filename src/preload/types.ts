@@ -6,7 +6,7 @@ export type CursorId = import('../shared/cursor-types').CursorId;
 /**
  * タイマーウィンドウの表示モード。
  */
-export type TimerMode = 'timer' | 'setup';
+export type TimerMode = import('../shared/timer-mode').TimerMode;
 
 /**
  * カーソル座標変換設定。
