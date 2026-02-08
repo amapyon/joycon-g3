@@ -123,8 +123,34 @@ type MenuControllerClass = {
     new (options: MenuControllerOptions): MenuControllerInstance;
 };
 
+type TickAction =
+    | {
+        kind: 'none';
+    }
+    | {
+        kind: 'continue';
+        displaySeconds: number;
+        sendSeconds: number;
+    }
+    | {
+        kind: 'finish';
+        displaySeconds: number;
+        sendSeconds: number;
+    };
+
+type TimerRendererLogicApi = {
+    normalizeNotifications: (configs: TimerNotificationConfig[]) => TimerNotificationConfig[];
+    resolveWheelAction: (deltaY: number, shiftKey: boolean) => { kind: 'opacity' | 'fontSize'; delta: number };
+    resolveTickAction: (
+        tickResult: { remaining: number; shouldStop: boolean } | null,
+        currentInitialValue: number
+    ) => TickAction;
+    shouldShowSetupMenu: (mode: TimerMode) => boolean;
+};
+
 const electronAPI = (window as unknown as { electronAPI: TimerRendererElectronAPI }).electronAPI;
 const timerStyleState = (window as unknown as { timerStyleState: TimerStyleStateApi }).timerStyleState;
+const timerRendererLogic = (window as unknown as { timerRendererLogic: TimerRendererLogicApi }).timerRendererLogic;
 const countdownTimerElement = document.getElementById('countdownTimer') as HTMLElement | null;
 const countdownMenuElement = document.getElementById('countdownMenu') as HTMLElement | null;
 const countdownMenuValueElement = document.getElementById('countdownMenuValue') as HTMLElement | null;
@@ -338,23 +364,24 @@ function processCountdownTick(): void {
     const currentValue = countdownEngine.getCountdownValue();
     notificationPlayer.handleTick(timerNotificationConfigs, currentValue);
 
-    const tickResult = countdownEngine.tick();
-    if (!tickResult) {
+    const tickAction = timerRendererLogic.resolveTickAction(
+        countdownEngine.tick(),
+        countdownEngine.getCurrentInitialValue()
+    );
+    if (tickAction.kind === 'none') {
         return;
     }
-
-    if (!tickResult.shouldStop) {
-        updateCountdownDisplay(tickResult.remaining);
-        electronAPI.sendTimerCountdownUpdate(tickResult.remaining); // メインプロセスに残り時間を送信
+    if (tickAction.kind === 'continue') {
+        updateCountdownDisplay(tickAction.displaySeconds);
+        electronAPI.sendTimerCountdownUpdate(tickAction.sendSeconds); // メインプロセスに残り時間を送信
         return;
     }
-
     stopCountdown();
     if (countdownTimerElement) {
         countdownTimerElement.style.color = '#888888';
     }
-    updateCountdownDisplay(countdownEngine.getCurrentInitialValue());
-    electronAPI.sendTimerCountdownUpdate(tickResult.remaining); // 0 になったことを送信
+    updateCountdownDisplay(tickAction.displaySeconds);
+    electronAPI.sendTimerCountdownUpdate(tickAction.sendSeconds); // 0 になったことを送信
 }
 
 /**
@@ -397,10 +424,7 @@ function startCountdown(duration: number): void {
  */
 function handleUpdateTimerNotifications(configs: TimerNotificationConfig[]): void {
     // console.log('[TimerRenderer] Notifications updated:', configs);
-    timerNotificationConfigs = configs.map((config: TimerNotificationConfig) => ({
-        ...config,
-        rumble: !!config.rumble,
-    }));
+    timerNotificationConfigs = timerRendererLogic.normalizeNotifications(configs);
     timerStorage.saveNotifications(configs);
 }
 
@@ -458,7 +482,7 @@ function handleUpdateTimerPresets(presets: number[]): void {
  */
 function handleSetTimerMode(mode: TimerMode): void {
     // console.log(`[TimerRenderer] Setting mode to: ${mode}`);
-    if (mode === 'setup') {
+    if (timerRendererLogic.shouldShowSetupMenu(mode)) {
         menuController.setVisible(true);
     } else {
         menuController.setVisible(false);
@@ -488,16 +512,13 @@ function handleStartCountdown(duration: number): void {
 function handleWheelEvent(e: WheelEvent): void {
     e.preventDefault(); // 既定のスクロール動作を抑止
 
-    if (e.shiftKey) {
-        // 透明度を調整
-        const delta = e.deltaY < 0 ? 0.05 : -0.05; // 上スクロールで不透明、下で透明
-        updateTransparency(delta);
+    const action = timerRendererLogic.resolveWheelAction(e.deltaY, e.shiftKey);
+    if (action.kind === 'opacity') {
+        updateTransparency(action.delta);
         return;
     }
-    // フォントサイズを調整（既存仕様）
-    const delta = e.deltaY < 0 ? 5 : -5;
     // console.log(`[TimerRenderer] Wheel detected on zone. Delta: ${delta}, Current: ${currentFontSize}`);
-    updateTimerFontSize(delta);
+    updateTimerFontSize(action.delta);
 }
 
 /**
