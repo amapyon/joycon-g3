@@ -35,6 +35,7 @@ type UpdatePointerData = { id: CursorId; x: number; y: number };
 type JoyConAttitudeData = { id: CursorId; roll: number; pitch: number; yaw?: number };
 type ButtonStateData = { pressed: boolean };
 type ButtonPressData = { id: CursorId };
+type PointerTarget = { x: number; y: number };
 type CursorRendererElectronAPI = {
     onUpdatePointer: (callback: (pos: UpdatePointerData) => void) => void;
     onJoyConAttitude: (callback: (data: JoyConAttitudeData) => void) => void;
@@ -49,6 +50,7 @@ type CursorRendererElectronAPI = {
 type WindowWithIpcRenderer = Window & { ipcRenderer?: { send: (channel: string, ...args: unknown[]) => void } };
 
 const electronAPI = (window as unknown as { electronAPI: CursorRendererElectronAPI }).electronAPI;
+const CURSOR_IDS: ReadonlyArray<CursorId> = ['cursorLeft', 'cursorRight'];
 
 // カーソルDOM要素の参照
 const cursorElements: Record<CursorId, HTMLElement | null> = {
@@ -167,10 +169,105 @@ function resetCursor(cursorId: 'cursorLeft' | 'cursorRight'): void {
 }
 
 /**
+ * カーソル要素の表示状態を切り替える。
+ * @param cursorId 対象カーソル ID
+ * @param isVisible 表示状態
+ */
+function setElementVisibility(cursorId: CursorId, isVisible: boolean): void {
+    const element = cursorElements[cursorId];
+    if (!element) {
+        return;
+    }
+    element.style.visibility = isVisible ? 'visible' : 'hidden';
+}
+
+/**
+ * カーソルを表示化する際に保留座標を復元する。
+ * @param cursorId 対象カーソル ID
+ */
+function restorePendingPosition(cursorId: CursorId): void {
+    const cursorData = cursors[cursorId];
+    if (cursorData.pendingX === null || cursorData.pendingY === null) {
+        return;
+    }
+    cursorData.targetX = cursorData.pendingX;
+    cursorData.targetY = cursorData.pendingY;
+    cursorData.x = cursorData.pendingX;
+    cursorData.y = cursorData.pendingY;
+    cursorData.pendingX = null;
+    cursorData.pendingY = null;
+    updateCursorElementPosition(cursorId);
+}
+
+/**
+ * カーソルを非表示化する際に現在座標を保留する。
+ * @param cursorId 対象カーソル ID
+ */
+function storePendingPosition(cursorId: CursorId): void {
+    const cursorData = cursors[cursorId];
+    if (cursorData.pendingX !== null) {
+        return;
+    }
+    cursorData.pendingX = Math.round(cursorData.x);
+    cursorData.pendingY = Math.round(cursorData.y);
+}
+
+/**
+ * カーソルの表示状態遷移を適用し、必要な副作用をまとめて実行する。
+ * @param cursorId 対象カーソル ID
+ * @param shouldBeVisible 目標表示状態
+ */
+function applyCursorVisibility(cursorId: CursorId, shouldBeVisible: boolean): void {
+    const cursorData = cursors[cursorId];
+    if (shouldBeVisible === cursorData.isVisible) {
+        return;
+    }
+    if (shouldBeVisible) {
+        setElementVisibility(cursorId, true);
+        cursorData.isVisible = true;
+        restorePendingPosition(cursorId);
+        electronAPI.sendCursorVisibilityUpdate(cursorId, true);
+        return;
+    }
+    setElementVisibility(cursorId, false);
+    cursorData.isVisible = false;
+    storePendingPosition(cursorId);
+    electronAPI.sendCursorVisibilityUpdate(cursorId, false);
+}
+
+/**
+ * カーソル入力が有効な状態か判定する。
+ * @param cursorId 対象カーソル ID
+ * @returns 入力が有効なら true
+ */
+function isCursorInputEnabled(cursorId: CursorId): boolean {
+    return cursorId === 'cursorRight' ? isRightXPressed : isLeftDownPressed;
+}
+
+/**
+ * 姿勢値から目標座標を算出する。
+ * @param cursorData カーソル状態
+ * @param roll ロール値
+ * @param pitch ピッチ値
+ * @returns 目標座標
+ */
+function calculateTargetFromAttitude(cursorData: CursorData, roll: number, pitch: number): PointerTarget {
+    const centerX = windowWidth / 2;
+    const centerY = windowHeight / 2;
+    const mapping = cursorData.map;
+    const sourceX = mapping.xFrom === 'pitch' ? pitch : roll;
+    const sourceY = mapping.yFrom === 'pitch' ? pitch : roll;
+    return {
+        x: centerX + sourceX * cursorData.sensitivityX * mapping.xSign,
+        y: centerY + sourceY * cursorData.sensitivityY * mapping.ySign,
+    };
+}
+
+/**
  * カーソル DOM 要素の位置を更新する。
  * @param cursorId 対象カーソル ID
  */
-function updateCursorElementPosition(cursorId: 'cursorLeft' | 'cursorRight'): void {
+function updateCursorElementPosition(cursorId: CursorId): void {
     const cursorData = cursors[cursorId];
     const element = cursorElements[cursorId];
     if (element && cursorData && !Number.isNaN(cursorData.x) && !Number.isNaN(cursorData.y)) {
@@ -197,7 +294,7 @@ let isLeftDownPressed = false;
 electronAPI.onJoyConAttitude((data: JoyConAttitudeData): void => {
     const cursorId = data.id;
     // 右はXボタン押下中、左はDownボタン押下中のみ反映
-    if ((cursorId === 'cursorRight' && !isRightXPressed) || (cursorId === 'cursorLeft' && !isLeftDownPressed)) {
+    if (!isCursorInputEnabled(cursorId)) {
         return;
     }
     const cursorData = cursors[cursorId];
@@ -206,27 +303,9 @@ electronAPI.onJoyConAttitude((data: JoyConAttitudeData): void => {
         return;
     }
 
-    const roll = data.roll;
-    const pitch = data.pitch;
-    const centerX = windowWidth / 2;
-    const centerY = windowHeight / 2;
-    const sensitivityX = cursorData.sensitivityX;
-    const sensitivityY = cursorData.sensitivityY;
-    const mapping = cursorData.map;
-    let targetX = centerX;
-    let targetY = centerY;
-    if (mapping.xFrom === 'roll') {
-        targetX = centerX + roll * sensitivityX * mapping.xSign;
-    } else if (mapping.xFrom === 'pitch') {
-        targetX = centerX + pitch * sensitivityX * mapping.xSign;
-    }
-    if (mapping.yFrom === 'roll') {
-        targetY = centerY + roll * sensitivityY * mapping.ySign;
-    } else if (mapping.yFrom === 'pitch') {
-        targetY = centerY + pitch * sensitivityY * mapping.ySign;
-    }
-    cursorData.targetX = targetX;
-    cursorData.targetY = targetY;
+    const target = calculateTargetFromAttitude(cursorData, data.roll, data.pitch);
+    cursorData.targetX = target.x;
+    cursorData.targetY = target.y;
 });
 
 // Joy-Con Xボタンの押下/離上イベント（右JoyCon）
@@ -245,65 +324,8 @@ electronAPI.onJoyConButtonDown((data: ButtonStateData): void => {
  * ポインター表示状態を一括制御する。
  */
 function updatePointerVisibility(): void {
-    // Right cursor: Visible only when X button is pressed
-    const rightVisible = isRightXPressed;
-    const cursorRightData = cursors.cursorRight;
-    const cursorRightElement = cursorElements.cursorRight;
-
-    if (rightVisible && !cursorRightData.isVisible) { // Becoming visible
-        if (cursorRightElement) cursorRightElement.style.visibility = 'visible';
-        cursorRightData.isVisible = true;
-        if (cursorRightData.pendingX !== null && cursorRightData.pendingY !== null) {
-            // Resume from last pending position
-            cursorRightData.targetX = cursorRightData.pendingX;
-            cursorRightData.targetY = cursorRightData.pendingY;
-            cursorRightData.x = cursorRightData.pendingX; // Snap to position immediately
-            cursorRightData.y = cursorRightData.pendingY;
-            cursorRightData.pendingX = null; // Clear pending position
-            cursorRightData.pendingY = null;
-            updateCursorElementPosition('cursorRight'); // Update element position immediately
-        }
-        electronAPI.sendCursorVisibilityUpdate('cursorRight', true); // Send update
-    } else if (!rightVisible && cursorRightData.isVisible) { // Becoming hidden
-        if (cursorRightElement) cursorRightElement.style.visibility = 'hidden';
-        cursorRightData.isVisible = false;
-        // Store current position as last known if not already pending
-        if (cursorRightData.pendingX === null) {
-            cursorRightData.pendingX = Math.round(cursorRightData.x); // Round x
-            cursorRightData.pendingY = Math.round(cursorRightData.y); // Round y
-        }
-        electronAPI.sendCursorVisibilityUpdate('cursorRight', false); // Send update
-    }
-
-    // Left cursor: Visible only when Down button is pressed
-    const leftVisible = isLeftDownPressed;
-    const cursorLeftData = cursors.cursorLeft;
-    const cursorLeftElement = cursorElements.cursorLeft;
-
-    if (leftVisible && !cursorLeftData.isVisible) { // Becoming visible
-        if (cursorLeftElement) cursorLeftElement.style.visibility = 'visible';
-        cursorLeftData.isVisible = true;
-        if (cursorLeftData.pendingX !== null && cursorLeftData.pendingY !== null) {
-            // Resume from last pending position
-            cursorLeftData.targetX = cursorLeftData.pendingX;
-            cursorLeftData.targetY = cursorLeftData.pendingY;
-            cursorLeftData.x = cursorLeftData.pendingX; // Snap to position immediately
-            cursorLeftData.y = cursorLeftData.pendingY;
-            cursorLeftData.pendingX = null; // Clear pending position
-            cursorLeftData.pendingY = null;
-            updateCursorElementPosition('cursorLeft'); // Update element position immediately
-        }
-        electronAPI.sendCursorVisibilityUpdate('cursorLeft', true); // Send update
-    } else if (!leftVisible && cursorLeftData.isVisible) { // Becoming hidden
-        if (cursorLeftElement) cursorLeftElement.style.visibility = 'hidden';
-        cursorLeftData.isVisible = false;
-        // Store current position as last known if not already pending
-        if (cursorLeftData.pendingX === null) { // Only store if no pending position exists
-            cursorLeftData.pendingX = Math.round(cursorLeftData.x); // Round x
-            cursorLeftData.pendingY = Math.round(cursorLeftData.y); // Round y
-        }
-        electronAPI.sendCursorVisibilityUpdate('cursorLeft', false); // Send update
-    }
+    applyCursorVisibility('cursorRight', isRightXPressed);
+    applyCursorVisibility('cursorLeft', isLeftDownPressed);
 }
 
 // Joy-Con Xボタン押下時のカーソルリセット（右）
@@ -339,9 +361,9 @@ function renderLoop(): void {
         requestAnimationFrame(renderLoop);
         return;
     }
-    for (const id in cursors) {
-        const cursorData = cursors[id as 'cursorLeft' | 'cursorRight'];
-        const element = cursorElements[id as 'cursorLeft' | 'cursorRight'];
+    for (const id of CURSOR_IDS) {
+        const cursorData = cursors[id];
+        const element = cursorElements[id];
         if (element && cursorData.isVisible) {
             const smoothing = cursorData.smoothing || 0.1;
             cursorData.x += (cursorData.targetX - cursorData.x) * smoothing;
@@ -352,7 +374,7 @@ function renderLoop(): void {
                 if (!Number.isNaN(cursorData.x) && !Number.isNaN(cursorData.y)) {
                     cursorData.x = Math.max(halfWidth, Math.min(windowWidth - halfWidth, cursorData.x));
                     cursorData.y = Math.max(halfHeight, Math.min(windowHeight - halfHeight, cursorData.y));
-                    updateCursorElementPosition(id as 'cursorLeft' | 'cursorRight');
+                    updateCursorElementPosition(id);
                 } else {
                     // console.error(`[${id}] Skipping pos update due to NaN coord.`);
                 }
