@@ -95,10 +95,20 @@ type CursorRuntimeLogicApi = {
         maxRetry: number;
     }) => { method: 'api' | 'send' | 'ipc' | 'retry' | 'none'; nextRetry: number | null };
 };
+type RendererApiResolverUtilsApi = {
+    resolveApi: <T>(globalKey: string, requirePath: string) => T;
+    resolveGlobal: <T>(globalKey: string) => T;
+};
+type WindowWithRendererApiResolver = Window & { rendererApiResolverUtils?: RendererApiResolverUtilsApi };
 
-const electronAPI = (window as unknown as { electronAPI: CursorRendererElectronAPI }).electronAPI;
-const cursorLogic = (window as unknown as { cursorLogic: CursorLogicApi }).cursorLogic;
-const cursorRuntimeLogic = (window as unknown as { cursorRuntimeLogic: CursorRuntimeLogicApi }).cursorRuntimeLogic;
+const rendererApiResolverUtils = (window as WindowWithRendererApiResolver).rendererApiResolverUtils;
+if (!rendererApiResolverUtils) {
+    throw new Error('rendererApiResolverUtils is not available');
+}
+
+const electronAPI = rendererApiResolverUtils.resolveGlobal<CursorRendererElectronAPI>('electronAPI');
+const cursorLogic = rendererApiResolverUtils.resolveApi<CursorLogicApi>('cursorLogic', './cursor-logic');
+const cursorRuntimeLogic = rendererApiResolverUtils.resolveApi<CursorRuntimeLogicApi>('cursorRuntimeLogic', './cursor-runtime-logic');
 const CURSOR_IDS: ReadonlyArray<CursorId> = ['cursorLeft', 'cursorRight'];
 
 // カーソルDOM要素の参照

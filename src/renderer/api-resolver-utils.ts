@@ -1,5 +1,6 @@
 type RendererApiResolverUtilsApi = {
     resolveApi: <T>(globalKey: string, requirePath: string) => T;
+    resolveGlobal: <T>(globalKey: string) => T;
 };
 
 /**
@@ -21,8 +22,23 @@ function resolveRendererApiFromGlobalOrRequire<T>(globalKey: string, requirePath
     throw new Error(`${globalKey} API is not available`);
 }
 
+/**
+ * グローバル登録済みAPIを解決する。
+ * @param globalKey グローバルに登録されたAPIキー
+ * @returns 解決したAPI
+ */
+function resolveRendererApiFromGlobal<T>(globalKey: string): T {
+    const root = (typeof window !== 'undefined' ? window : globalThis) as unknown as Record<string, unknown>;
+    const api = root[globalKey];
+    if (api) {
+        return api as T;
+    }
+    throw new Error(`${globalKey} API is not available on global`);
+}
+
 const rendererApiResolverUtilsApi: RendererApiResolverUtilsApi = {
     resolveApi: resolveRendererApiFromGlobalOrRequire,
+    resolveGlobal: resolveRendererApiFromGlobal,
 };
 
 const rendererApiResolverUtilsRoot = (typeof window !== 'undefined' ? window : globalThis) as unknown as {

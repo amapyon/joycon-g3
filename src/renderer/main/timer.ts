@@ -12,10 +12,19 @@
         parseFloatOrFallback: (raw: string | null | undefined, fallback: number) => number;
         parseIntOrNull: (raw: string | null | undefined) => number | null;
     };
+    type RendererApiResolverUtilsApi = {
+        resolveApi: <T>(globalKey: string, requirePath: string) => T;
+        resolveGlobal: <T>(globalKey: string) => T;
+    };
+    type WindowWithRendererApiResolver = Window & { rendererApiResolverUtils?: RendererApiResolverUtilsApi };
 
-    const mainRenderer = (window as unknown as { mainRenderer: MainRendererContext }).mainRenderer;
-    const timerMainLogic = (window as unknown as { timerMainLogic: TimerMainLogicApi }).timerMainLogic;
-    const parseNumberUtils = (window as unknown as { parseNumberUtils: ParseNumberUtilsApi }).parseNumberUtils;
+    const rendererApiResolverUtils = (window as WindowWithRendererApiResolver).rendererApiResolverUtils;
+    if (!rendererApiResolverUtils) {
+        throw new Error('rendererApiResolverUtils is not available');
+    }
+    const mainRenderer = rendererApiResolverUtils.resolveGlobal<MainRendererContext>('mainRenderer');
+    const timerMainLogic = rendererApiResolverUtils.resolveApi<TimerMainLogicApi>('timerMainLogic', './timer-logic');
+    const parseNumberUtils = rendererApiResolverUtils.resolveApi<ParseNumberUtilsApi>('parseNumberUtils', '../parse-number-utils');
     const { electronAPI, elements, state } = mainRenderer;
 
     /**

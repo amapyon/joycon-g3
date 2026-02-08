@@ -114,21 +114,35 @@ type TimerRendererLogicApi = {
     shouldShowSetupMenu: (mode: TimerMode) => boolean;
 };
 
-const electronAPI = (window as unknown as { electronAPI: TimerRendererElectronAPI }).electronAPI;
-const timerStyleState = (window as unknown as { timerStyleState: TimerStyleStateApi }).timerStyleState;
-const timerRendererLogic = (window as unknown as { timerRendererLogic: TimerRendererLogicApi }).timerRendererLogic;
+type RendererApiResolverUtilsApi = {
+    resolveApi: <T>(globalKey: string, requirePath: string) => T;
+    resolveGlobal: <T>(globalKey: string) => T;
+};
+type WindowWithRendererApiResolver = Window & { rendererApiResolverUtils?: RendererApiResolverUtilsApi };
+
+const rendererApiResolverUtils = (window as WindowWithRendererApiResolver).rendererApiResolverUtils;
+if (!rendererApiResolverUtils) {
+    throw new Error('rendererApiResolverUtils is not available');
+}
+
+const electronAPI = rendererApiResolverUtils.resolveGlobal<TimerRendererElectronAPI>('electronAPI');
+const timerStyleState = rendererApiResolverUtils.resolveApi<TimerStyleStateApi>('timerStyleState', './timer/timer-style-state');
+const timerRendererLogic = rendererApiResolverUtils.resolveApi<TimerRendererLogicApi>('timerRendererLogic', './timer/timer-renderer-logic');
 const countdownTimerElement = document.getElementById('countdownTimer') as HTMLElement | null;
 const countdownMenuElement = document.getElementById('countdownMenu') as HTMLElement | null;
 const countdownMenuValueElement = document.getElementById('countdownMenuValue') as HTMLElement | null;
 const timerPresetsContainer = document.getElementById('timer-presets-container') as HTMLElement | null;
 const wheelZone = document.getElementById('wheel-zone') as HTMLElement | null;
-const timerStorage = (window as unknown as { timerStorage: TimerStorageApi }).timerStorage;
-const CountdownEngine = (window as unknown as { countdownEngine: { CountdownEngine: CountdownEngineClass } })
-    .countdownEngine.CountdownEngine;
-const NotificationPlayer = (window as unknown as { notificationPlayer: { NotificationPlayer: NotificationPlayerClass } })
-    .notificationPlayer.NotificationPlayer;
-const MenuController = (window as unknown as { menuController: { MenuController: MenuControllerClass } })
-    .menuController.MenuController;
+const timerStorage = rendererApiResolverUtils.resolveApi<TimerStorageApi>('timerStorage', './timer/timer-storage');
+const CountdownEngine = rendererApiResolverUtils
+    .resolveApi<{ CountdownEngine: CountdownEngineClass }>('countdownEngine', './timer/countdown-engine')
+    .CountdownEngine;
+const NotificationPlayer = rendererApiResolverUtils
+    .resolveApi<{ NotificationPlayer: NotificationPlayerClass }>('notificationPlayer', './timer/notification-player')
+    .NotificationPlayer;
+const MenuController = rendererApiResolverUtils
+    .resolveApi<{ MenuController: MenuControllerClass }>('menuController', './timer/menu-controller')
+    .MenuController;
 const initialCountdownValue = timerStorage.loadCountdownInitialValue(10);
 const countdownEngine = new CountdownEngine({ initialValue: initialCountdownValue });
 const formatTime = (seconds: number): string => CountdownEngine.formatTime(seconds);

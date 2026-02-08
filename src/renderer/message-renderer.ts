@@ -16,10 +16,20 @@ type ParseNumberUtilsApi = {
     parseFloatOrFallback: (raw: string | null | undefined, fallback: number) => number;
     parseIntOrNull: (raw: string | null | undefined) => number | null;
 };
+type RendererApiResolverUtilsApi = {
+    resolveApi: <T>(globalKey: string, requirePath: string) => T;
+    resolveGlobal: <T>(globalKey: string) => T;
+};
+type WindowWithRendererApiResolver = Window & { rendererApiResolverUtils?: RendererApiResolverUtilsApi };
 
-const electronAPI = (window as unknown as { electronAPI: MessageRendererElectronAPI }).electronAPI;
-const messageLogic = (window as unknown as { messageLogic: MessageLogicApi }).messageLogic;
-const parseNumberUtils = (window as unknown as { parseNumberUtils: ParseNumberUtilsApi }).parseNumberUtils;
+const rendererApiResolverUtils = (window as WindowWithRendererApiResolver).rendererApiResolverUtils;
+if (!rendererApiResolverUtils) {
+    throw new Error('rendererApiResolverUtils is not available');
+}
+
+const electronAPI = rendererApiResolverUtils.resolveGlobal<MessageRendererElectronAPI>('electronAPI');
+const messageLogic = rendererApiResolverUtils.resolveApi<MessageLogicApi>('messageLogic', './message-logic');
+const parseNumberUtils = rendererApiResolverUtils.resolveApi<ParseNumberUtilsApi>('parseNumberUtils', './parse-number-utils');
 const messageContent = document.getElementById('messageContent') as HTMLElement | null;
 const wheelZone = document.getElementById('wheel-zone') as HTMLElement | null;
 const storedFontSize = localStorage.getItem('messageFontSize');
