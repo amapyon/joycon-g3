@@ -16,6 +16,30 @@ type CountdownEngineOptions = {
     maxSeconds?: number;
 };
 
+type CountdownTimeFormatApi = {
+    formatMinutesSeconds: (seconds: number) => string;
+};
+
+/**
+ * 時刻整形APIを取得する。
+ * @returns 時刻整形API
+ */
+function resolveCountdownTimeFormatApi(): CountdownTimeFormatApi {
+    const timerTimeFormatRoot = (typeof window !== 'undefined' ? window : globalThis) as unknown as {
+        timerTimeFormat?: CountdownTimeFormatApi;
+    };
+    if (timerTimeFormatRoot.timerTimeFormat) {
+        return timerTimeFormatRoot.timerTimeFormat;
+    }
+    if (typeof require !== 'undefined') {
+        // eslint-disable-next-line @typescript-eslint/no-var-requires -- CommonJS 形式の読み込みが必要
+        return require('../time-format-utils') as CountdownTimeFormatApi;
+    }
+    throw new Error('timerTimeFormat API is not available');
+}
+
+const countdownTimeFormatApi: CountdownTimeFormatApi = resolveCountdownTimeFormatApi();
+
 /**
  * カウントダウンの状態と進行を管理する。
  */
@@ -50,9 +74,7 @@ class CountdownEngine {
      * @returns 表示用文字列
      */
     public static formatTime(seconds: number): string {
-        const mins = Math.floor(seconds / 60);
-        const secs = seconds % 60;
-        return `${mins}:${String(secs).padStart(2, '0')}`;
+        return countdownTimeFormatApi.formatMinutesSeconds(seconds);
     }
 
     /**
