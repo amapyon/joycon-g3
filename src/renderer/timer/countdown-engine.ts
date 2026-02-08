@@ -20,6 +20,11 @@ type CountdownTimeFormatApi = {
     formatMinutesSeconds: (seconds: number) => string;
 };
 
+type CountdownNumberUtilsApi = {
+    clamp: (value: number, min: number, max: number) => number;
+    normalizeNumber: (value: number, fallback: number, min: number, max: number) => number;
+};
+
 /**
  * 時刻整形APIを取得する。
  * @returns 時刻整形API
@@ -39,6 +44,26 @@ function resolveCountdownTimeFormatApi(): CountdownTimeFormatApi {
 }
 
 const countdownTimeFormatApi: CountdownTimeFormatApi = resolveCountdownTimeFormatApi();
+
+/**
+ * 数値ユーティリティAPIを取得する。
+ * @returns 数値ユーティリティAPI
+ */
+function resolveCountdownNumberUtilsApi(): CountdownNumberUtilsApi {
+    const numberUtilsRoot = (typeof window !== 'undefined' ? window : globalThis) as unknown as {
+        numberUtils?: CountdownNumberUtilsApi;
+    };
+    if (numberUtilsRoot.numberUtils) {
+        return numberUtilsRoot.numberUtils;
+    }
+    if (typeof require !== 'undefined') {
+        // eslint-disable-next-line @typescript-eslint/no-var-requires -- CommonJS 形式の読み込みが必要
+        return require('../number-utils') as CountdownNumberUtilsApi;
+    }
+    throw new Error('numberUtils API is not available');
+}
+
+const countdownNumberUtilsApi: CountdownNumberUtilsApi = resolveCountdownNumberUtilsApi();
 
 /**
  * カウントダウンの状態と進行を管理する。
@@ -85,7 +110,7 @@ class CountdownEngine {
      * @returns 補正後の値
      */
     public static clampValue(value: number, minSeconds: number = 1, maxSeconds: number = 3600): number {
-        return Math.max(minSeconds, Math.min(maxSeconds, value));
+        return countdownNumberUtilsApi.clamp(value, minSeconds, maxSeconds);
     }
 
     /**

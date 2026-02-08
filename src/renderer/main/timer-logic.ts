@@ -15,6 +15,11 @@ type TimerMainPresetLabelApi = {
     formatTimerPresetLabel: (seconds: number) => string;
 };
 
+type TimerMainNumberUtilsApi = {
+    clamp: (value: number, min: number, max: number) => number;
+    normalizeNumber: (value: number, fallback: number, min: number, max: number) => number;
+};
+
 /**
  * 時刻整形APIを取得する。
  * @returns 時刻整形API
@@ -56,6 +61,26 @@ function resolveTimerMainPresetLabelApi(): TimerMainPresetLabelApi {
 const timerMainPresetLabelApi: TimerMainPresetLabelApi = resolveTimerMainPresetLabelApi();
 
 /**
+ * 数値ユーティリティAPIを取得する。
+ * @returns 数値ユーティリティAPI
+ */
+function resolveTimerMainNumberUtilsApi(): TimerMainNumberUtilsApi {
+    const numberUtilsRoot = (typeof window !== 'undefined' ? window : globalThis) as unknown as {
+        numberUtils?: TimerMainNumberUtilsApi;
+    };
+    if (numberUtilsRoot.numberUtils) {
+        return numberUtilsRoot.numberUtils;
+    }
+    if (typeof require !== 'undefined') {
+        // eslint-disable-next-line @typescript-eslint/no-var-requires -- CommonJS 形式の読み込みが必要
+        return require('../number-utils') as TimerMainNumberUtilsApi;
+    }
+    throw new Error('numberUtils API is not available');
+}
+
+const timerMainNumberUtilsApi: TimerMainNumberUtilsApi = resolveTimerMainNumberUtilsApi();
+
+/**
  * プリセットの表示ラベルを作成する。
  * @param seconds 秒数
  * @returns 表示ラベル
@@ -82,10 +107,7 @@ function formatTimeForDisplay(seconds: number): string {
  * @returns 正規化済み遅延値
  */
 function normalizeSoundPlayDelay(input: number, defaultDelay: number, min: number, max: number): number {
-    if (Number.isNaN(input)) {
-        return defaultDelay;
-    }
-    return Math.min(Math.max(input, min), max);
+    return timerMainNumberUtilsApi.normalizeNumber(input, defaultDelay, min, max);
 }
 
 /**

@@ -7,6 +7,31 @@ type NotificationPlayerOptions = {
     initialDelayMs?: number;
 };
 
+type NotificationPlayerNumberUtilsApi = {
+    clamp: (value: number, min: number, max: number) => number;
+    normalizeNumber: (value: number, fallback: number, min: number, max: number) => number;
+};
+
+/**
+ * 数値ユーティリティAPIを取得する。
+ * @returns 数値ユーティリティAPI
+ */
+function resolveNotificationPlayerNumberUtilsApi(): NotificationPlayerNumberUtilsApi {
+    const numberUtilsRoot = (typeof window !== 'undefined' ? window : globalThis) as unknown as {
+        numberUtils?: NotificationPlayerNumberUtilsApi;
+    };
+    if (numberUtilsRoot.numberUtils) {
+        return numberUtilsRoot.numberUtils;
+    }
+    if (typeof require !== 'undefined') {
+        // eslint-disable-next-line @typescript-eslint/no-var-requires -- CommonJS 形式の読み込みが必要
+        return require('../number-utils') as NotificationPlayerNumberUtilsApi;
+    }
+    throw new Error('numberUtils API is not available');
+}
+
+const notificationPlayerNumberUtilsApi: NotificationPlayerNumberUtilsApi = resolveNotificationPlayerNumberUtilsApi();
+
 /**
  * 通知音と振動の再生を管理する。
  */
@@ -130,10 +155,7 @@ class NotificationPlayer {
      * @returns 正規化後の値
      */
     public static normalizeDelay(delayMs: number): number {
-        if (Number.isNaN(delayMs)) {
-            return 200;
-        }
-        return Math.min(Math.max(delayMs, 0), 5000);
+        return notificationPlayerNumberUtilsApi.normalizeNumber(delayMs, 200, 0, 5000);
     }
 }
 
