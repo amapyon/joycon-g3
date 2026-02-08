@@ -1,7 +1,4 @@
-type RendererApiResolverUtilsApi = {
-    resolveApi: <T>(globalKey: string, requirePath: string) => T;
-    resolveGlobal: <T>(globalKey: string) => T;
-};
+type RendererApiResolverUtilsApi = import('../shared/renderer-api-resolver-types').RendererApiResolverUtilsApi;
 
 /**
  * グローバル登録済みAPIを優先し、無ければ CommonJS で解決する。

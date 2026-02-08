@@ -95,10 +95,7 @@ type CursorRuntimeLogicApi = {
         maxRetry: number;
     }) => { method: 'api' | 'send' | 'ipc' | 'retry' | 'none'; nextRetry: number | null };
 };
-type RendererApiResolverUtilsApi = {
-    resolveApi: <T>(globalKey: string, requirePath: string) => T;
-    resolveGlobal: <T>(globalKey: string) => T;
-};
+type RendererApiResolverUtilsApi = import('../shared/renderer-api-resolver-types').RendererApiResolverUtilsApi;
 type WindowWithRendererApiResolver = Window & { rendererApiResolverUtils?: RendererApiResolverUtilsApi };
 
 const rendererApiResolverUtils = (window as WindowWithRendererApiResolver).rendererApiResolverUtils;
