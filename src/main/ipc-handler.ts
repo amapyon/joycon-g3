@@ -12,55 +12,50 @@ type IpcHandlerDependencies = {
     mediaDirectoryStore?: MediaDirectoryStore;
 };
 
+type IpcHandlerContext = {
+    windowManagerInstance: typeof WindowManager;
+    joyconManager: JoyConManager;
+    mediaDirectoryStore: MediaDirectoryStore;
+};
+
 /**
- * IPC ハンドラを登録する。
- * @param windowManagerInstance ウィンドウ管理インスタンス
- * @param joyconManager Joy-Con 管理インスタンス
- * @param dependencies 外部依存の差し替え定義
+ * タイマーウィンドウへ安全にメッセージを送る。
+ * @param timerWin タイマーウィンドウ
+ * @param duration カウントダウン秒数
  */
-export function setupIpcHandlers(
-    windowManagerInstance: typeof WindowManager = WindowManager,
-    joyconManager: JoyConManager,
-    dependencies: IpcHandlerDependencies = {},
-): void {
-    console.log('Setting up IPC Handlers...');
-    const mediaDirectoryStore = dependencies.mediaDirectoryStore ?? MediaDirectoryStore.createDefault();
-
-    /**
-     * タイマーウィンドウへ安全にメッセージを送る。
-     * @param timerWin タイマーウィンドウ
-     * @param duration カウントダウン秒数
-     */
-    const sendStartCountdownToTimerWindow = (timerWin: BrowserWindow, duration: number): void => {
-        const sendPayload = (): void => {
-            timerWin.webContents.send('set-timer-mode', 'timer');
-            timerWin.webContents.send('start-countdown', duration);
-        };
-
-        if (timerWin.webContents.isLoading()) {
-            timerWin.webContents.once('did-finish-load', () => {
-                if (timerWin && !timerWin.isDestroyed()) {
-                    sendPayload();
-                }
-            });
-            return;
-        }
-
-        sendPayload();
+function sendStartCountdownToTimerWindow(timerWin: BrowserWindow, duration: number): void {
+    const sendPayload = (): void => {
+        timerWin.webContents.send('set-timer-mode', 'timer');
+        timerWin.webContents.send('start-countdown', duration);
     };
 
-    ipcMain.on('launch-cursor-window', (event: IpcMainEvent, displayId: string) => {
-        console.log(`IPC Handler: Received 'launch-cursor-window' for display ID: ${displayId}`);
+    if (timerWin.webContents.isLoading()) {
+        timerWin.webContents.once('did-finish-load', () => {
+            if (timerWin && !timerWin.isDestroyed()) {
+                sendPayload();
+            }
+        });
+        return;
+    }
+
+    sendPayload();
+}
+
+/**
+ * カーソルウィンドウ関連 IPC を登録する。
+ * @param context ハンドラ依存
+ */
+function registerCursorWindowHandlers(context: IpcHandlerContext): void {
+    const { windowManagerInstance } = context;
+
+    ipcMain.on('launch-cursor-window', (_event: IpcMainEvent, displayId: string) => {
+        // console.log(`IPC Handler: Received 'launch-cursor-window' for display ID: ${displayId}`);
         try {
             const targetId = resolveDisplayId(displayId);
             if (targetId === null) {
                 throw new Error(`Invalid display ID received: ${displayId}`);
             }
-            const displays = screen.getAllDisplays();
-            if (!displays) {
-                throw new Error('Screen API unavailable or returned invalid display list.');
-            }
-            const selectedDisplay = findDisplayById(displays, targetId);
+            const selectedDisplay = findDisplayById(screen.getAllDisplays(), targetId);
             if (selectedDisplay) {
                 windowManagerInstance.createCursorWindow(selectedDisplay);
             } else {
@@ -68,38 +63,67 @@ export function setupIpcHandlers(
             }
         } catch (e: unknown) {
             const message = e instanceof Error ? e.message : String(e);
-            console.error('IPC launch-cursor-window error:', e);
+            // console.error('IPC launch-cursor-window error:', e);
             windowManagerInstance.sendLaunchErrorToMain(`Launch Error: ${message}`);
         }
     });
 
     ipcMain.on('close-cursor-window', () => {
-        console.log("IPC Handler: Received 'close-cursor-window' request.");
+        // console.log("IPC Handler: Received 'close-cursor-window' request.");
         const windowToClose = windowManagerInstance.getCursorWindow();
         if (windowToClose && !windowToClose.isDestroyed()) {
             windowToClose.close();
-        } else {
-            console.log('IPC Handler: Cursor window already closed or not found.');
-            const mainWin = windowManagerInstance.getMainWindow();
-            if (mainWin && !mainWin.isDestroyed()) {
-                mainWin.webContents.send('cursor-window-closed');
-            }
+            return;
+        }
+
+        // console.log('IPC Handler: Cursor window already closed or not found.');
+        const mainWin = windowManagerInstance.getMainWindow();
+        if (mainWin && !mainWin.isDestroyed()) {
+            mainWin.webContents.send('cursor-window-closed');
         }
     });
+}
 
-    ipcMain.on('set-target-presentation', (event: IpcMainEvent, identifier: string) => {
-        console.log(`[IPC Handler] Received 'set-target-presentation': ${identifier}`);
+/**
+ * プレゼン制御関連 IPC を登録する。
+ * @param context ハンドラ依存
+ */
+function registerPresentationHandlers(context: IpcHandlerContext): void {
+    const { windowManagerInstance } = context;
+
+    ipcMain.on('set-target-presentation', (_event: IpcMainEvent, identifier: string) => {
+        // console.log(`[IPC Handler] Received 'set-target-presentation': ${identifier}`);
         powerpointControl.setTarget(identifier);
     });
 
+    ipcMain.handle('get-open-powerpoint-presentations', async () => {
+        // console.log("[IPC Handler] Received 'get-open-powerpoint-presentations' request.");
+        try {
+            return powerpointControl.getOpenPresentations();
+        } catch (e: unknown) {
+            const message = e instanceof Error ? e.message : String(e);
+            // console.error('[IPC Handler] Error getting open PowerPoint presentations:', message);
+            windowManagerInstance.sendLaunchErrorToMain(`Presentation Error: ${message}`);
+            return [];
+        }
+    });
+}
+
+/**
+ * キャリブレーションと Joy-Con ステータス取得 IPC を登録する。
+ * @param context ハンドラ依存
+ */
+function registerCalibrationAndStatusHandlers(context: IpcHandlerContext): void {
+    const { windowManagerInstance, joyconManager } = context;
+
     ipcMain.on('start-calibration', () => {
-        console.log("[IPC Handler] Received 'start-calibration' request.");
+        // console.log("[IPC Handler] Received 'start-calibration' request.");
         imuProcessor.startGyroCalibration('cursorLeft');
         imuProcessor.startGyroCalibration('cursorRight');
     });
 
     ipcMain.on('request-joycon-status', () => {
-        console.log("IPC Handler: Received 'request-joycon-status'.");
+        // console.log("IPC Handler: Received 'request-joycon-status'.");
         const status = joyconManager.getConnectionStatus();
         const mainWin = windowManagerInstance.getMainWindow();
         if (mainWin && !mainWin.isDestroyed()) {
@@ -107,41 +131,35 @@ export function setupIpcHandlers(
         }
     });
 
-    ipcMain.on('recenter-imu', (event: IpcMainEvent, id: 'cursorLeft' | 'cursorRight') => {
-        console.log(`[IPC Handler] Received 'recenter-imu' request for ${id}.`);
+    ipcMain.on('recenter-imu', (_event: IpcMainEvent, id: 'cursorLeft' | 'cursorRight') => {
+        // console.log(`[IPC Handler] Received 'recenter-imu' request for ${id}.`);
         imuProcessor.recenter(id);
     });
+}
 
-    ipcMain.handle('get-open-powerpoint-presentations', async () => {
-        console.log("[IPC Handler] Received 'get-open-powerpoint-presentations' request.");
-        try {
-            const presentations = powerpointControl.getOpenPresentations();
-            return presentations;
-        } catch (e: unknown) {
-            const message = e instanceof Error ? e.message : String(e);
-            console.error('[IPC Handler] Error getting open PowerPoint presentations:', message);
-            return [];
-        }
-    });
+/**
+ * タイマー制御関連 IPC を登録する。
+ * @param context ハンドラ依存
+ */
+function registerTimerHandlers(context: IpcHandlerContext): void {
+    const { windowManagerInstance } = context;
 
-    ipcMain.on('start-countdown-timer', (event: IpcMainEvent, duration: number) => {
-        console.log(`[IPC Handler] Received 'start-countdown-timer': ${duration}s`);
-        // Route to Timer Window
+    ipcMain.on('start-countdown-timer', (_event: IpcMainEvent, duration: number) => {
+        // console.log(`[IPC Handler] Received 'start-countdown-timer': ${duration}s`);
         const timerWin = windowManagerInstance.getTimerWindow();
         if (timerWin && !timerWin.isDestroyed()) {
-            // Timer Window should be visible when starting via button
             timerWin.show();
             sendStartCountdownToTimerWindow(timerWin, duration);
-        } else {
-            // Try to create it if missing (should exist from startup, but for safety)
-            const newTimerWin = windowManagerInstance.createTimerWindow();
-            if (newTimerWin) {
-                newTimerWin.show();
-                sendStartCountdownToTimerWindow(newTimerWin, duration);
-            } else {
-                console.warn('[IPC Handler] Failed to find or create Timer window.');
-            }
+            return;
         }
+
+        const newTimerWin = windowManagerInstance.createTimerWindow();
+        if (!newTimerWin) {
+            // console.warn('[IPC Handler] Failed to find or create Timer window.');
+            return;
+        }
+        newTimerWin.show();
+        sendStartCountdownToTimerWindow(newTimerWin, duration);
     });
 
     ipcMain.on('toggle-timer-pause', () => {
@@ -157,14 +175,22 @@ export function setupIpcHandlers(
             timerWin.webContents.send('timer-add-minute');
         }
     });
+}
 
+/**
+ * 表示先と Joy-Con 接続制御 IPC を登録する。
+ * @param context ハンドラ依存
+ */
+function registerDisplayAndConnectionHandlers(context: IpcHandlerContext): void {
+    const { windowManagerInstance, joyconManager } = context;
 
-    ipcMain.on('set-target-display', (event: IpcMainEvent, displayId: number | string) => {
-        console.log(`[IPC Handler] Received 'set-target-display': ${displayId}`);
+    ipcMain.on('set-target-display', (_event: IpcMainEvent, displayId: number | string) => {
+        // console.log(`[IPC Handler] Received 'set-target-display': ${displayId}`);
         const id = resolveDisplayId(displayId);
         if (id === null) {
             return;
         }
+
         windowManagerInstance.setTargetDisplay(id);
         const target = findDisplayById(screen.getAllDisplays(), id);
         if (target) {
@@ -174,54 +200,52 @@ export function setupIpcHandlers(
     });
 
     ipcMain.on('connect-joycon', (event: IpcMainEvent, isLeft: boolean) => {
-        console.log(`[IPC Handler] Received 'connect-joycon' request for ${isLeft ? 'L' : 'R'}.`);
-        if (isLeft) joyconManager.autoConnectL = true;
-        else joyconManager.autoConnectR = true;
-        joyconManager.connectAll(); // Trigger immediate check
+        // console.log(`[IPC Handler] Received 'connect-joycon' request for ${isLeft ? 'L' : 'R'}.`);
+        if (isLeft) {
+            joyconManager.autoConnectL = true;
+        } else {
+            joyconManager.autoConnectR = true;
+        }
+        joyconManager.connectAll();
         event.reply('joycon-status-update', joyconManager.getConnectionStatus());
     });
 
     ipcMain.on('shutdown-joycon', (event: IpcMainEvent, isLeft: boolean) => {
-        console.log(`[IPC Handler] Received 'shutdown-joycon' request for ${isLeft ? 'L' : 'R'}.`);
+        // console.log(`[IPC Handler] Received 'shutdown-joycon' request for ${isLeft ? 'L' : 'R'}.`);
         joyconManager.shutdownJoyCon(isLeft);
         event.reply('joycon-status-update', joyconManager.getConnectionStatus());
     });
+}
 
-    /**
-     * サウンドフォルダーを選択する。
-     * @returns 選択したフォルダーパス（キャンセル時は空文字）
-     */
+/**
+ * メディアフォルダー関連 IPC を登録する。
+ * @param context ハンドラ依存
+ */
+function registerMediaHandlers(context: IpcHandlerContext): void {
+    const { windowManagerInstance, mediaDirectoryStore } = context;
+
     const selectMediaFolder = async (): Promise<string> => {
         const mainWin = windowManagerInstance.getMainWindow();
         return mediaDirectoryStore.selectMediaFolder(mainWin ?? undefined);
     };
 
-    /**
-     * メディアファイル一覧を取得する。
-     * @returns メディアファイル名一覧
-     */
-    const getMediaFiles = async (): Promise<string[]> => {
-        return mediaDirectoryStore.getMediaFiles();
-    };
-
-    /**
-     * メディアのベースパスを取得する。
-     * @returns ベースパス
-     */
-    const getMediaBasePath = (): string => {
-        return mediaDirectoryStore.getMediaBasePath();
-    };
-
     ipcMain.handle('select-media-folder', async () => selectMediaFolder());
-    ipcMain.handle('get-media-files', async () => getMediaFiles());
-    ipcMain.handle('get-media-base-path', () => getMediaBasePath());
+    ipcMain.handle('get-media-files', async () => mediaDirectoryStore.getMediaFiles());
+    ipcMain.handle('get-media-base-path', () => mediaDirectoryStore.getMediaBasePath());
     ipcMain.handle('set-media-base-path', (_event: IpcMainInvokeEvent, dir: string) => {
         return mediaDirectoryStore.setMediaBasePath(dir);
     });
+}
 
-    // --- Message Window Handlers ---
+/**
+ * メッセージウィンドウ関連 IPC を登録する。
+ * @param context ハンドラ依存
+ */
+function registerMessageHandlers(context: IpcHandlerContext): void {
+    const { windowManagerInstance } = context;
     let lastMessageText = '';
-    ipcMain.on('send-message-text', (event: IpcMainEvent, text: string) => {
+
+    ipcMain.on('send-message-text', (_event: IpcMainEvent, text: string) => {
         lastMessageText = text;
         const msgWin = windowManagerInstance.getMessageWindow();
         if (msgWin && !msgWin.isDestroyed()) {
@@ -238,21 +262,48 @@ export function setupIpcHandlers(
                 msgWin.show();
                 msgWin.webContents.send('update-message-text', lastMessageText);
             }
-        } else {
-            const mainWin = windowManagerInstance.getMainWindow();
-            const mainWinBounds = mainWin ? mainWin.getBounds() : screen.getPrimaryDisplay().bounds;
-            const mainDisplay = screen.getDisplayNearestPoint({ x: mainWinBounds.x, y: mainWinBounds.y });
-
-            msgWin = windowManagerInstance.createMessageWindow(mainDisplay); // Pass mainDisplay here
-            if (msgWin) {
-                msgWin.webContents.once('did-finish-load', () => {
-                    if (msgWin && !msgWin.isDestroyed()) {
-                        msgWin.webContents.send('update-message-text', lastMessageText);
-                    }
-                });
-            }
+            return;
         }
-    });
 
-    console.log('IPC Handlers setup complete.');
+        const mainWin = windowManagerInstance.getMainWindow();
+        const mainWinBounds = mainWin ? mainWin.getBounds() : screen.getPrimaryDisplay().bounds;
+        const mainDisplay = screen.getDisplayNearestPoint({ x: mainWinBounds.x, y: mainWinBounds.y });
+        msgWin = windowManagerInstance.createMessageWindow(mainDisplay);
+        if (!msgWin) {
+            return;
+        }
+        msgWin.webContents.once('did-finish-load', () => {
+            if (msgWin && !msgWin.isDestroyed()) {
+                msgWin.webContents.send('update-message-text', lastMessageText);
+            }
+        });
+    });
+}
+
+/**
+ * IPC ハンドラを登録する。
+ * @param windowManagerInstance ウィンドウ管理インスタンス
+ * @param joyconManager Joy-Con 管理インスタンス
+ * @param dependencies 外部依存の差し替え定義
+ */
+export function setupIpcHandlers(
+    windowManagerInstance: typeof WindowManager = WindowManager,
+    joyconManager: JoyConManager,
+    dependencies: IpcHandlerDependencies = {},
+): void {
+    // console.log('Setting up IPC Handlers...');
+    const context: IpcHandlerContext = {
+        windowManagerInstance,
+        joyconManager,
+        mediaDirectoryStore: dependencies.mediaDirectoryStore ?? MediaDirectoryStore.createDefault(),
+    };
+
+    registerCursorWindowHandlers(context);
+    registerPresentationHandlers(context);
+    registerCalibrationAndStatusHandlers(context);
+    registerTimerHandlers(context);
+    registerDisplayAndConnectionHandlers(context);
+    registerMediaHandlers(context);
+    registerMessageHandlers(context);
+    // console.log('IPC Handlers setup complete.');
 }
