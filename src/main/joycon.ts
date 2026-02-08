@@ -7,6 +7,7 @@ import { createRumbleData } from './joycon-rumble-utils';
 import { decodeRightStickAnalog, extractBatteryLevel } from './joycon-packet-utils';
 import { shouldAttemptAutoConnect, shouldSkipConnect } from './joycon-connection-utils';
 import { buildLeftButtonEvents, buildRightButtonEvents, JoyConButtonStateSnapshot } from './joycon-button-utils';
+import { decodeImuSample } from './joycon-imu-utils';
 
 const VENDOR_ID = 1406;
 const PRODUCT_ID_L = 8198;
@@ -533,24 +534,12 @@ export default class JoyConManager extends EventEmitter {
                 this.emit('battery-status-update', { isLeft, level });
                 
                 const cursorId = isLeft ? 'cursorLeft' : 'cursorRight';
-                const accelOffsetX = 13;
-                const accelOffsetY = 15;
-                const accelOffsetZ = 17;
-                const gyroOffsetX = 19;
-                const gyroOffsetY = 21;
-                const gyroOffsetZ = 23;
-
-                const accelX = data.readInt16LE(accelOffsetX);
-                const accelY = data.readInt16LE(accelOffsetY);
-                const accelZ = data.readInt16LE(accelOffsetZ);
-                const gyroX = data.readInt16LE(gyroOffsetX);
-                const gyroY = data.readInt16LE(gyroOffsetY);
-                const gyroZ = data.readInt16LE(gyroOffsetZ);
+                const imu = decodeImuSample(data);
 
                 this.emit('imu-data', {
                     id: cursorId,
-                    accel: { x: accelX, y: accelY, z: accelZ },
-                    gyro: { x: gyroX, y: gyroY, z: gyroZ },
+                    accel: imu.accel,
+                    gyro: imu.gyro,
                 });
 
                 const buttonByteIndex = isLeft ? 5 : 3;
