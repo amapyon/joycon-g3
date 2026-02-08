@@ -1,37 +1,10 @@
 type TimerMode = import('../../shared/timer-mode').TimerMode;
 
 type TimerRendererLogicNotificationConfig = import('../../shared/timer-notification-config').TimerNotificationConfig;
-type TimerRendererWheelActionShared = import('../../shared/wheel-action-types').WheelAction;
 type TimerRendererWheelActionUtilsSharedApi = import('../../shared/wheel-action-types').WheelActionUtilsApi;
-
-type TickResult = {
-    remaining: number;
-    shouldStop: boolean;
-};
-
-type TickAction =
-    | {
-        kind: 'none';
-    }
-    | {
-        kind: 'continue';
-        displaySeconds: number;
-        sendSeconds: number;
-    }
-    | {
-        kind: 'finish';
-        displaySeconds: number;
-        sendSeconds: number;
-    };
-
-type TimerRendererLogicApi = {
-    normalizeNotifications: (
-        configs: TimerRendererLogicNotificationConfig[]
-    ) => TimerRendererLogicNotificationConfig[];
-    resolveWheelAction: (deltaY: number, shiftKey: boolean) => TimerRendererWheelActionShared;
-    resolveTickAction: (tickResult: TickResult | null, currentInitialValue: number) => TickAction;
-    shouldShowSetupMenu: (mode: TimerMode) => boolean;
-};
+type TimerRendererTickResult = import('../../shared/timer-renderer-types').TimerRendererTickResult;
+type TimerRendererTickAction = import('../../shared/timer-renderer-types').TimerRendererTickAction;
+type TimerRendererLogicApi = import('../../shared/timer-renderer-types').TimerRendererLogicApi;
 
 const timerRendererLogicApiResolverUtils = ((): { resolveApi: <T>(globalKey: string, requirePath: string) => T } => {
     const root = globalThis as unknown as {
@@ -70,7 +43,10 @@ function normalizeNotifications(
  * @param currentInitialValue 現在の初期値
  * @returns 表示更新アクション
  */
-function resolveTickAction(tickResult: TickResult | null, currentInitialValue: number): TickAction {
+function resolveTickAction(
+    tickResult: TimerRendererTickResult | null,
+    currentInitialValue: number
+): TimerRendererTickAction {
     if (!tickResult) {
         return { kind: 'none' };
     }

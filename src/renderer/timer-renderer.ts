@@ -1,10 +1,7 @@
 {
 type TimerMode = import('../shared/timer-mode').TimerMode;
 type TimerNotificationConfig = import('../shared/timer-notification-config').TimerNotificationConfig;
-type TimerStyleStateApi = {
-    calcNextFontSize: (current: number, delta: number, min: number, max: number) => number;
-    calcNextOpacity: (current: number, delta: number, min: number, max: number) => number;
-};
+type TimerStyleStateApi = import('../shared/timer-renderer-types').TimerStyleStateApi;
 type TimerRendererElectronAPI = {
     onUpdateTimerNotifications: (callback: (configs: TimerNotificationConfig[]) => void) => void;
     sendTimerStatus: (isCounting: boolean) => void;
@@ -24,20 +21,7 @@ type TimerRendererElectronAPI = {
     onUpdateSoundPlayDelay: (callback: (delayMs: number) => void) => void;
 };
 
-type TimerStorageApi = {
-    loadCountdownInitialValue: (fallback: number) => number;
-    saveCountdownInitialValue: (value: number) => void;
-    loadTimerFontSize: (fallback: number) => number;
-    saveTimerFontSize: (value: number) => void;
-    loadTimerPresets: (fallback: number[]) => number[];
-    saveTimerPresets: (presets: number[]) => void;
-    loadTimerOpacity: (fallback: number) => number;
-    saveTimerOpacity: (opacity: number) => void;
-    loadNotifications: (fallback: TimerNotificationConfig[]) => TimerNotificationConfig[];
-    saveNotifications: (configs: TimerNotificationConfig[]) => void;
-    loadSoundPlayDelay: () => number | null;
-    saveSoundPlayDelay: (delayMs: number) => void;
-};
+type TimerStorageApi = import('../shared/timer-renderer-types').TimerStorageApi;
 
 type CountdownEngineOptions = { initialValue?: number; minSeconds?: number; maxSeconds?: number };
 
@@ -100,19 +84,7 @@ type MenuControllerInstance = {
 
 type MenuControllerClass = { new (options: MenuControllerOptions): MenuControllerInstance };
 
-type TimerRendererLogicApi = {
-    normalizeNotifications: (configs: TimerNotificationConfig[]) => TimerNotificationConfig[];
-    resolveWheelAction: (deltaY: number, shiftKey: boolean) => { kind: 'opacity' | 'fontSize'; delta: number };
-    resolveTickAction: (
-        tickResult: { remaining: number; shouldStop: boolean } | null,
-        currentInitialValue: number
-    ) => (
-        | { kind: 'none' }
-        | { kind: 'continue'; displaySeconds: number; sendSeconds: number }
-        | { kind: 'finish'; displaySeconds: number; sendSeconds: number }
-    );
-    shouldShowSetupMenu: (mode: TimerMode) => boolean;
-};
+type TimerRendererLogicApi = import('../shared/timer-renderer-types').TimerRendererLogicApi;
 
 type RendererApiResolverUtilsApi = import('../shared/renderer-api-resolver-types').RendererApiResolverUtilsApi;
 type WindowWithRendererApiResolver = Window & { rendererApiResolverUtils?: RendererApiResolverUtilsApi };

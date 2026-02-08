@@ -1,20 +1,6 @@
 ((): void => {
     type TimerNotificationConfig = import('../../shared/timer-notification-config').TimerNotificationConfig;
-
-    type TimerStorageApi = {
-        loadCountdownInitialValue: (fallback: number) => number;
-        saveCountdownInitialValue: (value: number) => void;
-        loadTimerFontSize: (fallback: number) => number;
-        saveTimerFontSize: (value: number) => void;
-        loadTimerPresets: (fallback: number[]) => number[];
-        saveTimerPresets: (presets: number[]) => void;
-        loadTimerOpacity: (fallback: number) => number;
-        saveTimerOpacity: (opacity: number) => void;
-        loadNotifications: (fallback: TimerNotificationConfig[]) => TimerNotificationConfig[];
-        saveNotifications: (configs: TimerNotificationConfig[]) => void;
-        loadSoundPlayDelay: () => number | null;
-        saveSoundPlayDelay: (delayMs: number) => void;
-    };
+    type TimerStorageApi = import('../../shared/timer-renderer-types').TimerStorageApi;
     type ParseNumberUtilsApi = import('../../shared/parse-number-utils-types').ParseNumberUtilsApi;
 
     const KEY_COUNTDOWN_INITIAL_VALUE = 'countdownInitialValue';

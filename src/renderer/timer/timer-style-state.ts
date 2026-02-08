@@ -1,9 +1,5 @@
 ((): void => {
-    type TimerStyleStateApi = {
-        clampNumber: (value: number, min: number, max: number) => number;
-        calcNextFontSize: (current: number, delta: number, min: number, max: number) => number;
-        calcNextOpacity: (current: number, delta: number, min: number, max: number) => number;
-    };
+    type TimerStyleStateApi = import('../../shared/timer-renderer-types').TimerStyleStateApi;
 
     /**
      * 数値を指定範囲に収める。
