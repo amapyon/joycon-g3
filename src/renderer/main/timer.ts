@@ -1,4 +1,4 @@
-((): void => {
+{
     type TimerMainLogicApi = {
         formatPresetLabel: (seconds: number) => string;
         formatTimeForDisplay: (seconds: number) => string;
@@ -437,4 +437,4 @@
     };
 
     mainRenderer.initTimerSection = initTimerSection;
-})();
+}
