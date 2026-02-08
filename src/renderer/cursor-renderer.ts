@@ -371,21 +371,34 @@ window.addEventListener('resize', (): void => {
 /**
  * カーソルの描画ループを実行する。
  */
+const getCursorElementHalfSize = (element: HTMLElement): { halfWidth: number; halfHeight: number } | null => {
+    const halfWidth = element.offsetWidth / 2;
+    const halfHeight = element.offsetHeight / 2;
+    if (Number.isNaN(halfWidth) || Number.isNaN(halfHeight) || halfWidth < 0 || halfHeight < 0) {
+        return null;
+    }
+    return { halfWidth, halfHeight };
+};
+
+const hasValidCursorCoordinates = (cursorData: CursorData): boolean => {
+    return !Number.isNaN(cursorData.x) && !Number.isNaN(cursorData.y);
+};
+
+const applyCursorSmoothing = (cursorData: CursorData): void => {
+    const smoothing = cursorData.smoothing || 0.1;
+    cursorData.x += (cursorData.targetX - cursorData.x) * smoothing;
+    cursorData.y += (cursorData.targetY - cursorData.y) * smoothing;
+};
+
 const updateVisibleCursorPosition = (id: CursorId): void => {
     const cursorData = cursors[id];
     const element = cursorElements[id];
     if (!element || !cursorData.isVisible) {
         return;
     }
-    const smoothing = cursorData.smoothing || 0.1;
-    cursorData.x += (cursorData.targetX - cursorData.x) * smoothing;
-    cursorData.y += (cursorData.targetY - cursorData.y) * smoothing;
-    const halfWidth = element.offsetWidth / 2;
-    const halfHeight = element.offsetHeight / 2;
-    if (Number.isNaN(halfWidth) || Number.isNaN(halfHeight) || halfWidth < 0 || halfHeight < 0) {
-        return;
-    }
-    if (Number.isNaN(cursorData.x) || Number.isNaN(cursorData.y)) {
+    applyCursorSmoothing(cursorData);
+    const halfSize = getCursorElementHalfSize(element);
+    if (!halfSize || !hasValidCursorCoordinates(cursorData)) {
         return;
     }
     const clamped = cursorLogic.clampToViewport({
@@ -393,8 +406,8 @@ const updateVisibleCursorPosition = (id: CursorId): void => {
         y: cursorData.y,
         viewportWidth: windowWidth,
         viewportHeight: windowHeight,
-        halfWidth,
-        halfHeight,
+        halfWidth: halfSize.halfWidth,
+        halfHeight: halfSize.halfHeight,
     });
     cursorData.x = clamped.x;
     cursorData.y = clamped.y;
