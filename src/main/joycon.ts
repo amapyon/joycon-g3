@@ -3,6 +3,8 @@
 
 import HID from 'node-hid';
 import { EventEmitter } from 'events';
+import { createRumbleData } from './joycon-rumble-utils';
+import { decodeRightStickAnalog, extractBatteryLevel } from './joycon-packet-utils';
 
 const VENDOR_ID = 1406;
 const PRODUCT_ID_L = 8198;
@@ -53,8 +55,8 @@ export default class JoyConManager extends EventEmitter {
     autoConnectL = true;
     autoConnectR = true;
 
-    private static readonly STRONG_RUMBLE_DATA = JoyConManager.createRumbleData(320, 1.0, 160, 1.0, 320, 1.0, 160, 1.0);
-    private static readonly RUMBLE_OFF_DATA = JoyConManager.createRumbleData(320, 0.0, 160, 0.0, 320, 0.0, 160, 0.0);
+    private static readonly STRONG_RUMBLE_DATA = createRumbleData(320, 1.0, 160, 1.0, 320, 1.0, 160, 1.0);
+    private static readonly RUMBLE_OFF_DATA = createRumbleData(320, 0.0, 160, 0.0, 320, 0.0, 160, 0.0);
 
     /**
      * Joy-Con 管理クラスを生成する。
@@ -262,91 +264,6 @@ export default class JoyConManager extends EventEmitter {
         if (!this.sendCommand(hidDevice, command, isLeft)) {
             this.closeJoyCon(isLeft);
         }
-    }
-
-    /**
-     * 周波数と振幅から振動データを作成する。
-     * @param leftHighFreq 左高周波
-     * @param leftHighAmp 左高周波振幅
-     * @param leftLowFreq 左低周波
-     * @param leftLowAmp 左低周波振幅
-     * @param rightHighFreq 右高周波
-     * @param rightHighAmp 右高周波振幅
-     * @param rightLowFreq 右低周波
-     * @param rightLowAmp 右低周波振幅
-     * @returns 振動データ
-     */
-    private static createRumbleData(
-        leftHighFreq: number,
-        leftHighAmp: number,
-        leftLowFreq: number,
-        leftLowAmp: number,
-        rightHighFreq: number,
-        rightHighAmp: number,
-        rightLowFreq: number,
-        rightLowAmp: number,
-    ): number[] {
-        const lhf = JoyConManager.encodeHighFreq(leftHighFreq);
-        const lha = JoyConManager.encodeHighAmp(leftHighAmp);
-        const llf = JoyConManager.encodeLowFreq(leftLowFreq);
-        const lla = JoyConManager.encodeLowAmp(leftLowAmp);
-        const rhf = JoyConManager.encodeHighFreq(rightHighFreq);
-        const rha = JoyConManager.encodeHighAmp(rightHighAmp);
-        const rlf = JoyConManager.encodeLowFreq(rightLowFreq);
-        const rla = JoyConManager.encodeLowAmp(rightLowAmp);
-
-        return [
-            lhf & 0xff,
-            (lha + ((lhf >> 8) & 0xff)) & 0xff,
-            (llf + ((lla >> 8) & 0xff)) & 0xff,
-            lla & 0xff,
-            rhf & 0xff,
-            (rha + ((rhf >> 8) & 0xff)) & 0xff,
-            (rlf + ((rla >> 8) & 0xff)) & 0xff,
-            rla & 0xff,
-        ];
-    }
-
-    /**
-     * 高周波数をエンコードする。
-     * @param freq 周波数
-     * @returns エンコード値
-     */
-    private static encodeHighFreq(freq: number): number {
-        const value = Math.round(Math.log2(freq / 10) * 32);
-        return Math.max(0, Math.min(0x1ff, value));
-    }
-
-    /**
-     * 低周波数をエンコードする。
-     * @param freq 周波数
-     * @returns エンコード値
-     */
-    private static encodeLowFreq(freq: number): number {
-        const value = Math.round(Math.log2(freq / 10) * 32);
-        return Math.max(0, Math.min(0x1ff, value));
-    }
-
-    /**
-     * 高周波の振幅をエンコードする。
-     * @param amp 振幅
-     * @returns エンコード値
-     */
-    private static encodeHighAmp(amp: number): number {
-        if (amp <= 0) return 0;
-        const value = Math.round(Math.log2(amp * 8.7) * 32);
-        return Math.max(0, Math.min(0x1ff, value));
-    }
-
-    /**
-     * 低周波の振幅をエンコードする。
-     * @param amp 振幅
-     * @returns エンコード値
-     */
-    private static encodeLowAmp(amp: number): number {
-        if (amp <= 0) return 0;
-        const value = Math.round(Math.log2(amp * 17.0) * 32);
-        return Math.max(0, Math.min(0x1ff, value));
     }
 
     /**
@@ -587,7 +504,7 @@ export default class JoyConManager extends EventEmitter {
             try {
                 // Extract battery status from byte 2
                 const batteryByte = data.readUInt8(2);
-                const level = (batteryByte & 0xe0) >> 5; // Bits 7-5: battery level (0-4)
+                const level = extractBatteryLevel(batteryByte); // Bits 7-5: battery level (0-4)
                 
                 // Emit battery status update
                 this.emit('battery-status-update', { isLeft, level });
@@ -728,11 +645,8 @@ export default class JoyConManager extends EventEmitter {
                     const b9 = data.readUInt8(9);
                     const b10 = data.readUInt8(10);
                     const b11 = data.readUInt8(11);
-                    
-                    const stickX = b9 | ((b10 & 0x0f) << 8);
-                    const stickY = (b10 >> 4) | (b11 << 4);
-                    
-                    this.emit('r-stick-analog', { x: stickX, y: stickY });
+                    const analog = decodeRightStickAnalog(b9, b10, b11);
+                    this.emit('r-stick-analog', analog);
                 }
             } catch (e) {
                 console.error(`[${isLeft ? 'L' : 'R'}] Parse Error:`, e);
