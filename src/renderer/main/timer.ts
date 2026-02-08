@@ -4,6 +4,7 @@
     type NotificationConfig = import('../../shared/main-renderer-types').NotificationConfig;
     type ParseNumberUtilsApi = import('../../shared/parse-number-utils-types').ParseNumberUtilsApi;
     type RendererApiResolverUtilsApi = import('../../shared/renderer-api-resolver-types').RendererApiResolverUtilsApi;
+    type LocalStorageStoreApi = import('../../shared/local-storage-store-types').LocalStorageStoreApi;
     type WindowWithRendererApiResolver = Window & { rendererApiResolverUtils?: RendererApiResolverUtilsApi };
 
     const rendererApiResolverUtils = (window as WindowWithRendererApiResolver).rendererApiResolverUtils;
@@ -13,6 +14,7 @@
     const mainRenderer = rendererApiResolverUtils.resolveGlobal<MainRendererContext>('mainRenderer');
     const timerMainLogic = rendererApiResolverUtils.resolveApi<TimerMainLogicApi>('timerMainLogic', './timer-logic');
     const parseNumberUtils = rendererApiResolverUtils.resolveApi<ParseNumberUtilsApi>('parseNumberUtils', '../parse-number-utils');
+    const localStorageStore = rendererApiResolverUtils.resolveGlobal<LocalStorageStoreApi>('localStorageStore');
     const { electronAPI, elements, state } = mainRenderer;
 
     /**
@@ -33,7 +35,7 @@
      */
     const applyCountdownInitialValue = (value: number, shouldNotify: boolean, shouldStart: boolean): void => {
         elements.countdownInitialValueInput.value = String(value);
-        localStorage.setItem('countdownInitialValue', String(value));
+        localStorageStore.setString('countdownInitialValue', String(value));
         if (shouldNotify) {
             electronAPI.sendCountdownInitialValue(value);
         }
@@ -116,7 +118,7 @@
      */
     const applyPresets = (): void => {
         state.currentPresets.sort((a: number, b: number): number => a - b);
-        localStorage.setItem('timerPresets', JSON.stringify(state.currentPresets));
+        localStorageStore.setJsonValue('timerPresets', state.currentPresets);
         renderPresets();
         renderPresetConfig();
         electronAPI.updateTimerPresets(state.currentPresets);
@@ -172,9 +174,8 @@
      * @returns なし
      */
     const restoreNotificationSettings = (): void => {
-        const saved = localStorage.getItem('timerNotifications');
-        if (saved) {
-            const configs = JSON.parse(saved) as NotificationConfig[];
+        const configs = localStorageStore.getJsonValue<NotificationConfig[]>('timerNotifications', []);
+        if (configs.length > 0) {
             if (configs[0]) {
                 elements.sound1TimeInput.value = String(configs[0].time);
                 setSelectValue(elements.sound1Select, configs[0].filename);
@@ -209,7 +210,7 @@
                 rumble: elements.sound2RumbleToggle.checked,
             },
         ];
-        localStorage.setItem('timerNotifications', JSON.stringify(configs));
+        localStorageStore.setJsonValue('timerNotifications', configs);
         electronAPI.updateTimerNotifications(configs);
     };
 
@@ -272,13 +273,13 @@
      * @returns 処理完了を示す Promise
      */
     const applyStoredMediaDir = async (): Promise<void> => {
-        const storedDir = localStorage.getItem('soundMediaDir') || '';
+        const storedDir = localStorageStore.getString('soundMediaDir', '');
         if (!storedDir) {
             return;
         }
         const applied = await electronAPI.setMediaBasePath(storedDir);
         if (!applied) {
-            localStorage.removeItem('soundMediaDir');
+            localStorageStore.remove('soundMediaDir');
         }
     };
 
@@ -287,7 +288,7 @@
      * @returns なし
      */
     const initSoundPlayDelay = (): void => {
-        const storedDelay = localStorage.getItem('soundPlayDelayMs');
+        const storedDelay = localStorageStore.getString('soundPlayDelayMs', '');
         const defaultDelay = 200;
         const initialDelay = parseNumberUtils.parseIntOrFallback(storedDelay, defaultDelay);
         const normalizedDelay = timerMainLogic.normalizeSoundPlayDelay(initialDelay, defaultDelay, 0, 5000);
@@ -298,7 +299,7 @@
             const nextValue = parseNumberUtils.parseIntOrFallback(elements.soundPlayDelayInput.value, defaultDelay);
             const clamped = timerMainLogic.normalizeSoundPlayDelay(nextValue, defaultDelay, 0, 5000);
             elements.soundPlayDelayInput.value = String(clamped);
-            localStorage.setItem('soundPlayDelayMs', String(clamped));
+            localStorageStore.setString('soundPlayDelayMs', String(clamped));
             electronAPI.updateSoundPlayDelay(clamped);
         });
     };
@@ -350,13 +351,13 @@
             await electronAPI.selectMediaFolder();
             const basePath = await electronAPI.getMediaBasePath();
             if (basePath) {
-                localStorage.setItem('soundMediaDir', basePath);
+                localStorageStore.setString('soundMediaDir', basePath);
             }
             void loadMediaFiles();
         });
 
         electronAPI.onUpdateTimerNotifications((configs: NotificationConfig[]): void => {
-            localStorage.setItem('timerNotifications', JSON.stringify(configs));
+            localStorageStore.setJsonValue('timerNotifications', configs);
         });
     };
 
@@ -367,7 +368,7 @@
     const registerTimerSyncHandlers = (): void => {
         electronAPI.onUpdateTimerPresets((presets: number[]): void => {
             state.currentPresets = presets;
-            localStorage.setItem('timerPresets', JSON.stringify(state.currentPresets));
+            localStorageStore.setJsonValue('timerPresets', state.currentPresets);
             renderPresets();
             renderPresetConfig();
         });
@@ -402,7 +403,7 @@
      * @returns なし
      */
     const applyStoredCountdownInitialValue = (): void => {
-        const savedInitialValue = localStorage.getItem('countdownInitialValue');
+        const savedInitialValue = localStorageStore.getString('countdownInitialValue', '');
         if (!savedInitialValue) {
             return;
         }

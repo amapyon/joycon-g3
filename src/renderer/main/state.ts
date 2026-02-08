@@ -1,10 +1,15 @@
 type ElectronAPI = import('../../shared/main-renderer-types').ElectronAPI;
 type MainRendererContext = import('../../shared/main-renderer-types').MainRendererContext;
+type LocalStorageStoreApi = import('../../shared/local-storage-store-types').LocalStorageStoreApi;
 
 ((): void => {
     const electronAPI = (window as Window & { electronAPI?: ElectronAPI }).electronAPI;
+    const localStorageStore = (window as Window & { localStorageStore?: LocalStorageStoreApi }).localStorageStore;
     if (!electronAPI) {
         throw new Error('electronAPI is not available');
+    }
+    if (!localStorageStore) {
+        throw new Error('localStorageStore is not available');
     }
     const mainRenderer: MainRendererContext = {
         electronAPI,
@@ -48,7 +53,7 @@ type MainRendererContext = import('../../shared/main-renderer-types').MainRender
             colorContextMenu: document.getElementById('color-context-menu') as HTMLDivElement,
         },
         state: {
-            currentPresets: JSON.parse(localStorage.getItem('timerPresets') || '[10, 60, 120, 180, 300]') as number[],
+            currentPresets: localStorageStore.getJsonValue<number[]>('timerPresets', [10, 60, 120, 180, 300]),
         },
     };
 

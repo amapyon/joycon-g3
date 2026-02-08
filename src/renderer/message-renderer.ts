@@ -12,6 +12,7 @@ type MessageLogicApi = {
     isWheelTargetInZone: (target: Node | null, wheelZone: HTMLElement | null) => boolean;
 };
 type ParseNumberUtilsApi = import('../shared/parse-number-utils-types').ParseNumberUtilsApi;
+type LocalStorageStoreApi = import('../shared/local-storage-store-types').LocalStorageStoreApi;
 type RendererApiResolverUtilsApi = import('../shared/renderer-api-resolver-types').RendererApiResolverUtilsApi;
 type WindowWithRendererApiResolver = Window & { rendererApiResolverUtils?: RendererApiResolverUtilsApi };
 
@@ -23,10 +24,11 @@ if (!rendererApiResolverUtils) {
 const electronAPI = rendererApiResolverUtils.resolveGlobal<MessageRendererElectronAPI>('electronAPI');
 const messageLogic = rendererApiResolverUtils.resolveApi<MessageLogicApi>('messageLogic', './message-logic');
 const parseNumberUtils = rendererApiResolverUtils.resolveApi<ParseNumberUtilsApi>('parseNumberUtils', './parse-number-utils');
+const localStorageStore = rendererApiResolverUtils.resolveGlobal<LocalStorageStoreApi>('localStorageStore');
 const messageContent = document.getElementById('messageContent') as HTMLElement | null;
 const wheelZone = document.getElementById('wheel-zone') as HTMLElement | null;
-const storedFontSize = localStorage.getItem('messageFontSize');
-const storedOpacity = localStorage.getItem('messageWindowOpacity');
+const storedFontSize = localStorageStore.getString('messageFontSize', '');
+const storedOpacity = localStorageStore.getString('messageWindowOpacity', '');
 
 let currentFontSize = messageLogic.normalizeFontSize(parseNumberUtils.parseIntOrFallback(storedFontSize, 64), 64, 10, 1000);
 let currentOpacity = messageLogic.normalizeOpacity(parseNumberUtils.parseFloatOrFallback(storedOpacity, 0.8), 0.8, 0.1, 1.0);
@@ -43,7 +45,7 @@ function updateFontSize(delta: number): void {
     if (messageContent) {
         messageContent.style.fontSize = `${currentFontSize}px`;
     }
-    localStorage.setItem('messageFontSize', String(currentFontSize));
+    localStorageStore.setString('messageFontSize', String(currentFontSize));
 }
 
 /**
@@ -54,7 +56,7 @@ function updateTransparency(delta: number): void {
     currentOpacity = messageLogic.normalizeOpacity(currentOpacity + delta, 0.8, 0.1, 1.0);
 
     document.body.style.backgroundColor = `rgba(70, 70, 70, ${currentOpacity})`;
-    localStorage.setItem('messageWindowOpacity', String(currentOpacity));
+    localStorageStore.setString('messageWindowOpacity', String(currentOpacity));
 }
 
 // 初期フォントサイズを反映
