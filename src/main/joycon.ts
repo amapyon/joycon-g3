@@ -8,6 +8,7 @@ import { decodeRightStickAnalog, extractBatteryLevel } from './joycon-packet-uti
 import { shouldAttemptAutoConnect, shouldSkipConnect } from './joycon-connection-utils';
 import { buildLeftButtonEvents, buildRightButtonEvents, JoyConButtonStateSnapshot } from './joycon-button-utils';
 import { decodeImuSample } from './joycon-imu-utils';
+import { canParseStandardInputReport, classifyJoyConReport } from './joycon-report-utils';
 
 const VENDOR_ID = 1406;
 const PRODUCT_ID_L = 8198;
@@ -520,11 +521,12 @@ export default class JoyConManager extends EventEmitter {
      */
     parseJoyConData(hidDevice: HID.HID, data: Buffer, isLeft: boolean): void {
         const reportId = data[0];
+        const reportKind = classifyJoyConReport(reportId);
 
-        if (reportId === 0x21) {
+        if (reportKind === 'subcommand-reply') {
             console.log(`[Debug] Received 0x21 report from ${isLeft ? 'L' : 'R'}:`, data);
             // 0x21 reports are subcommand replies, currently not used for battery
-        } else if (reportId === 0x30 && data.length >= 25) {
+        } else if (canParseStandardInputReport(reportId, data.length)) {
             try {
                 // Extract battery status from byte 2
                 const batteryByte = data.readUInt8(2);
