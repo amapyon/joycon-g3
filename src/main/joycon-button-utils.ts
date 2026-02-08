@@ -15,13 +15,15 @@ export type JoyConButtonStateSnapshot = {
     homePressed: boolean;
 };
 
-type ButtonEvent = {
+export type JoyConButtonEventPayload = { pressed: boolean } | { id: CursorId };
+
+export type JoyConButtonEvent = {
     name: string;
-    payload?: Record<string, unknown>;
+    payload?: JoyConButtonEventPayload;
 };
 
 type ButtonEventResult = {
-    events: ButtonEvent[];
+    events: JoyConButtonEvent[];
     nextState: Partial<JoyConButtonStateSnapshot>;
 };
 
@@ -74,8 +76,8 @@ function readPressedStates(
 function buildContinuousEvents(
     pressedStates: Partial<Record<ButtonStateKey, boolean>>,
     rules: ContinuousEventRule[],
-): ButtonEvent[] {
-    return rules.map((rule: ContinuousEventRule): ButtonEvent => {
+): JoyConButtonEvent[] {
+    return rules.map((rule: ContinuousEventRule): JoyConButtonEvent => {
         return { name: rule.name, payload: { pressed: !!pressedStates[rule.key] } };
     });
 }
@@ -90,7 +92,7 @@ function buildContinuousEvents(
  */
 function appendEdgeEvents(
     input: {
-        events: ButtonEvent[];
+        events: JoyConButtonEvent[];
         pressedStates: Partial<Record<ButtonStateKey, boolean>>;
         lastState: JoyConButtonStateSnapshot;
         cursorId: CursorId;

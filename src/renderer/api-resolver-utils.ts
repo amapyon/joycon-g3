@@ -1,4 +1,5 @@
 type RendererApiResolverUtilsApi = import('../shared/renderer-api-resolver-types').RendererApiResolverUtilsApi;
+type GlobalApiRegistry = typeof globalThis & { [key: string]: unknown };
 
 /**
  * グローバル登録済みAPIを優先し、無ければ CommonJS で解決する。
@@ -7,7 +8,7 @@ type RendererApiResolverUtilsApi = import('../shared/renderer-api-resolver-types
  * @returns 解決したAPI
  */
 function resolveRendererApiFromGlobalOrRequire<T>(globalKey: string, requirePath: string): T {
-    const root = globalThis as unknown as Record<string, unknown>;
+    const root = globalThis as GlobalApiRegistry;
     const api = root[globalKey];
     if (api) {
         return api as T;
@@ -25,7 +26,7 @@ function resolveRendererApiFromGlobalOrRequire<T>(globalKey: string, requirePath
  * @returns 解決したAPI
  */
 function resolveRendererApiFromGlobal<T>(globalKey: string): T {
-    const root = globalThis as unknown as Record<string, unknown>;
+    const root = globalThis as GlobalApiRegistry;
     const api = root[globalKey];
     if (api) {
         return api as T;

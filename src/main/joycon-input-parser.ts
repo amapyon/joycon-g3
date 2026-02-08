@@ -1,13 +1,14 @@
-import { buildLeftButtonEvents, buildRightButtonEvents, JoyConButtonStateSnapshot } from './joycon-button-utils';
+import {
+    buildLeftButtonEvents,
+    buildRightButtonEvents,
+    type JoyConButtonEvent,
+    JoyConButtonStateSnapshot,
+} from './joycon-button-utils';
 import { decodeImuSample } from './joycon-imu-utils';
 import { decodeRightStickAnalog, extractBatteryLevel, RightStickAnalog } from './joycon-packet-utils';
 
 type CursorId = import('../shared/cursor-types').CursorId;
-
-export type JoyConButtonEvent = {
-    name: string;
-    payload?: Record<string, unknown>;
-};
+export type { JoyConButtonEvent } from './joycon-button-utils';
 
 export type ParsedJoyConInput = {
     batteryLevel: number;
@@ -51,7 +52,7 @@ export function parseStandardInputReport(
         batteryLevel,
         cursorId,
         imu,
-        buttonEvents: buttonResult.events as JoyConButtonEvent[],
+        buttonEvents: buttonResult.events,
         nextButtonState: buttonResult.nextState,
         analog,
     };
