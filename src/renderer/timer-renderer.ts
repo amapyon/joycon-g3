@@ -1,4 +1,4 @@
-((): void => {
+{
 type TimerMode = 'timer' | 'setup';
 type TimerNotificationConfig = {
     time: number;
@@ -136,6 +136,7 @@ const MenuController = (window as unknown as { menuController: { MenuController:
     .menuController.MenuController;
 const initialCountdownValue = timerStorage.loadCountdownInitialValue(10);
 const countdownEngine = new CountdownEngine({ initialValue: initialCountdownValue });
+const formatTime = (seconds: number): string => CountdownEngine.formatTime(seconds);
 const notificationPlayer = new NotificationPlayer({
     sendRumble: (seconds: number, shouldRumble: boolean): void => {
         electronAPI.sendTimerNotificationTrigger(seconds, shouldRumble);
@@ -197,28 +198,19 @@ let timerNotificationConfigs: TimerNotificationConfig[] = timerStorage.loadNotif
  * タイマーのフォントサイズを更新する。
  * @param delta 増減量
  */
-function updateTimerFontSize(delta: number): void {
+const updateTimerFontSize = (delta: number): void => {
     currentFontSize = timerStyleState.calcNextFontSize(currentFontSize, delta, 20, 500);
     
     if (countdownTimerElement) {
         countdownTimerElement.style.fontSize = `${currentFontSize}px`;
     }
     timerStorage.saveTimerFontSize(currentFontSize);
-}
-
-/**
- * 秒数を M:SS 形式に整形する。
- * @param seconds 秒数
- * @returns 表示用文字列
- */
-function formatTime(seconds: number): string {
-    return CountdownEngine.formatTime(seconds);
-}
+};
 
 /**
  * カウントダウンを停止する。
  */
-function stopCountdown(): void {
+const stopCountdown = (): void => {
     if (countdownInterval) {
         clearInterval(countdownInterval);
         countdownInterval = null;
@@ -229,12 +221,12 @@ function stopCountdown(): void {
         electronAPI.sendTimerStatus(false);
     }
     electronAPI.sendTimerPauseStatus(false);
-}
+};
 
 /**
  * +1分の処理を実行する。
  */
-function handleAddMinuteAction(): void {
+const handleAddMinuteAction = (): void => {
     countdownEngine.addMinute();
     const isActive = countdownEngine.isActive();
     timerStorage.saveCountdownInitialValue(countdownEngine.getCurrentInitialValue());
@@ -248,12 +240,12 @@ function handleAddMinuteAction(): void {
     if (menuController.getIsVisible()) {
         menuController.updateMenuDisplay();
     }
-}
+};
 
 /**
  * カウントダウンを一時停止する。
  */
-function pauseCountdown(): void {
+const pauseCountdown = (): void => {
     if (!countdownEngine.canPause()) {
         return;
     }
@@ -267,23 +259,23 @@ function pauseCountdown(): void {
         }
         electronAPI.sendTimerPauseStatus(true);
     }
-}
+};
 
 /**
  * カウントダウンを再開する。
  */
-function resumeCountdown(): void {
+const resumeCountdown = (): void => {
     if (countdownInterval || !countdownEngine.canResume() || !countdownTimerElement) return;
     if (!countdownEngine.resume()) return;
     countdownTimerElement.style.color = '#ffffff';
     electronAPI.sendTimerPauseStatus(false);
     startCountdownInterval();
-}
+};
 
 /**
  * 一時停止のトグル処理を実行する。
  */
-function handleTogglePauseAction(): void {
+const handleTogglePauseAction = (): void => {
     const decision = countdownEngine.decidePauseToggle();
     if (decision === 'pause') {
         pauseCountdown();
@@ -292,45 +284,45 @@ function handleTogglePauseAction(): void {
     if (decision === 'resume') {
         resumeCountdown();
     }
-}
+};
 
 /**
  * タイマー表示の透明度を適用する。
  * @param opacity 透明度
  */
-function applyCountdownTimerOpacity(opacity: number): void {
+const applyCountdownTimerOpacity = (opacity: number): void => {
     if (countdownTimerElement) {
         // ベース色は style.css の定義に合わせる
         countdownTimerElement.style.background = `rgba(100, 100, 100, ${opacity})`;
     }
-}
+};
 
 /**
  * 透明度を更新する。
  * @param delta 増減量
  */
-function updateTransparency(delta: number): void {
+const updateTransparency = (delta: number): void => {
     currentOpacity = timerStyleState.calcNextOpacity(currentOpacity, delta, 0.1, 1.0);
 
     applyCountdownTimerOpacity(currentOpacity);
     timerStorage.saveTimerOpacity(currentOpacity);
-}
+};
 
 /**
  * カウントダウン表示を更新する。
  * @param seconds 表示する秒数
  */
-function updateCountdownDisplay(seconds: number): void {
+const updateCountdownDisplay = (seconds: number): void => {
     if (!countdownTimerElement) {
         return;
     }
     countdownTimerElement.textContent = formatTime(seconds);
-}
+};
 
 /**
  * カウントダウン1ティック分の処理を行う。
  */
-function processCountdownTick(): void {
+const processCountdownTick = (): void => {
     // カウントが一致したタイミングで通知を再生する
     const currentValue = countdownEngine.getCountdownValue();
     notificationPlayer.handleTick(timerNotificationConfigs, currentValue);
@@ -353,23 +345,23 @@ function processCountdownTick(): void {
     }
     updateCountdownDisplay(tickAction.displaySeconds);
     electronAPI.sendTimerCountdownUpdate(tickAction.sendSeconds); // 0 になったことを送信
-}
+};
 
 /**
  * カウントダウンの定期実行を開始する。
  */
-function startCountdownInterval(): void {
+const startCountdownInterval = (): void => {
     countdownInterval = setInterval((): void => {
         processCountdownTick();
     }, 1000);
-}
+};
 
 
 /**
  * カウントダウンを開始する。
  * @param duration 秒数
  */
-function startCountdown(duration: number): void {
+const startCountdown = (duration: number): void => {
     if (!countdownTimerElement) return;
 
     stopCountdown();
@@ -387,42 +379,42 @@ function startCountdown(duration: number): void {
     electronAPI.sendTimerStatus(true);
 
     startCountdownInterval();
-}
+};
 
 /**
  * 通知設定更新イベントを処理する。
  * @param configs 通知設定
  */
-function handleUpdateTimerNotifications(configs: TimerNotificationConfig[]): void {
+const handleUpdateTimerNotifications = (configs: TimerNotificationConfig[]): void => {
     // console.log('[TimerRenderer] Notifications updated:', configs);
     timerNotificationConfigs = timerRendererLogic.normalizeNotifications(configs);
     timerStorage.saveNotifications(configs);
-}
+};
 
 /**
  * 通知音遅延設定更新イベントを処理する。
  * @param delayMs 遅延ミリ秒
  */
-function handleUpdateSoundPlayDelay(delayMs: number): void {
+const handleUpdateSoundPlayDelay = (delayMs: number): void => {
     const normalizedDelay = notificationPlayer.setDelayMs(delayMs);
     timerStorage.saveSoundPlayDelay(normalizedDelay);
-}
+};
 
 
 /**
  * フォントサイズ変更イベントを処理する。
  * @param delta 増減量
  */
-function handleChangeFontSize(delta: number): void {
+const handleChangeFontSize = (delta: number): void => {
     // console.log(`[TimerRenderer] Change font size via Joy-Con: ${delta}`);
     updateTimerFontSize(delta * 2);
-}
+};
 
 /**
  * カウントダウン初期値更新イベントを処理する。
  * @param value 初期値（秒）
  */
-function handleUpdateCountdownInitialValue(value: number): void {
+const handleUpdateCountdownInitialValue = (value: number): void => {
     const nextInitialValue = countdownEngine.setInitialValue(value);
     timerStorage.saveCountdownInitialValue(nextInitialValue);
     if (countdownTimerElement && !countdownEngine.isActive()) {
@@ -431,13 +423,13 @@ function handleUpdateCountdownInitialValue(value: number): void {
     if (menuController.getIsVisible()) {
         menuController.updateMenuDisplay();
     }
-}
+};
 
 /**
  * プリセット更新イベントを処理する。
  * @param presets プリセット秒数配列
  */
-function handleUpdateTimerPresets(presets: number[]): void {
+const handleUpdateTimerPresets = (presets: number[]): void => {
     // console.log('[TimerRenderer] Received presets update:', presets);
     currentPresetValues = presets;
     menuController.setPresets(currentPresetValues);
@@ -445,13 +437,13 @@ function handleUpdateTimerPresets(presets: number[]): void {
     if (menuController.getIsVisible()) {
         menuController.renderPresets();
     }
-}
+};
 
 /**
  * タイマーモード更新イベントを処理する。
  * @param mode タイマーモード
  */
-function handleSetTimerMode(mode: TimerMode): void {
+const handleSetTimerMode = (mode: TimerMode): void => {
     // console.log(`[TimerRenderer] Setting mode to: ${mode}`);
     if (timerRendererLogic.shouldShowSetupMenu(mode)) {
         menuController.setVisible(true);
@@ -462,25 +454,25 @@ function handleSetTimerMode(mode: TimerMode): void {
     if (countdownTimerElement) {
         countdownTimerElement.style.fontSize = `${currentFontSize}px`;
     }
-}
+};
 
 /**
  * カウントダウン開始イベントを処理する。
  * @param duration 開始秒数
  */
-function handleStartCountdown(duration: number): void {
+const handleStartCountdown = (duration: number): void => {
     // console.log(`[TimerRenderer] Received start-countdown IPC: ${duration}s`);
     if (menuController.getIsVisible()) {
         menuController.setVisible(false);
     }
     startCountdown(duration);
-}
+};
 
 /**
  * ホイール操作イベントを処理する。
  * @param e ホイールイベント
  */
-function handleWheelEvent(e: WheelEvent): void {
+const handleWheelEvent = (e: WheelEvent): void => {
     e.preventDefault(); // 既定のスクロール動作を抑止
 
     const action = timerRendererLogic.resolveWheelAction(e.deltaY, e.shiftKey);
@@ -490,12 +482,12 @@ function handleWheelEvent(e: WheelEvent): void {
     }
     // console.log(`[TimerRenderer] Wheel detected on zone. Delta: ${delta}, Current: ${currentFontSize}`);
     updateTimerFontSize(action.delta);
-}
+};
 
 /**
  * Electron API のイベント購読を登録する。
  */
-function registerElectronApiHandlers(): void {
+const registerElectronApiHandlers = (): void => {
     electronAPI.onUpdateTimerNotifications(handleUpdateTimerNotifications);
     electronAPI.onUpdateSoundPlayDelay(handleUpdateSoundPlayDelay);
     electronAPI.onChangeFontSize(handleChangeFontSize);
@@ -522,12 +514,12 @@ function registerElectronApiHandlers(): void {
     electronAPI.onAddMinuteTimer((): void => {
         handleAddMinuteAction();
     });
-}
+};
 
 /**
  * 画面初期状態を反映する。
  */
-function applyInitialState(): void {
+const applyInitialState = (): void => {
     // 初期フォントサイズを反映
     if (countdownTimerElement) {
         countdownTimerElement.style.fontSize = `${currentFontSize}px`;
@@ -542,7 +534,7 @@ function applyInitialState(): void {
     }
     menuController.setPresets(currentPresetValues);
     menuController.renderPresets();
-}
+};
 
 if (wheelZone) {
     wheelZone.addEventListener('wheel', (e: WheelEvent): void => {
@@ -552,4 +544,4 @@ if (wheelZone) {
 
 registerElectronApiHandlers();
 applyInitialState();
-})();
+}
