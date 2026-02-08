@@ -1,21 +1,5 @@
 ((): void => {
-    type JoyConMainLogicApi = {
-        buildJoyConStatusView: (
-            side: 'L' | 'R',
-            connected: boolean
-        ) => {
-            text: string;
-            className: 'connected' | 'disconnected';
-            buttonText: 'ON' | 'OFF';
-            buttonBackgroundColor: string;
-        };
-        formatBatteryText: (level: number) => string;
-        resolveCalibrationStatusView: (status: string) => {
-            message: string;
-            enableCalibrateButton: boolean;
-        };
-        shouldConnectOnActionClick: (isConnected: boolean) => boolean;
-    };
+    type JoyConMainLogicApi = import('../../shared/joycon-main-logic-types').JoyConMainLogicApi;
 
     const mainRenderer = (window as unknown as { mainRenderer: MainRendererContext }).mainRenderer;
     const joyConMainLogic = (window as unknown as { joyConMainLogic: JoyConMainLogicApi }).joyConMainLogic;

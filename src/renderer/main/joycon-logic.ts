@@ -1,23 +1,7 @@
-type JoyConLogicSide = 'L' | 'R';
-
-type JoyConStatusView = {
-    text: string;
-    className: 'connected' | 'disconnected';
-    buttonText: 'ON' | 'OFF';
-    buttonBackgroundColor: string;
-};
-
-type CalibrationStatusView = {
-    message: string;
-    enableCalibrateButton: boolean;
-};
-
-type JoyConMainLogicApi = {
-    buildJoyConStatusView: (side: JoyConLogicSide, connected: boolean) => JoyConStatusView;
-    formatBatteryText: (level: number) => string;
-    resolveCalibrationStatusView: (status: string) => CalibrationStatusView;
-    shouldConnectOnActionClick: (isConnected: boolean) => boolean;
-};
+type JoyConLogicSide = import('../../shared/joycon-main-logic-types').JoyConLogicSide;
+type JoyConStatusView = import('../../shared/joycon-main-logic-types').JoyConStatusView;
+type CalibrationStatusView = import('../../shared/joycon-main-logic-types').CalibrationStatusView;
+type JoyConMainLogicApi = import('../../shared/joycon-main-logic-types').JoyConMainLogicApi;
 
 /**
  * Joy-Con 接続状態表示と操作ボタン表示を計算する。
