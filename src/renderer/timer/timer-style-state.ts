@@ -46,6 +46,6 @@
         calcNextOpacity,
     };
 
-    const root = (typeof window !== 'undefined' ? window : globalThis) as unknown as { timerStyleState?: TimerStyleStateApi };
+    const root = globalThis as unknown as { timerStyleState?: TimerStyleStateApi };
     root.timerStyleState = api;
 })();

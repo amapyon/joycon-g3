@@ -24,7 +24,7 @@ const wheelActionUtilsApi: WheelActionUtilsSharedApi = {
     resolveWheelAction: resolveWheelActionFromInput,
 };
 
-const wheelActionUtilsRoot = (typeof window !== 'undefined' ? window : globalThis) as unknown as {
+const wheelActionUtilsRoot = globalThis as unknown as {
     wheelActionUtils?: WheelActionUtilsSharedApi;
 };
 wheelActionUtilsRoot.wheelActionUtils = wheelActionUtilsApi;

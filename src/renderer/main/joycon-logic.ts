@@ -91,7 +91,7 @@ const joyConMainLogicApi: JoyConMainLogicApi = {
     shouldConnectOnActionClick,
 };
 
-const joyConMainLogicRoot = (typeof window !== 'undefined' ? window : globalThis) as unknown as {
+const joyConMainLogicRoot = globalThis as unknown as {
     joyConMainLogic?: JoyConMainLogicApi;
 };
 joyConMainLogicRoot.joyConMainLogic = joyConMainLogicApi;

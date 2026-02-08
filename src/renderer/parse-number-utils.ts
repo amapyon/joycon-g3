@@ -47,7 +47,7 @@ const parseNumberUtilsApi: ParseNumberUtilsApi = {
     parseIntOrNull,
 };
 
-const parseNumberUtilsRoot = (typeof window !== 'undefined' ? window : globalThis) as unknown as {
+const parseNumberUtilsRoot = globalThis as unknown as {
     parseNumberUtils?: ParseNumberUtilsApi;
 };
 parseNumberUtilsRoot.parseNumberUtils = parseNumberUtilsApi;

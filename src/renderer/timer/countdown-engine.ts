@@ -26,7 +26,7 @@ type CountdownNumberUtilsApi = {
 };
 
 const countdownApiResolverUtils = ((): { resolveApi: <T>(globalKey: string, requirePath: string) => T } => {
-    const root = (typeof window !== 'undefined' ? window : globalThis) as unknown as {
+    const root = globalThis as unknown as {
         rendererApiResolverUtils?: { resolveApi: <T>(globalKey: string, requirePath: string) => T };
     };
     if (root.rendererApiResolverUtils) {
@@ -271,7 +271,7 @@ class CountdownEngine {
     }
 }
 
-const countdownEngineRoot = (typeof window !== 'undefined' ? window : globalThis) as unknown as {
+const countdownEngineRoot = globalThis as unknown as {
     countdownEngine?: { CountdownEngine: typeof CountdownEngine };
 };
 

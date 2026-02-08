@@ -30,7 +30,7 @@ type MenuControllerPresetLabelApi = {
 };
 
 const menuControllerApiResolverUtils = ((): { resolveApi: <T>(globalKey: string, requirePath: string) => T } => {
-    const root = (typeof window !== 'undefined' ? window : globalThis) as unknown as {
+    const root = globalThis as unknown as {
         rendererApiResolverUtils?: { resolveApi: <T>(globalKey: string, requirePath: string) => T };
     };
     if (root.rendererApiResolverUtils) {
@@ -286,7 +286,7 @@ class MenuController {
     }
 }
 
-const menuControllerRoot = (typeof window !== 'undefined' ? window : globalThis) as unknown as {
+const menuControllerRoot = globalThis as unknown as {
     menuController?: { MenuController: typeof MenuController };
 };
 

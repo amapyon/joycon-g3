@@ -7,7 +7,7 @@ type RendererApiResolverUtilsApi = import('../shared/renderer-api-resolver-types
  * @returns 解決したAPI
  */
 function resolveRendererApiFromGlobalOrRequire<T>(globalKey: string, requirePath: string): T {
-    const root = (typeof window !== 'undefined' ? window : globalThis) as unknown as Record<string, unknown>;
+    const root = globalThis as unknown as Record<string, unknown>;
     const api = root[globalKey];
     if (api) {
         return api as T;
@@ -25,7 +25,7 @@ function resolveRendererApiFromGlobalOrRequire<T>(globalKey: string, requirePath
  * @returns 解決したAPI
  */
 function resolveRendererApiFromGlobal<T>(globalKey: string): T {
-    const root = (typeof window !== 'undefined' ? window : globalThis) as unknown as Record<string, unknown>;
+    const root = globalThis as unknown as Record<string, unknown>;
     const api = root[globalKey];
     if (api) {
         return api as T;
@@ -38,7 +38,7 @@ const rendererApiResolverUtilsApi: RendererApiResolverUtilsApi = {
     resolveGlobal: resolveRendererApiFromGlobal,
 };
 
-const rendererApiResolverUtilsRoot = (typeof window !== 'undefined' ? window : globalThis) as unknown as {
+const rendererApiResolverUtilsRoot = globalThis as unknown as {
     rendererApiResolverUtils?: RendererApiResolverUtilsApi;
 };
 rendererApiResolverUtilsRoot.rendererApiResolverUtils = rendererApiResolverUtilsApi;

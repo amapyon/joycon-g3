@@ -17,7 +17,7 @@ type NotificationPlayerFileUrlUtilsApi = {
 };
 
 const notificationPlayerApiResolverUtils = ((): { resolveApi: <T>(globalKey: string, requirePath: string) => T } => {
-    const root = (typeof window !== 'undefined' ? window : globalThis) as unknown as {
+    const root = globalThis as unknown as {
         rendererApiResolverUtils?: { resolveApi: <T>(globalKey: string, requirePath: string) => T };
     };
     if (root.rendererApiResolverUtils) {
@@ -157,7 +157,7 @@ class NotificationPlayer {
     }
 }
 
-const notificationPlayerRoot = (typeof window !== 'undefined' ? window : globalThis) as unknown as {
+const notificationPlayerRoot = globalThis as unknown as {
     notificationPlayer?: { NotificationPlayer: typeof NotificationPlayer };
 };
 
