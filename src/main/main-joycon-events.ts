@@ -134,11 +134,11 @@ function registerStatusHandlers(context: JoyConEventsContext): void {
     const { joyConManager, windowManager } = context.options;
 
     joyConManager.on('status-update', (status: unknown): void => {
-        sendToWindow(windowManager.getMainWindow(), 'joycon-status-update', status as unknown as JoyConStatus);
+        sendToWindow(windowManager.getMainWindow(), 'joycon-status-update', status as JoyConStatus);
     });
 
     joyConManager.on('battery-status-update', (status: unknown): void => {
-        sendToWindow(windowManager.getMainWindow(), 'joycon-battery-status-update', status as unknown as BatteryStatus);
+        sendToWindow(windowManager.getMainWindow(), 'joycon-battery-status-update', status as BatteryStatus);
     });
 }
 

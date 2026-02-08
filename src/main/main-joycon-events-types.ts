@@ -2,11 +2,16 @@ import { BrowserWindow } from 'electron';
 import { CursorId, CursorMapConfig } from './imu-pointer';
 import { RStickAction, RStickConfig, RStickState } from './r-stick-handler';
 
-export type JoyConEventData = { id?: string } & Record<string, unknown>;
-export type JoyConStatus = Record<string, unknown>;
-export type AttitudeData = Record<string, unknown>;
-export type CalibrationStatus = Record<string, unknown>;
-export type BatteryStatus = Record<string, unknown>;
+export type JoyConEventData = {
+    id?: CursorId;
+    pressed?: boolean;
+    x?: number;
+    y?: number;
+};
+export type JoyConStatus = { leftConnected: boolean; rightConnected: boolean };
+export type AttitudeData = { id: CursorId; roll: number; pitch: number; yaw: number };
+export type CalibrationStatus = { id: CursorId; status: string };
+export type BatteryStatus = { isLeft: boolean; level: number };
 
 export type JoyConManagerLike = {
     on: (eventName: string, handler: (...args: unknown[]) => void) => unknown;
