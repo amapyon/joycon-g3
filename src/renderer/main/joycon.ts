@@ -1,8 +1,11 @@
 ((): void => {
     type JoyConMainLogicApi = import('../../shared/joycon-main-logic-types').JoyConMainLogicApi;
 
-    const mainRenderer = (window as unknown as { mainRenderer: MainRendererContext }).mainRenderer;
-    const joyConMainLogic = (window as unknown as { joyConMainLogic: JoyConMainLogicApi }).joyConMainLogic;
+    const mainRenderer = (window as Window & { mainRenderer?: MainRendererContext }).mainRenderer;
+    const joyConMainLogic = (window as Window & { joyConMainLogic?: JoyConMainLogicApi }).joyConMainLogic;
+    if (!mainRenderer || !joyConMainLogic) {
+        throw new Error('mainRenderer or joyConMainLogic is not available');
+    }
     const { electronAPI, elements } = mainRenderer;
 
     /**

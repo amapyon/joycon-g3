@@ -1,5 +1,8 @@
 ((): void => {
-    const mainRenderer = (window as unknown as { mainRenderer: MainRendererContext }).mainRenderer;
+    const mainRenderer = (window as Window & { mainRenderer?: MainRendererContext }).mainRenderer;
+    if (!mainRenderer) {
+        throw new Error('mainRenderer is not available');
+    }
     const { elements } = mainRenderer;
 
     /**

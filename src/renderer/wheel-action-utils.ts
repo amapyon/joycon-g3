@@ -24,7 +24,7 @@ const wheelActionUtilsApi: WheelActionUtilsSharedApi = {
     resolveWheelAction: resolveWheelActionFromInput,
 };
 
-const wheelActionUtilsRoot = globalThis as unknown as {
+const wheelActionUtilsRoot = globalThis as typeof globalThis & {
     wheelActionUtils?: WheelActionUtilsSharedApi;
 };
 wheelActionUtilsRoot.wheelActionUtils = wheelActionUtilsApi;

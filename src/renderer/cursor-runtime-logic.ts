@@ -59,7 +59,7 @@ const cursorRuntimeLogicApi: SharedCursorRuntimeLogicApi = {
     resolveCursorMapSendDecision,
 };
 
-const cursorRuntimeLogicRoot = globalThis as unknown as {
+const cursorRuntimeLogicRoot = globalThis as typeof globalThis & {
     cursorRuntimeLogic?: SharedCursorRuntimeLogicApi;
 };
 cursorRuntimeLogicRoot.cursorRuntimeLogic = cursorRuntimeLogicApi;

@@ -101,8 +101,12 @@ type MainRendererContext = {
 };
 
 ((): void => {
+    const electronAPI = (window as Window & { electronAPI?: ElectronAPI }).electronAPI;
+    if (!electronAPI) {
+        throw new Error('electronAPI is not available');
+    }
     const mainRenderer: MainRendererContext = {
-        electronAPI: (window as unknown as { electronAPI: ElectronAPI }).electronAPI,
+        electronAPI,
         elements: {
             displaySelect: document.getElementById('display-select') as HTMLSelectElement,
             cursorToggleBtn: document.getElementById('cursor-toggle-btn') as HTMLButtonElement,
@@ -147,5 +151,5 @@ type MainRendererContext = {
         },
     };
 
-    (window as unknown as { mainRenderer: MainRendererContext }).mainRenderer = mainRenderer;
+    (window as Window & { mainRenderer?: MainRendererContext }).mainRenderer = mainRenderer;
 })();

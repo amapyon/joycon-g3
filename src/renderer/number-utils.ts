@@ -34,7 +34,7 @@ const rendererNumberUtilsApi: RendererNumberUtilsApi = {
     normalizeNumber: normalizeNumberValue,
 };
 
-const rendererNumberUtilsRoot = globalThis as unknown as {
+const rendererNumberUtilsRoot = globalThis as typeof globalThis & {
     numberUtils?: RendererNumberUtilsApi;
 };
 rendererNumberUtilsRoot.numberUtils = rendererNumberUtilsApi;

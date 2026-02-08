@@ -9,7 +9,7 @@ type AddMinuteNumberUtilsApi = {
 };
 
 const addMinuteApiResolverUtils = ((): { resolveApi: <T>(globalKey: string, requirePath: string) => T } => {
-    const root = globalThis as unknown as {
+    const root = globalThis as typeof globalThis & {
         rendererApiResolverUtils?: { resolveApi: <T>(globalKey: string, requirePath: string) => T };
     };
     if (root.rendererApiResolverUtils) {

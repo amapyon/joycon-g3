@@ -42,6 +42,6 @@
         calcNextOpacity,
     };
 
-    const root = globalThis as unknown as { timerStyleState?: TimerStyleStateApi };
+    const root = globalThis as typeof globalThis & { timerStyleState?: TimerStyleStateApi };
     root.timerStyleState = api;
 })();

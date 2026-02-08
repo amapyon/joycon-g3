@@ -7,7 +7,7 @@ type TimerRendererTickAction = import('../../shared/timer-renderer-types').Timer
 type TimerRendererLogicApi = import('../../shared/timer-renderer-types').TimerRendererLogicApi;
 
 const timerRendererLogicApiResolverUtils = ((): { resolveApi: <T>(globalKey: string, requirePath: string) => T } => {
-    const root = globalThis as unknown as {
+    const root = globalThis as typeof globalThis & {
         rendererApiResolverUtils?: { resolveApi: <T>(globalKey: string, requirePath: string) => T };
     };
     if (root.rendererApiResolverUtils) {
@@ -80,7 +80,7 @@ const timerRendererLogicApi: TimerRendererLogicApi = {
     shouldShowSetupMenu,
 };
 
-const timerRendererLogicRoot = globalThis as unknown as {
+const timerRendererLogicRoot = globalThis as typeof globalThis & {
     timerRendererLogic?: TimerRendererLogicApi;
 };
 timerRendererLogicRoot.timerRendererLogic = timerRendererLogicApi;

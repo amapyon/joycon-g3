@@ -20,7 +20,7 @@ const timerPresetLabelUtilsApi: TimerPresetLabelUtilsApi = {
     formatTimerPresetLabel,
 };
 
-const timerPresetLabelRoot = globalThis as unknown as {
+const timerPresetLabelRoot = globalThis as typeof globalThis & {
     timerPresetLabel?: TimerPresetLabelUtilsApi;
 };
 timerPresetLabelRoot.timerPresetLabel = timerPresetLabelUtilsApi;

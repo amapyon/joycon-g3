@@ -10,7 +10,7 @@
     const KEY_TIMER_NOTIFICATIONS = 'timerNotifications';
     const KEY_SOUND_PLAY_DELAY_MS = 'soundPlayDelayMs';
     const parseNumberUtils = ((): ParseNumberUtilsApi => {
-        const root = globalThis as unknown as { parseNumberUtils?: ParseNumberUtilsApi };
+        const root = globalThis as typeof globalThis & { parseNumberUtils?: ParseNumberUtilsApi };
         if (root.parseNumberUtils) {
             return root.parseNumberUtils;
         }
@@ -75,6 +75,6 @@
         saveSoundPlayDelay: (delayMs: number): void => { localStorage.setItem(KEY_SOUND_PLAY_DELAY_MS, String(delayMs)); },
     };
 
-    const root = globalThis as unknown as { timerStorage?: TimerStorageApi };
+    const root = globalThis as typeof globalThis & { timerStorage?: TimerStorageApi };
     root.timerStorage = api;
 })();

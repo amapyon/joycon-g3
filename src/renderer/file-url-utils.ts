@@ -38,7 +38,7 @@ const fileUrlUtilsApi: FileUrlUtilsApi = {
     toPlayableMediaUrl: convertToPlayableMediaUrl,
 };
 
-const fileUrlUtilsRoot = globalThis as unknown as {
+const fileUrlUtilsRoot = globalThis as typeof globalThis & {
     fileUrlUtils?: FileUrlUtilsApi;
 };
 fileUrlUtilsRoot.fileUrlUtils = fileUrlUtilsApi;

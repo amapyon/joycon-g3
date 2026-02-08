@@ -13,7 +13,7 @@ type MessageNumberUtilsApi = {
 };
 
 const messageApiResolverUtils = ((): { resolveApi: <T>(globalKey: string, requirePath: string) => T } => {
-    const root = globalThis as unknown as {
+    const root = globalThis as typeof globalThis & {
         rendererApiResolverUtils?: { resolveApi: <T>(globalKey: string, requirePath: string) => T };
     };
     if (root.rendererApiResolverUtils) {
@@ -73,7 +73,7 @@ const messageLogicApi: MessageLogicApi = {
     isWheelTargetInZone,
 };
 
-const messageLogicRoot = globalThis as unknown as {
+const messageLogicRoot = globalThis as typeof globalThis & {
     messageLogic?: MessageLogicApi;
 };
 messageLogicRoot.messageLogic = messageLogicApi;

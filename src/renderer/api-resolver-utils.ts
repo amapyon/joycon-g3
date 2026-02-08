@@ -38,7 +38,7 @@ const rendererApiResolverUtilsApi: RendererApiResolverUtilsApi = {
     resolveGlobal: resolveRendererApiFromGlobal,
 };
 
-const rendererApiResolverUtilsRoot = globalThis as unknown as {
+const rendererApiResolverUtilsRoot = globalThis as typeof globalThis & {
     rendererApiResolverUtils?: RendererApiResolverUtilsApi;
 };
 rendererApiResolverUtilsRoot.rendererApiResolverUtils = rendererApiResolverUtilsApi;

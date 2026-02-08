@@ -47,7 +47,7 @@ const parseNumberUtilsApi: ParseNumberUtilsApi = {
     parseIntOrNull,
 };
 
-const parseNumberUtilsRoot = globalThis as unknown as {
+const parseNumberUtilsRoot = globalThis as typeof globalThis & {
     parseNumberUtils?: ParseNumberUtilsApi;
 };
 parseNumberUtilsRoot.parseNumberUtils = parseNumberUtilsApi;

@@ -17,7 +17,7 @@ const timerTimeFormatUtilsApi: TimerTimeFormatUtilsApi = {
     formatMinutesSeconds,
 };
 
-const timerTimeFormatRoot = globalThis as unknown as {
+const timerTimeFormatRoot = globalThis as typeof globalThis & {
     timerTimeFormat?: TimerTimeFormatUtilsApi;
 };
 timerTimeFormatRoot.timerTimeFormat = timerTimeFormatUtilsApi;

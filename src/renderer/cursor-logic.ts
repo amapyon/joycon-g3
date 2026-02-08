@@ -108,7 +108,7 @@ const cursorLogicApi: SharedCursorLogicApi = {
     clampToViewport,
 };
 
-const cursorLogicRoot = globalThis as unknown as {
+const cursorLogicRoot = globalThis as typeof globalThis & {
     cursorLogic?: SharedCursorLogicApi;
 };
 cursorLogicRoot.cursorLogic = cursorLogicApi;
