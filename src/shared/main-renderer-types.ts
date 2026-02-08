@@ -1,4 +1,10 @@
 import type { TimerNotificationConfig } from './timer-notification-config';
+import type {
+    BatteryStatus,
+    CalibrationStatus,
+    JoyConStatus,
+} from './joycon-event-types';
+export type { BatteryStatus, CalibrationStatus, JoyConStatus } from './joycon-event-types';
 
 export type DisplayInfo = {
     id: number;
@@ -8,9 +14,6 @@ export type DisplayInfo = {
 };
 
 export type PresentationInfo = { id: string; name: string; isRunning: boolean };
-export type JoyConStatus = { leftConnected: boolean; rightConnected: boolean };
-export type BatteryStatus = { isLeft: boolean; level: number };
-export type CalibrationStatus = { id: string; status: string };
 export type NotificationConfig = TimerNotificationConfig;
 
 export type ElectronAPI = {
