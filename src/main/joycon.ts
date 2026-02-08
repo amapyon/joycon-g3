@@ -309,6 +309,43 @@ export default class JoyConManager extends EventEmitter {
     }
 
     /**
+     * 接続処理中フラグを更新する。
+     * @param isLeft 左 Joy-Con かどうか
+     * @param connecting 接続処理中かどうか
+     */
+    private setConnectingState(isLeft: boolean, connecting: boolean): void {
+        if (isLeft) {
+            this.connectingL = connecting;
+            return;
+        }
+        this.connectingR = connecting;
+    }
+
+    /**
+     * 接続済みデバイスを保持して状態更新を通知する。
+     * @param hidDevice 接続済み HID デバイス
+     * @param isLeft 左 Joy-Con かどうか
+     */
+    private attachConnectedDevice(hidDevice: HID.HID, isLeft: boolean): void {
+        if (isLeft) {
+            this.hidL = hidDevice;
+        } else {
+            this.hidR = hidDevice;
+        }
+        this.emit('status-update', { leftConnected: !!this.hidL, rightConnected: !!this.hidR });
+    }
+
+    /**
+     * 接続失敗時のクリーンアップを実行する。
+     * @param hidDevice 対象 HID デバイス
+     * @param isLeft 左 Joy-Con かどうか
+     */
+    private cleanupFailedConnection(hidDevice: HID.HID | null, isLeft: boolean): void {
+        this.closeHidDevice(hidDevice);
+        this.closeJoyCon(isLeft);
+    }
+
+    /**
      * Joy-Con に接続し初期化する。
      * @param path デバイスパス
      * @param isLeft 左 Joy-Con かどうか
@@ -322,11 +359,7 @@ export default class JoyConManager extends EventEmitter {
         }
         let hidDevice: HID.HID | null = null;
         try {
-            if (isLeft) {
-                this.connectingL = true;
-            } else {
-                this.connectingR = true;
-            }
+            this.setConnectingState(isLeft, true);
             console.log(`Connecting to ${isLeft ? 'L' : 'R'} Joy-Con: ${path}`);
             hidDevice = new HID.HID(path);
             console.log(`Connected (${isLeft ? 'L' : 'R'}). Initializing...`);
@@ -344,31 +377,20 @@ export default class JoyConManager extends EventEmitter {
                             this.parseJoyConData(hidDevice as HID.HID, data, isLeft);
                         });
                         console.log(`Listener attached (${isLeft ? 'L' : 'R'}).`);
-                        if (isLeft) {
-                            this.hidL = hidDevice;
-                        } else {
-                            this.hidR = hidDevice;
-                        }
-                        this.emit('status-update', { leftConnected: !!this.hidL, rightConnected: !!this.hidR });
+                        this.attachConnectedDevice(hidDevice, isLeft);
                     } else {
                         console.error(`Init failed or device closed during init (${isLeft ? 'L' : 'R'}).`);
-                        this.closeHidDevice(hidDevice);
-                        this.closeJoyCon(isLeft);
+                        this.cleanupFailedConnection(hidDevice, isLeft);
                     }
                 })
                 .catch((initError: unknown) => {
                     hidDevice?.removeListener('close', closedHandler);
                     console.error(`Async Init Error (${isLeft ? 'L' : 'R'}):`, initError);
-                    this.closeHidDevice(hidDevice);
-                    this.closeJoyCon(isLeft);
+                    this.cleanupFailedConnection(hidDevice, isLeft);
                 })
                 .finally(() => {
                     console.log(`Connect attempt finished for ${isLeft ? 'L' : 'R'}.`);
-                    if (isLeft) {
-                        this.connectingL = false;
-                    } else {
-                        this.connectingR = false;
-                    }
+                    this.setConnectingState(isLeft, false);
                 });
             hidDevice.on('error', (err: Error) => {
                 hidDevice?.removeListener('close', closedHandler);
@@ -377,21 +399,13 @@ export default class JoyConManager extends EventEmitter {
                     console.log(`Assuming disconnection due to error for ${isLeft ? 'L' : 'R'}`);
                     this.closeJoyCon(isLeft);
                 }
-                if (isLeft) {
-                    this.connectingL = false;
-                } else {
-                    this.connectingR = false;
-                }
+                this.setConnectingState(isLeft, false);
             });
         } catch (err: unknown) {
             const message = err instanceof Error ? err.message : String(err);
             console.error(`Connection failed (${path}):`, message);
             this.closeHidDevice(hidDevice);
-            if (isLeft) {
-                this.connectingL = false;
-            } else {
-                this.connectingR = false;
-            }
+            this.setConnectingState(isLeft, false);
         }
     }
 
