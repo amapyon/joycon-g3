@@ -7,9 +7,15 @@
         buildMediaAbsolutePath: (basePath: string, filename: string) => string;
         toFileUrl: (absolutePath: string) => string;
     };
+    type ParseNumberUtilsApi = {
+        parseIntOrFallback: (raw: string | null | undefined, fallback: number) => number;
+        parseFloatOrFallback: (raw: string | null | undefined, fallback: number) => number;
+        parseIntOrNull: (raw: string | null | undefined) => number | null;
+    };
 
     const mainRenderer = (window as unknown as { mainRenderer: MainRendererContext }).mainRenderer;
     const timerMainLogic = (window as unknown as { timerMainLogic: TimerMainLogicApi }).timerMainLogic;
+    const parseNumberUtils = (window as unknown as { parseNumberUtils: ParseNumberUtilsApi }).parseNumberUtils;
     const { electronAPI, elements, state } = mainRenderer;
 
     /**
@@ -77,8 +83,7 @@
             input.style.width = '60px';
             input.style.marginRight = '5px';
             input.addEventListener('change', (): void => {
-                const nextValue = parseInt(input.value, 10);
-                state.currentPresets[index] = Number.isNaN(nextValue) ? 10 : nextValue;
+                state.currentPresets[index] = parseNumberUtils.parseIntOrFallback(input.value, 10);
             });
 
             const removeBtn = document.createElement('button');
@@ -195,13 +200,13 @@
         const basePath = await electronAPI.getMediaBasePath();
         const configs: NotificationConfig[] = [
             {
-                time: parseInt(elements.sound1TimeInput.value, 10) || 0,
+                time: parseNumberUtils.parseIntOrFallback(elements.sound1TimeInput.value, 0),
                 filename: elements.sound1Select.value,
                 absolutePath: timerMainLogic.buildMediaAbsolutePath(basePath, elements.sound1Select.value),
                 rumble: elements.sound1RumbleToggle.checked,
             },
             {
-                time: parseInt(elements.sound2TimeInput.value, 10) || 0,
+                time: parseNumberUtils.parseIntOrFallback(elements.sound2TimeInput.value, 0),
                 filename: elements.sound2Select.value,
                 absolutePath: timerMainLogic.buildMediaAbsolutePath(basePath, elements.sound2Select.value),
                 rumble: elements.sound2RumbleToggle.checked,
@@ -287,13 +292,13 @@
     const initSoundPlayDelay = (): void => {
         const storedDelay = localStorage.getItem('soundPlayDelayMs');
         const defaultDelay = 200;
-        const initialDelay = storedDelay ? parseInt(storedDelay, 10) : defaultDelay;
+        const initialDelay = parseNumberUtils.parseIntOrFallback(storedDelay, defaultDelay);
         const normalizedDelay = timerMainLogic.normalizeSoundPlayDelay(initialDelay, defaultDelay, 0, 5000);
         elements.soundPlayDelayInput.value = String(normalizedDelay);
         electronAPI.updateSoundPlayDelay(normalizedDelay);
 
         elements.soundPlayDelayInput.addEventListener('change', (): void => {
-            const nextValue = parseInt(elements.soundPlayDelayInput.value, 10);
+            const nextValue = parseNumberUtils.parseIntOrFallback(elements.soundPlayDelayInput.value, defaultDelay);
             const clamped = timerMainLogic.normalizeSoundPlayDelay(nextValue, defaultDelay, 0, 5000);
             elements.soundPlayDelayInput.value = String(clamped);
             localStorage.setItem('soundPlayDelayMs', String(clamped));

@@ -11,16 +11,22 @@ type MessageLogicApi = {
     ) => { kind: 'fontSize' | 'opacity'; delta: number };
     isWheelTargetInZone: (target: Node | null, wheelZone: HTMLElement | null) => boolean;
 };
+type ParseNumberUtilsApi = {
+    parseIntOrFallback: (raw: string | null | undefined, fallback: number) => number;
+    parseFloatOrFallback: (raw: string | null | undefined, fallback: number) => number;
+    parseIntOrNull: (raw: string | null | undefined) => number | null;
+};
 
 const electronAPI = (window as unknown as { electronAPI: MessageRendererElectronAPI }).electronAPI;
 const messageLogic = (window as unknown as { messageLogic: MessageLogicApi }).messageLogic;
+const parseNumberUtils = (window as unknown as { parseNumberUtils: ParseNumberUtilsApi }).parseNumberUtils;
 const messageContent = document.getElementById('messageContent') as HTMLElement | null;
 const wheelZone = document.getElementById('wheel-zone') as HTMLElement | null;
 const storedFontSize = localStorage.getItem('messageFontSize');
 const storedOpacity = localStorage.getItem('messageWindowOpacity');
 
-let currentFontSize = messageLogic.normalizeFontSize(storedFontSize ? Number.parseInt(storedFontSize, 10) : 64, 64, 10, 1000);
-let currentOpacity = messageLogic.normalizeOpacity(storedOpacity ? Number.parseFloat(storedOpacity) : 0.8, 0.8, 0.1, 1.0);
+let currentFontSize = messageLogic.normalizeFontSize(parseNumberUtils.parseIntOrFallback(storedFontSize, 64), 64, 10, 1000);
+let currentOpacity = messageLogic.normalizeOpacity(parseNumberUtils.parseFloatOrFallback(storedOpacity, 0.8), 0.8, 0.1, 1.0);
 
 /**
  * メッセージのフォントサイズを更新する。

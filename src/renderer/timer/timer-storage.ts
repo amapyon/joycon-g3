@@ -15,6 +15,11 @@
         loadSoundPlayDelay: () => number | null;
         saveSoundPlayDelay: (delayMs: number) => void;
     };
+    type ParseNumberUtilsApi = {
+        parseIntOrFallback: (raw: string | null | undefined, fallback: number) => number;
+        parseFloatOrFallback: (raw: string | null | undefined, fallback: number) => number;
+        parseIntOrNull: (raw: string | null | undefined) => number | null;
+    };
 
     const KEY_COUNTDOWN_INITIAL_VALUE = 'countdownInitialValue';
     const KEY_TIMER_FONT_SIZE = 'timerFontSize';
@@ -22,6 +27,14 @@
     const KEY_TIMER_WINDOW_OPACITY = 'timerWindowOpacity';
     const KEY_TIMER_NOTIFICATIONS = 'timerNotifications';
     const KEY_SOUND_PLAY_DELAY_MS = 'soundPlayDelayMs';
+    const parseNumberUtils = ((): ParseNumberUtilsApi => {
+        const root = (typeof window !== 'undefined' ? window : globalThis) as unknown as { parseNumberUtils?: ParseNumberUtilsApi };
+        if (root.parseNumberUtils) {
+            return root.parseNumberUtils;
+        }
+        // eslint-disable-next-line @typescript-eslint/no-var-requires -- CommonJS 形式の読み込みが必要
+        return require('../parse-number-utils') as ParseNumberUtilsApi;
+    })();
 
     /**
      * JSON を配列として読み取る。
@@ -48,11 +61,7 @@
      * @returns 変換結果
      */
     const parseIntValue = (raw: string | null, fallback: number): number => {
-        if (!raw) {
-            return fallback;
-        }
-        const parsed = Number.parseInt(raw, 10);
-        return Number.isNaN(parsed) ? fallback : parsed;
+        return parseNumberUtils.parseIntOrFallback(raw, fallback);
     };
 
     /**
@@ -62,11 +71,7 @@
      * @returns 変換結果
      */
     const parseFloatValue = (raw: string | null, fallback: number): number => {
-        if (!raw) {
-            return fallback;
-        }
-        const parsed = Number.parseFloat(raw);
-        return Number.isNaN(parsed) ? fallback : parsed;
+        return parseNumberUtils.parseFloatOrFallback(raw, fallback);
     };
 
     const api: TimerStorageApi = {
@@ -83,12 +88,7 @@
         },
         saveNotifications: (configs: TimerNotificationConfig[]): void => { localStorage.setItem(KEY_TIMER_NOTIFICATIONS, JSON.stringify(configs)); },
         loadSoundPlayDelay: (): number | null => {
-            const raw = localStorage.getItem(KEY_SOUND_PLAY_DELAY_MS);
-            if (!raw) {
-                return null;
-            }
-            const parsed = Number.parseInt(raw, 10);
-            return Number.isNaN(parsed) ? null : parsed;
+            return parseNumberUtils.parseIntOrNull(localStorage.getItem(KEY_SOUND_PLAY_DELAY_MS));
         },
         saveSoundPlayDelay: (delayMs: number): void => { localStorage.setItem(KEY_SOUND_PLAY_DELAY_MS, String(delayMs)); },
     };

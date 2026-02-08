@@ -24,6 +24,12 @@ type TimerMainFileUrlUtilsApi = {
     toFileUrl: (path: string) => string;
 };
 
+type TimerMainParseNumberUtilsApi = {
+    parseIntOrFallback: (raw: string | null | undefined, fallback: number) => number;
+    parseFloatOrFallback: (raw: string | null | undefined, fallback: number) => number;
+    parseIntOrNull: (raw: string | null | undefined) => number | null;
+};
+
 const timerMainApiResolverUtils = ((): { resolveApi: <T>(globalKey: string, requirePath: string) => T } => {
     const root = (typeof window !== 'undefined' ? window : globalThis) as unknown as {
         rendererApiResolverUtils?: { resolveApi: <T>(globalKey: string, requirePath: string) => T };
@@ -42,6 +48,7 @@ const timerMainTimeFormatApi: TimerMainTimeFormatApi = timerMainApiResolverUtils
 const timerMainPresetLabelApi: TimerMainPresetLabelApi = timerMainApiResolverUtils.resolveApi<TimerMainPresetLabelApi>('timerPresetLabel', './preset-label-utils');
 const timerMainNumberUtilsApi: TimerMainNumberUtilsApi = timerMainApiResolverUtils.resolveApi<TimerMainNumberUtilsApi>('numberUtils', './number-utils');
 const timerMainFileUrlUtilsApi: TimerMainFileUrlUtilsApi = timerMainApiResolverUtils.resolveApi<TimerMainFileUrlUtilsApi>('fileUrlUtils', './file-url-utils');
+const timerMainParseNumberUtilsApi: TimerMainParseNumberUtilsApi = timerMainApiResolverUtils.resolveApi<TimerMainParseNumberUtilsApi>('parseNumberUtils', './parse-number-utils');
 
 /**
  * プリセットの表示ラベルを作成する。
@@ -81,8 +88,8 @@ function normalizeSoundPlayDelay(input: number, defaultDelay: number, min: numbe
  * @returns 妥当な値。無効な場合は null
  */
 function parseCountdownInitialValue(rawValue: string, min: number, max: number): number | null {
-    const parsed = parseInt(rawValue, 10);
-    if (Number.isNaN(parsed) || parsed < min || parsed > max) {
+    const parsed = timerMainParseNumberUtilsApi.parseIntOrNull(rawValue);
+    if (parsed === null || parsed < min || parsed > max) {
         return null;
     }
     return parsed;
