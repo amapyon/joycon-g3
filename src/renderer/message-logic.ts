@@ -12,18 +12,20 @@ type MessageNumberUtilsApi = {
     normalizeNumber: (value: number, fallback: number, min: number, max: number) => number;
 };
 
-const messageApiResolverUtils = ((): { resolveApi: <T>(globalKey: string, requirePath: string) => T } => {
+type MessageApiResolverAccessApi = import('../shared/renderer-api-resolver-types').RendererApiResolverAccessApi;
+
+const messageApiResolverUtils = ((): import('../shared/renderer-api-resolver-types').RendererApiResolverUtilsApi => {
     const root = globalThis as typeof globalThis & {
-        rendererApiResolverUtils?: { resolveApi: <T>(globalKey: string, requirePath: string) => T };
+        rendererApiResolverAccess?: MessageApiResolverAccessApi;
     };
-    if (root.rendererApiResolverUtils) {
-        return root.rendererApiResolverUtils;
+    if (root.rendererApiResolverAccess) {
+        return root.rendererApiResolverAccess.getRendererApiResolverUtils();
     }
     if (typeof require !== 'undefined') {
         // eslint-disable-next-line @typescript-eslint/no-var-requires -- CommonJS 形式の読み込みが必要
-        return require('./api-resolver-utils') as { resolveApi: <T>(globalKey: string, requirePath: string) => T };
+        return (require('./api-resolver-access') as MessageApiResolverAccessApi).getRendererApiResolverUtils();
     }
-    throw new Error('rendererApiResolverUtils API is not available');
+    throw new Error('rendererApiResolverAccess API is not available');
 })();
 
 const messageWheelActionUtilsApi = messageApiResolverUtils.resolveApi<import('../shared/wheel-action-types').WheelActionUtilsApi>('wheelActionUtils', './wheel-action-utils');

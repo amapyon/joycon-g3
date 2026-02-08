@@ -29,18 +29,20 @@ type MenuControllerPresetLabelApi = {
     formatTimerPresetLabel: (seconds: number) => string;
 };
 
-const menuControllerApiResolverUtils = ((): { resolveApi: <T>(globalKey: string, requirePath: string) => T } => {
+type MenuControllerApiResolverAccessApi = import('../../shared/renderer-api-resolver-types').RendererApiResolverAccessApi;
+
+const menuControllerApiResolverUtils = ((): import('../../shared/renderer-api-resolver-types').RendererApiResolverUtilsApi => {
     const root = globalThis as typeof globalThis & {
-        rendererApiResolverUtils?: { resolveApi: <T>(globalKey: string, requirePath: string) => T };
+        rendererApiResolverAccess?: MenuControllerApiResolverAccessApi;
     };
-    if (root.rendererApiResolverUtils) {
-        return root.rendererApiResolverUtils;
+    if (root.rendererApiResolverAccess) {
+        return root.rendererApiResolverAccess.getRendererApiResolverUtils();
     }
     if (typeof require !== 'undefined') {
         // eslint-disable-next-line @typescript-eslint/no-var-requires -- CommonJS 形式の読み込みが必要
-        return require('../api-resolver-utils') as { resolveApi: <T>(globalKey: string, requirePath: string) => T };
+        return (require('../api-resolver-access') as MenuControllerApiResolverAccessApi).getRendererApiResolverUtils();
     }
-    throw new Error('rendererApiResolverUtils API is not available');
+    throw new Error('rendererApiResolverAccess API is not available');
 })();
 
 const menuControllerPresetLabelApi: MenuControllerPresetLabelApi = menuControllerApiResolverUtils.resolveApi<MenuControllerPresetLabelApi>('timerPresetLabel', './preset-label-utils');

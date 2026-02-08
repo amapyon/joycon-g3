@@ -8,15 +8,20 @@ type AddMinuteNumberUtilsApi = {
     normalizeNumber: (value: number, fallback: number, min: number, max: number) => number;
 };
 
-const addMinuteApiResolverUtils = ((): { resolveApi: <T>(globalKey: string, requirePath: string) => T } => {
+type AddMinuteApiResolverAccessApi = import('../../shared/renderer-api-resolver-types').RendererApiResolverAccessApi;
+
+const addMinuteApiResolverUtils = ((): import('../../shared/renderer-api-resolver-types').RendererApiResolverUtilsApi => {
     const root = globalThis as typeof globalThis & {
-        rendererApiResolverUtils?: { resolveApi: <T>(globalKey: string, requirePath: string) => T };
+        rendererApiResolverAccess?: AddMinuteApiResolverAccessApi;
     };
-    if (root.rendererApiResolverUtils) {
-        return root.rendererApiResolverUtils;
+    if (root.rendererApiResolverAccess) {
+        return root.rendererApiResolverAccess.getRendererApiResolverUtils();
     }
-    // eslint-disable-next-line @typescript-eslint/no-var-requires -- CommonJS 形式の読み込みが必要
-    return require('../api-resolver-utils') as { resolveApi: <T>(globalKey: string, requirePath: string) => T };
+    if (typeof require !== 'undefined') {
+        // eslint-disable-next-line @typescript-eslint/no-var-requires -- CommonJS 形式の読み込みが必要
+        return (require('../api-resolver-access') as AddMinuteApiResolverAccessApi).getRendererApiResolverUtils();
+    }
+    throw new Error('rendererApiResolverAccess API is not available');
 })();
 
 const addMinuteNumberUtilsApi: AddMinuteNumberUtilsApi = addMinuteApiResolverUtils.resolveApi<AddMinuteNumberUtilsApi>('numberUtils', './number-utils');
