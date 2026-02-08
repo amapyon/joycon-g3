@@ -1,4 +1,6 @@
 ((): void => {
+    type MainRendererContext = import('../../shared/main-renderer-types').MainRendererContext;
+    type DisplayInfo = import('../../shared/main-renderer-types').DisplayInfo;
     const mainRenderer = (window as Window & { mainRenderer?: MainRendererContext }).mainRenderer;
     if (!mainRenderer) {
         throw new Error('mainRenderer is not available');

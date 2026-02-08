@@ -1,5 +1,9 @@
 ((): void => {
     type JoyConMainLogicApi = import('../../shared/joycon-main-logic-types').JoyConMainLogicApi;
+    type MainRendererContext = import('../../shared/main-renderer-types').MainRendererContext;
+    type JoyConStatus = import('../../shared/main-renderer-types').JoyConStatus;
+    type BatteryStatus = import('../../shared/main-renderer-types').BatteryStatus;
+    type CalibrationStatus = import('../../shared/main-renderer-types').CalibrationStatus;
 
     const mainRenderer = (window as Window & { mainRenderer?: MainRendererContext }).mainRenderer;
     const joyConMainLogic = (window as Window & { joyConMainLogic?: JoyConMainLogicApi }).joyConMainLogic;

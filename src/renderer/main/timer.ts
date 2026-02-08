@@ -1,5 +1,7 @@
 {
     type TimerMainLogicApi = import('../../shared/timer-main-logic-types').TimerMainLogicApi;
+    type MainRendererContext = import('../../shared/main-renderer-types').MainRendererContext;
+    type NotificationConfig = import('../../shared/main-renderer-types').NotificationConfig;
     type ParseNumberUtilsApi = import('../../shared/parse-number-utils-types').ParseNumberUtilsApi;
     type RendererApiResolverUtilsApi = import('../../shared/renderer-api-resolver-types').RendererApiResolverUtilsApi;
     type WindowWithRendererApiResolver = Window & { rendererApiResolverUtils?: RendererApiResolverUtilsApi };
