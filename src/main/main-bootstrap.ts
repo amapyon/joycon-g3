@@ -79,7 +79,7 @@ export function createTimerWindowBootstrap(options: MainBootstrapOptions): MainB
      * タイマーウィンドウの表示/非表示を切り替える。
      */
     const toggleTimerWindowVisibility = (): void => {
-        console.log('[Main] toggleTimerWindowVisibility called.');
+        // console.log('[Main] toggleTimerWindowVisibility called.');
         const existingWindow = windowManager.getTimerWindow();
         const hasWindow = !!existingWindow && !existingWindow.isDestroyed();
         const status = {
@@ -91,7 +91,7 @@ export function createTimerWindowBootstrap(options: MainBootstrapOptions): MainB
         if (decision.action === 'create') {
             const createdWindow = ensureTimerWindow();
             if (!createdWindow) {
-                console.error('[Main] Failed to create timer window.');
+                // console.error('[Main] Failed to create timer window.');
                 return;
             }
             createdWindow.show();

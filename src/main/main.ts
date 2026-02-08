@@ -31,7 +31,7 @@ let cursorMapConfig: CursorMapConfig = {};
 app.whenReady().then(() => {
     // 物理ピクセルでの画面サイズを初期化
     initializeScreenSize();
-    console.log('App Ready. Initializing modules...');
+    // console.log('App Ready. Initializing modules...');
     WindowManager.createMainWindow();
     IpcHandler.setupIpcHandlers(WindowManager, joyconManager);
     const timerWindowBootstrap = createTimerWindowBootstrap({

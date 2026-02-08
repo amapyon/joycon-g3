@@ -1,33 +1,29 @@
 /**
  * 周波数と振幅から Joy-Con の振動データを作成する。
- * @param leftHighFreq 左高周波
- * @param leftHighAmp 左高周波振幅
- * @param leftLowFreq 左低周波
- * @param leftLowAmp 左低周波振幅
- * @param rightHighFreq 右高周波
- * @param rightHighAmp 右高周波振幅
- * @param rightLowFreq 右低周波
- * @param rightLowAmp 右低周波振幅
+ * @param input 左右それぞれの高周波/低周波設定
  * @returns 振動データ
  */
-export function createRumbleData(
-    leftHighFreq: number,
-    leftHighAmp: number,
-    leftLowFreq: number,
-    leftLowAmp: number,
-    rightHighFreq: number,
-    rightHighAmp: number,
-    rightLowFreq: number,
-    rightLowAmp: number,
-): number[] {
-    const lhf = encodeHighFreq(leftHighFreq);
-    const lha = encodeHighAmp(leftHighAmp);
-    const llf = encodeLowFreq(leftLowFreq);
-    const lla = encodeLowAmp(leftLowAmp);
-    const rhf = encodeHighFreq(rightHighFreq);
-    const rha = encodeHighAmp(rightHighAmp);
-    const rlf = encodeLowFreq(rightLowFreq);
-    const rla = encodeLowAmp(rightLowAmp);
+type RumbleChannel = {
+    highFreq: number;
+    highAmp: number;
+    lowFreq: number;
+    lowAmp: number;
+};
+
+type CreateRumbleDataInput = {
+    left: RumbleChannel;
+    right: RumbleChannel;
+};
+
+export function createRumbleData(input: CreateRumbleDataInput): number[] {
+    const lhf = encodeHighFreq(input.left.highFreq);
+    const lha = encodeHighAmp(input.left.highAmp);
+    const llf = encodeLowFreq(input.left.lowFreq);
+    const lla = encodeLowAmp(input.left.lowAmp);
+    const rhf = encodeHighFreq(input.right.highFreq);
+    const rha = encodeHighAmp(input.right.highAmp);
+    const rlf = encodeLowFreq(input.right.lowFreq);
+    const rla = encodeLowAmp(input.right.lowAmp);
 
     return [
         lhf & 0xff,

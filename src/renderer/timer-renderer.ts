@@ -347,7 +347,7 @@ function startCountdown(duration: number): void {
     countdownTimerElement.style.color = '#ffffff';
     countdownTimerElement.textContent = formatTime(startValue);
     
-    console.log(`[TimerRenderer] Starting countdown: ${startValue}s`);
+    // console.log(`[TimerRenderer] Starting countdown: ${startValue}s`);
     electronAPI.sendTimerStatus(true);
 
     countdownInterval = setInterval(() => {
@@ -374,7 +374,7 @@ function startCountdown(duration: number): void {
 }
 
 electronAPI.onUpdateTimerNotifications((configs: TimerNotificationConfig[]): void => {
-    console.log('[TimerRenderer] Notifications updated:', configs);
+    // console.log('[TimerRenderer] Notifications updated:', configs);
     timerNotificationConfigs = configs.map((config: TimerNotificationConfig) => ({
         ...config,
         rumble: !!config.rumble,
@@ -389,7 +389,7 @@ electronAPI.onUpdateSoundPlayDelay((delayMs: number): void => {
 
 
 electronAPI.onChangeFontSize((delta: number): void => {
-    console.log(`[TimerRenderer] Change font size via Joy-Con: ${delta}`);
+    // console.log(`[TimerRenderer] Change font size via Joy-Con: ${delta}`);
     updateTimerFontSize(delta * 2);
 });
 
@@ -404,7 +404,7 @@ if (wheelZone) {
         } else {
             // フォントサイズを調整（既存仕様）
             const delta = e.deltaY < 0 ? 5 : -5;
-            console.log(`[TimerRenderer] Wheel detected on zone. Delta: ${delta}, Current: ${currentFontSize}`);
+            // console.log(`[TimerRenderer] Wheel detected on zone. Delta: ${delta}, Current: ${currentFontSize}`);
             updateTimerFontSize(delta);
         }
     }, { passive: false });
@@ -422,7 +422,7 @@ electronAPI.onUpdateCountdownInitialValue((value: number): void => {
 });
 
 electronAPI.onUpdateTimerPresets((presets: number[]): void => {
-    console.log('[TimerRenderer] Received presets update:', presets);
+    // console.log('[TimerRenderer] Received presets update:', presets);
     currentPresetValues = presets;
     menuController.setPresets(currentPresetValues);
     localStorage.setItem('timerPresets', JSON.stringify(presets));
@@ -432,7 +432,7 @@ electronAPI.onUpdateTimerPresets((presets: number[]): void => {
 });
 
 electronAPI.onSetTimerMode((mode: TimerMode): void => {
-    console.log(`[TimerRenderer] Setting mode to: ${mode}`);
+    // console.log(`[TimerRenderer] Setting mode to: ${mode}`);
     if (mode === 'setup') {
         menuController.setVisible(true);
     } else {
@@ -446,7 +446,7 @@ electronAPI.onSetTimerMode((mode: TimerMode): void => {
 
 // 即時開始のIPCを受信
 electronAPI.onStartCountdown((duration: number): void => {
-    console.log(`[TimerRenderer] Received start-countdown IPC: ${duration}s`);
+    // console.log(`[TimerRenderer] Received start-countdown IPC: ${duration}s`);
     if (menuController.getIsVisible()) {
         menuController.setVisible(false);
     }
@@ -483,7 +483,7 @@ if (countdownTimerElement) {
 }
 applyCountdownTimerOpacity(currentOpacity); // 初期値を適用
 
-console.log('[TimerRenderer] Initialized.');
+// console.log('[TimerRenderer] Initialized.');
 const storedSoundDelay = localStorage.getItem('soundPlayDelayMs');
 if (storedSoundDelay) {
     const parsedDelay = parseInt(storedSoundDelay, 10);

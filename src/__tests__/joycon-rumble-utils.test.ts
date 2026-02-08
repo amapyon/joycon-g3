@@ -20,7 +20,10 @@ describe('Joy-Con振動ユーティリティ', (): void => {
     });
 
     it('振動データが8バイトで生成される', (): void => {
-        const data = createRumbleData(320, 1.0, 160, 1.0, 320, 1.0, 160, 1.0);
+        const data = createRumbleData({
+            left: { highFreq: 320, highAmp: 1.0, lowFreq: 160, lowAmp: 1.0 },
+            right: { highFreq: 320, highAmp: 1.0, lowFreq: 160, lowAmp: 1.0 },
+        });
 
         expect(data.length).toBe(8);
         data.forEach((value: number): void => {

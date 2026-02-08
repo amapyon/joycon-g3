@@ -72,7 +72,7 @@ export class IMUProcessor extends EventEmitter {
             cursorLeft: { x: [], y: [], z: [] },
             cursorRight: { x: [], y: [], z: [] },
         };
-        console.log('[IMUProcessor] Initialized.');
+        // console.log('[IMUProcessor] Initialized.');
     }
 
     /**
@@ -207,7 +207,7 @@ export class IMUProcessor extends EventEmitter {
         state.rollOffset = state.roll;
         state.pitchOffset = state.pitch;
         state.yawOffset = state.yaw;
-        console.log(`[IMUProcessor] Recenter for ${id}: rollOffset=${state.rollOffset.toFixed(2)}, pitchOffset=${state.pitchOffset.toFixed(2)}, yawOffset=${state.yawOffset.toFixed(2)}`);
+        // console.log(`[IMUProcessor] Recenter for ${id}: rollOffset=${state.rollOffset.toFixed(2)}, pitchOffset=${state.pitchOffset.toFixed(2)}, yawOffset=${state.yawOffset.toFixed(2)}`);
     }
 
     /**

@@ -54,10 +54,10 @@ export function createMainWindow(): BrowserWindow {
  * @param targetDisplay 対象ディスプレイ
  */
 export function createCursorWindow(targetDisplay: Display): void {
-    console.log(`[WindowManager] createCursorWindow called for display ID: ${targetDisplay.id}`); // 追加ログ
+    // console.log(`[WindowManager] createCursorWindow called for display ID: ${targetDisplay.id}`); // 追加ログ
     if (!targetDisplay || typeof targetDisplay.id !== 'number') return;
     if (cursorWindow && !cursorWindow.isDestroyed()) {
-        console.log('[WindowManager] Existing cursorWindow found, closing it before creating a new one.'); // 追加ログ
+        // console.log('[WindowManager] Existing cursorWindow found, closing it before creating a new one.'); // 追加ログ
         cursorWindow.close();
     }
     createCursorWindowInternal(targetDisplay);
@@ -68,7 +68,7 @@ export function createCursorWindow(targetDisplay: Display): void {
  * @param targetDisplay 対象ディスプレイ
  */
 function createCursorWindowInternal(targetDisplay: Display): void {
-    console.log(`[WindowManager] createCursorWindowInternal called for display ID: ${targetDisplay.id}`); // 追加ログ
+    // console.log(`[WindowManager] createCursorWindowInternal called for display ID: ${targetDisplay.id}`); // 追加ログ
     const bounds = targetDisplay.bounds;
     const width = Math.max(bounds.width, targetDisplay.size.width);
     const height = Math.max(bounds.height, targetDisplay.size.height);
@@ -108,7 +108,7 @@ function createCursorWindowInternal(targetDisplay: Display): void {
         sendCursorWindowOpenedToMain();
     });
     cursorWindow.on('closed', () => {
-        console.log('[WindowManager] cursorWindow closed.'); // 追加ログ
+        // console.log('[WindowManager] cursorWindow closed.'); // 追加ログ
         cursorWindow = null;
         // Do not close timerWindow here to allow independent operation
         sendCursorWindowClosedToMain();
@@ -129,9 +129,9 @@ export function setTargetDisplay(displayId: number): void {
     const target = displays.find((d: Display) => d.id === displayId);
     if (target) {
         storedTargetDisplay = target;
-        console.log(`[WindowManager] Target display set to: ${target.id}`);
+        // console.log(`[WindowManager] Target display set to: ${target.id}`);
     } else {
-        console.warn(`[WindowManager] Target display ID ${displayId} not found.`);
+        // console.warn(`[WindowManager] Target display ID ${displayId} not found.`);
     }
 }
 
@@ -143,7 +143,7 @@ let storedTimerBounds: { x: number, y: number, width: number, height: number } |
  * @returns タイマーウィンドウ
  */
 export function createTimerWindow(targetDisplay?: Display): BrowserWindow | null {
-    console.log('[WindowManager] Creating Timer Window...');
+    // console.log('[WindowManager] Creating Timer Window...');
     // Use valid targetDisplay arg, OR storedTargetDisplay, OR primary display
     // (Note: storedTargetDisplay is separate from bounds, we might want to prioritize bounds' display if available, but keeping it simple)
     const displayToUse = targetDisplay || storedTargetDisplay || screen.getPrimaryDisplay();
@@ -375,7 +375,7 @@ export function closeAllWindows(): void {
  */
 export function closeCursorWindow(): void {
     if (cursorWindow && !cursorWindow.isDestroyed()) {
-        console.log('[WindowManager] Closing cursor window due to external request.');
+        // console.log('[WindowManager] Closing cursor window due to external request.');
         cursorWindow.close();
     }
 }

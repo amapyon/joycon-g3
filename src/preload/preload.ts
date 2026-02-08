@@ -4,4 +4,4 @@ import { electronAPI } from './expose';
 
 contextBridge.exposeInMainWorld('electronAPI', electronAPI);
 
-console.log('Preload script loaded.');
+// console.log('Preload script loaded.');

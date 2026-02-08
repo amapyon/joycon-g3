@@ -3,11 +3,11 @@
 
 import HID from 'node-hid';
 import { EventEmitter } from 'events';
-import { createRumbleData } from './joycon-rumble-utils';
 import { shouldAttemptAutoConnect, shouldSkipConnect } from './joycon-connection-utils';
 import { createInitialButtonState, ButtonState } from './joycon-state';
 import { findJoyConPaths } from './joycon-device-discovery';
 import { parseStandardInputReport, JoyConButtonEvent } from './joycon-input-parser';
+import { RUMBLE_OFF_DATA, STRONG_RUMBLE_DATA } from './joycon-rumble-presets';
 import { canParseStandardInputReport, classifyJoyConReport } from './joycon-report-utils';
 
 const DEFAULT_SCAN_INTERVAL = 5000; // デバイススキャン間隔 (ミリ秒)
@@ -29,9 +29,6 @@ export default class JoyConManager extends EventEmitter {
     connectingR = false;
     autoConnectL = true;
     autoConnectR = true;
-
-    private static readonly STRONG_RUMBLE_DATA = createRumbleData(320, 1.0, 160, 1.0, 320, 1.0, 160, 1.0);
-    private static readonly RUMBLE_OFF_DATA = createRumbleData(320, 0.0, 160, 0.0, 320, 0.0, 160, 0.0);
 
     /**
      * Joy-Con 管理クラスを生成する。
@@ -89,7 +86,7 @@ export default class JoyConManager extends EventEmitter {
         // console.log(`Initializing ${isLeft ? 'L' : 'R'} Joy-Con...`);
         try {
             // 振動を有効化する
-            const enableRumbleCommand = [0x01, 0x00, ...JoyConManager.RUMBLE_OFF_DATA, 0x48, 0x01];
+            const enableRumbleCommand = [0x01, 0x00, ...RUMBLE_OFF_DATA, 0x48, 0x01];
             const commands: number[][] = [
                 [0x01, 0, 0x00, 0x01, 0x40, 0x40, 0x00, 0x01, 0x40, 0x40, 0x03, 0x30],
                 [0x01, 0, 0x00, 0x01, 0x40, 0x40, 0x00, 0x01, 0x40, 0x40, 0x40, 0x01],
@@ -171,7 +168,7 @@ export default class JoyConManager extends EventEmitter {
      * @param enabled 振動を有効にするかどうか
      */
     private setRumble(enabled: boolean): void {
-        const data = enabled ? JoyConManager.STRONG_RUMBLE_DATA : JoyConManager.RUMBLE_OFF_DATA;
+        const data = enabled ? STRONG_RUMBLE_DATA : RUMBLE_OFF_DATA;
         this.sendRumbleCommand(this.hidL, data, true);
         this.sendRumbleCommand(this.hidR, data, false);
     }

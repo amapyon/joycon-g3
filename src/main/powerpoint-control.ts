@@ -57,7 +57,7 @@ class PowerPointControl {
      */
     constructor() {
         if (!this.isWindows) {
-            console.warn('[PowerPointControl] PowerPoint automation is only supported on Windows.');
+            // console.warn('[PowerPointControl] PowerPoint automation is only supported on Windows.');
         }
     }
 
@@ -75,7 +75,8 @@ class PowerPointControl {
             }
             return true;
         } catch (e: unknown) {
-            console.warn('[PowerPointControl] Could not connect to PowerPoint instance.', getErrorMessage(e));
+            // console.warn('[PowerPointControl] Could not connect to PowerPoint instance.', getErrorMessage(e));
+            void e;
             this.ppApp = null;
             return false;
         }
@@ -124,7 +125,8 @@ class PowerPointControl {
                 }
             }
         } catch (e: unknown) {
-            console.error('[PPControl] Error getting presentations list:', getErrorMessage(e));
+            // console.error('[PPControl] Error getting presentations list:', getErrorMessage(e));
+            void e;
         }
         return presentations;
     }
@@ -153,7 +155,7 @@ class PowerPointControl {
                 for (let i = 1; i <= ppApp.SlideShowWindows.Count; i++) {
                     const ssw = ppApp.SlideShowWindows.Item?.(i);
                     if (ssw && ssw.Presentation && (ssw.Presentation.FullName === this.targetPresentationIdentifier || ssw.Presentation.Name === this.targetPresentationIdentifier)) {
-                        console.log(`[PPControl] Activating SlideShowWindow for: ${ssw.Presentation.Name}`);
+                        // console.log(`[PPControl] Activating SlideShowWindow for: ${ssw.Presentation.Name}`);
                         ssw.Activate?.();
                         return true;
                     }
@@ -167,7 +169,7 @@ class PowerPointControl {
                     if (pres && (pres.FullName === this.targetPresentationIdentifier || pres.Name === this.targetPresentationIdentifier)) {
                         const windowCount = pres.Windows?.Count;
                         if (typeof windowCount === 'number' && windowCount > 0) {
-                            console.log(`[PPControl] Activating Presentation Window for: ${pres.Name}`);
+                            // console.log(`[PPControl] Activating Presentation Window for: ${pres.Name}`);
                             pres.Windows?.Item?.(1)?.Activate?.();
                             return true;
                         }
@@ -175,7 +177,8 @@ class PowerPointControl {
                 }
             }
         } catch (e: unknown) {
-            console.error('[PPControl] Error activating target:', getErrorMessage(e));
+            // console.error('[PPControl] Error activating target:', getErrorMessage(e));
+            void e;
         }
         return false;
     }
@@ -201,12 +204,14 @@ class PowerPointControl {
                             }
                         }
                     } catch (e: unknown) {
-                        console.warn(`[PPControl] Error checking SlideShowWindow at index ${i}:`, getErrorMessage(e));
+                        // console.warn(`[PPControl] Error checking SlideShowWindow at index ${i}:`, getErrorMessage(e));
+                        void e;
                     }
                 }
             }
         } catch (e: unknown) {
-            console.error('[PPControl] Error accessing SlideShowWindows collection:', getErrorMessage(e));
+            // console.error('[PPControl] Error accessing SlideShowWindows collection:', getErrorMessage(e));
+            void e;
             this.ppApp = null;
         }
         return null;
@@ -235,7 +240,7 @@ class PowerPointControl {
             }
 
             if (targetPres) {
-                console.log(`[PPControl] Starting slide show for: ${targetPres.Name}`);
+                // console.log(`[PPControl] Starting slide show for: ${targetPres.Name}`);
                 
                 // Get current slide index from active window if it matches
                 let currentSlideIndex = 1;
@@ -265,7 +270,8 @@ class PowerPointControl {
                 }
             }
         } catch (e: unknown) {
-            console.error('[PPControl] Error starting slide show:', getErrorMessage(e));
+            // console.error('[PPControl] Error starting slide show:', getErrorMessage(e));
+            void e;
         }
         return null;
     }
@@ -287,10 +293,11 @@ class PowerPointControl {
                 view.Next();
                 return true;
             } catch (e: unknown) {
-                console.warn('[PowerPointControl] Next() failed:', getErrorMessage(e));
+                // console.warn('[PowerPointControl] Next() failed:', getErrorMessage(e));
+                void e;
             }
         } else {
-            console.warn('[PowerPointControl] Cannot execute Next(): Slide show view not found and could not be started.');
+            // console.warn('[PowerPointControl] Cannot execute Next(): Slide show view not found and could not be started.');
         }
         return false;
     }
@@ -312,10 +319,11 @@ class PowerPointControl {
                 view.Previous();
                 return true;
             } catch (e: unknown) {
-                console.warn('[PowerPointControl] Previous() failed:', getErrorMessage(e));
+                // console.warn('[PowerPointControl] Previous() failed:', getErrorMessage(e));
+                void e;
             }
         } else {
-            console.warn('[PowerPointControl] Cannot execute Previous(): Slide show view not found and could not be started.');
+            // console.warn('[PowerPointControl] Cannot execute Previous(): Slide show view not found and could not be started.');
         }
         return false;
     }

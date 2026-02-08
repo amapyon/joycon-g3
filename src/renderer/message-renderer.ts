@@ -21,7 +21,7 @@ function updateFontSize(delta: number): void {
     if (currentFontSize < 10) currentFontSize = 10;
     if (currentFontSize > 1000) currentFontSize = 1000;
     
-    console.log(`[MessageRenderer] Updating font size to: ${currentFontSize}px (delta: ${delta})`);
+    // console.log(`[MessageRenderer] Updating font size to: ${currentFontSize}px (delta: ${delta})`);
     
     if (messageContent) {
         messageContent.style.fontSize = `${currentFontSize}px`;
@@ -67,11 +67,11 @@ window.addEventListener('wheel', (e: WheelEvent): void => {
 });
 
 electronAPI.onUpdateMessageText((text: string): void => {
-    console.log(`[MessageRenderer] Received text: ${text}`);
+    // console.log(`[MessageRenderer] Received text: ${text}`);
     if (messageContent) {
         messageContent.innerHTML = text || '';
     }
 });
 
-console.log('[MessageRenderer] Initialized.');
+// console.log('[MessageRenderer] Initialized.');
 })();

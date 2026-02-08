@@ -30,5 +30,13 @@
             4
         ],
         "no-console": "warn"
-    }
+    },
+    "overrides": [
+        {
+            "files": ["src/__tests__/**/*.ts"],
+            "rules": {
+                "max-lines-per-function": "off"
+            }
+        }
+    ]
 }

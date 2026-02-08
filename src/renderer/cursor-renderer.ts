@@ -134,7 +134,7 @@ function resetCursor(cursorId: 'cursorLeft' | 'cursorRight'): void {
     // console.log(`[cursor-renderer] resetCursor called for ${cursorId}`); // 追加ログ
     const cursorData = cursors[cursorId];
     if (!cursorData) {
-        console.error(`[${cursorId}] Cannot reset cursor: cursorData is null.`);
+        // console.error(`[${cursorId}] Cannot reset cursor: cursorData is null.`);
         return;
     }
     const centerX = windowWidth / 2;
@@ -147,7 +147,7 @@ function resetCursor(cursorId: 'cursorLeft' | 'cursorRight'): void {
         windowWidth <= 0 ||
         windowHeight <= 0
     ) {
-        console.error(`[${cursorId}] Cannot reset cursor: Invalid window dimensions! w=${windowWidth}, h=${windowHeight}. Using default position.`);
+        // console.error(`[${cursorId}] Cannot reset cursor: Invalid window dimensions! w=${windowWidth}, h=${windowHeight}. Using default position.`);
         cursorData.x = 100;
         cursorData.y = 100;
         cursorData.targetX = 100;
@@ -159,7 +159,7 @@ function resetCursor(cursorId: 'cursorLeft' | 'cursorRight'): void {
         cursorData.targetY = centerY;
     }
     if (Number.isNaN(cursorData.x) || Number.isNaN(cursorData.y)) {
-        console.error(`[${cursorId}] NaN DETECTED after reset! x=${cursorData.x}, y=${cursorData.y}. Setting to default.`);
+        // console.error(`[${cursorId}] NaN DETECTED after reset! x=${cursorData.x}, y=${cursorData.y}. Setting to default.`);
         cursorData.x = 100;
         cursorData.y = 100;
     }
@@ -181,10 +181,10 @@ function updateCursorElementPosition(cursorId: 'cursorLeft' | 'cursorRight'): vo
             element.style.top = `${cursorData.y - halfHeight}px`;
             // debug render logs removed
         } else {
-            console.warn(`[${cursorId}] Invalid element dimensions.`);
+            // console.warn(`[${cursorId}] Invalid element dimensions.`);
         }
     } else {
-        console.warn(`[${cursorId}] Skipping pos update.`);
+        // console.warn(`[${cursorId}] Skipping pos update.`);
     }
 }
 
@@ -308,13 +308,15 @@ function updatePointerVisibility(): void {
 
 // Joy-Con Xボタン押下時のカーソルリセット（右）
 electronAPI.onJoyConButtonXPressed((data: ButtonPressData): void => {
-    console.log(`X Button press trigger for ${data.id}. Resetting.`);
+    void data;
+    // console.log(`X Button press trigger for ${data.id}. Resetting.`);
     // resetCursor(data.id); // Removed resetCursor call
 });
 
 // Joy-Con Downボタン押下時のカーソルリセット（左）
 electronAPI.onJoyConButtonDownPressed((data: ButtonPressData): void => {
-    console.log(`Down Button press trigger for ${data.id}. Resetting.`);
+    void data;
+    // console.log(`Down Button press trigger for ${data.id}. Resetting.`);
     // resetCursor(data.id); // Removed resetCursor call
 });
 
@@ -322,7 +324,7 @@ electronAPI.onJoyConButtonDownPressed((data: ButtonPressData): void => {
 window.addEventListener('resize', (): void => {
     windowWidth = window.innerWidth;
     windowHeight = window.innerHeight;
-    console.log(`Cursor window resized to: ${windowWidth}x${windowHeight}`);
+    // console.log(`Cursor window resized to: ${windowWidth}x${windowHeight}`);
     resetCursor('cursorLeft');
     resetCursor('cursorRight');
 });
@@ -352,7 +354,7 @@ function renderLoop(): void {
                     cursorData.y = Math.max(halfHeight, Math.min(windowHeight - halfHeight, cursorData.y));
                     updateCursorElementPosition(id as 'cursorLeft' | 'cursorRight');
                 } else {
-                    console.error(`[${id}] Skipping pos update due to NaN coord.`);
+                    // console.error(`[${id}] Skipping pos update due to NaN coord.`);
                 }
             }
         }
@@ -362,14 +364,14 @@ function renderLoop(): void {
 
 // DOMロード完了時の初期化処理
 document.addEventListener('DOMContentLoaded', (): void => {
-    console.log('DOM fully loaded. [cursor-renderer] script initialized.');
+    // console.log('DOM fully loaded. [cursor-renderer] script initialized.');
     windowWidth = window.innerWidth;
     windowHeight = window.innerHeight;
     if (windowWidth > 0 && windowHeight > 0) {
         resetCursor('cursorLeft');
         resetCursor('cursorRight');
     } else {
-        console.warn('Initial window dimensions invalid. Retrying reset later.');
+        // console.warn('Initial window dimensions invalid. Retrying reset later.');
     }
     if (cursorElements.cursorLeft) {
         cursorElements.cursorLeft.style.visibility = 'hidden';
@@ -385,27 +387,27 @@ document.addEventListener('DOMContentLoaded', (): void => {
     function sendCursorMapConfigWithRetry(retry: number = 0): void {
         if (electronAPI.sendCursorMapConfig) {
             electronAPI.sendCursorMapConfig(cursorMapConfig);
-            console.log('[cursor-renderer] Sent cursorMapConfig to main:', cursorMapConfig, `(retry=${retry})`);
+            // console.log('[cursor-renderer] Sent cursorMapConfig to main:', cursorMapConfig, `(retry=${retry})`);
         } else if (electronAPI.send) {
             electronAPI.send('cursor-map-config', cursorMapConfig);
-            console.log('[cursor-renderer] Sent cursorMapConfig to main (fallback):', cursorMapConfig, `(retry=${retry})`);
+            // console.log('[cursor-renderer] Sent cursorMapConfig to main (fallback):', cursorMapConfig, `(retry=${retry})`);
         } else {
             const windowWithIpc = window as WindowWithIpcRenderer;
             if (windowWithIpc.ipcRenderer) {
                 windowWithIpc.ipcRenderer.send('cursor-map-config', cursorMapConfig);
-                console.log('[cursor-renderer] Sent cursorMapConfig to main (ipcRenderer):', cursorMapConfig, `(retry=${retry})`);
+                // console.log('[cursor-renderer] Sent cursorMapConfig to main (ipcRenderer):', cursorMapConfig, `(retry=${retry})`);
                 return;
             }
             if (retry < 10) {
                 setTimeout((): void => sendCursorMapConfigWithRetry(retry + 1), 200);
-                console.warn(`[cursor-renderer] IPC bridge not ready, retrying... (${retry + 1})`);
+                // console.warn(`[cursor-renderer] IPC bridge not ready, retrying... (${retry + 1})`);
             } else {
-                console.warn('[cursor-renderer] Could not send cursorMapConfig to main: no IPC method found after retries.');
+                // console.warn('[cursor-renderer] Could not send cursorMapConfig to main: no IPC method found after retries.');
             }
         }
     }
     sendCursorMapConfigWithRetry();
     requestAnimationFrame(renderLoop);
-    console.log('Cursor Renderer script initialized for attitude control.');
+    // console.log('Cursor Renderer script initialized for attitude control.');
 });
 })();
