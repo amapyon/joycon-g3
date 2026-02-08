@@ -414,58 +414,70 @@ const renderLoop = (): void => {
     requestAnimationFrame(renderLoop);
 };
 
-// DOMロード完了時の初期化処理
-document.addEventListener('DOMContentLoaded', (): void => {
-    // console.log('DOM fully loaded. [cursor-renderer] script initialized.');
+/**
+ * カーソルマップ設定をリトライ付きで送信する。
+ * @param retry リトライ回数
+ */
+const sendCursorMapConfigWithRetry = (retry: number = 0): void => {
+    const windowWithIpc = window as WindowWithIpcRenderer;
+    const sendCursorMapConfig = electronAPI.sendCursorMapConfig;
+    const fallbackSend = electronAPI.send;
+    const sendDecision = cursorRuntimeLogic.resolveCursorMapSendDecision({
+        hasSendCursorMapConfig: !!sendCursorMapConfig,
+        hasSend: !!fallbackSend,
+        hasIpcRenderer: !!windowWithIpc.ipcRenderer,
+        retry,
+        maxRetry: 10,
+    });
+    if (sendDecision.method === 'api') {
+        sendCursorMapConfig(cursorMapConfig);
+        return;
+    }
+    if (sendDecision.method === 'send') {
+        fallbackSend?.('cursor-map-config', cursorMapConfig);
+        return;
+    }
+    if (sendDecision.method === 'ipc') {
+        windowWithIpc.ipcRenderer?.send('cursor-map-config', cursorMapConfig);
+        return;
+    }
+    if (sendDecision.method === 'retry') {
+        setTimeout((): void => sendCursorMapConfigWithRetry(sendDecision.nextRetry ?? retry + 1), 200);
+    }
+};
+
+/**
+ * カーソル位置を初期化する。
+ */
+const initializeCursorPosition = (): void => {
     windowWidth = window.innerWidth;
     windowHeight = window.innerHeight;
     if (windowWidth > 0 && windowHeight > 0) {
         resetCursor('cursorLeft');
         resetCursor('cursorRight');
-    } else {
-        // console.warn('Initial window dimensions invalid. Retrying reset later.');
     }
-    if (cursorElements.cursorLeft) {
-        cursorElements.cursorLeft.style.visibility = 'hidden';
-    }
-    if (cursorElements.cursorRight) {
-        cursorElements.cursorRight.style.visibility = 'hidden';
-    }
-    // --- IPCでcursorMapConfigをmainプロセスへ送信（確実に送るためリトライ付き） ---
-    /**
-     * カーソルマップ設定をリトライ付きで送信する。
-     * @param retry リトライ回数
-     */
-    function sendCursorMapConfigWithRetry(retry: number = 0): void {
-        const windowWithIpc = window as WindowWithIpcRenderer;
-        const sendCursorMapConfig = electronAPI.sendCursorMapConfig;
-        const fallbackSend = electronAPI.send;
-        const sendDecision = cursorRuntimeLogic.resolveCursorMapSendDecision({
-            hasSendCursorMapConfig: !!sendCursorMapConfig,
-            hasSend: !!fallbackSend,
-            hasIpcRenderer: !!windowWithIpc.ipcRenderer,
-            retry,
-            maxRetry: 10,
-        });
-        if (sendDecision.method === 'api') {
-            sendCursorMapConfig(cursorMapConfig);
-            // console.log('[cursor-renderer] Sent cursorMapConfig to main:', cursorMapConfig, `(retry=${retry})`);
-        } else if (sendDecision.method === 'send') {
-            fallbackSend?.('cursor-map-config', cursorMapConfig);
-            // console.log('[cursor-renderer] Sent cursorMapConfig to main (fallback):', cursorMapConfig, `(retry=${retry})`);
-        } else if (sendDecision.method === 'ipc') {
-            windowWithIpc.ipcRenderer?.send('cursor-map-config', cursorMapConfig);
-            // console.log('[cursor-renderer] Sent cursorMapConfig to main (ipcRenderer):', cursorMapConfig, `(retry=${retry})`);
-            return;
-        } else if (sendDecision.method === 'retry') {
-            setTimeout((): void => sendCursorMapConfigWithRetry(sendDecision.nextRetry ?? retry + 1), 200);
-            // console.warn(`[cursor-renderer] IPC bridge not ready, retrying... (${retry + 1})`);
-        } else {
-            // console.warn('[cursor-renderer] Could not send cursorMapConfig to main: no IPC method found after retries.');
-        }
-    }
+};
+
+/**
+ * カーソルの初期表示状態を反映する。
+ */
+const initializeCursorVisibility = (): void => {
+    setElementVisibility('cursorLeft', false);
+    setElementVisibility('cursorRight', false);
+};
+
+/**
+ * DOMロード完了時の初期化処理。
+ */
+const handleDomContentLoaded = (): void => {
+    initializeCursorPosition();
+    initializeCursorVisibility();
     sendCursorMapConfigWithRetry();
     requestAnimationFrame(renderLoop);
-    // console.log('Cursor Renderer script initialized for attitude control.');
+};
+
+// DOMロード完了時の初期化処理
+document.addEventListener('DOMContentLoaded', (): void => {
+    handleDomContentLoaded();
 });
 }
