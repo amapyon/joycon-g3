@@ -1,6 +1,4 @@
-type TimerMenuItem =
-    | { type: 'preset'; time: number; label: string }
-    | { type: 'add-minute'; label: string };
+type TimerMenuItem = import('../../shared/timer-renderer-types').TimerMenuItem;
 
 type MenuVisibilityDecision = {
     menuVisible: boolean;

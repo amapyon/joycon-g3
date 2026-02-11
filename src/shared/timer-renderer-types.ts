@@ -3,6 +3,13 @@ import type { TimerNotificationConfig } from './timer-notification-config';
 import type { WheelAction } from './wheel-action-types';
 
 /**
+ * タイマーメニュー項目。
+ */
+export type TimerMenuItem =
+    | { type: 'preset'; time: number; label: string }
+    | { type: 'add-minute'; label: string };
+
+/**
  * タイマー表示状態の計算API。
  */
 export type TimerStyleStateApi = {

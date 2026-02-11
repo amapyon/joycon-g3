@@ -1,6 +1,4 @@
-export type TimerMenuItem =
-    | { type: 'preset'; time: number; label: string }
-    | { type: 'add-minute'; label: string };
+export type TimerMenuItem = import('../../shared/timer-renderer-types').TimerMenuItem;
 
 type TimerMenuItemsPresetLabelApi = {
     formatTimerPresetLabel: (seconds: number) => string;
