@@ -4,12 +4,16 @@
     type JoyConStatus = import('../../shared/main-renderer-types').JoyConStatus;
     type BatteryStatus = import('../../shared/main-renderer-types').BatteryStatus;
     type CalibrationStatus = import('../../shared/main-renderer-types').CalibrationStatus;
+    type MainWindowApiAccessorApi = import('../../shared/main-window-api-types').MainWindowApiAccessorApi;
 
-    const mainRenderer = (window as Window & { mainRenderer?: MainRendererContext }).mainRenderer;
-    const joyConMainLogic = (window as Window & { joyConMainLogic?: JoyConMainLogicApi }).joyConMainLogic;
-    if (!mainRenderer || !joyConMainLogic) {
-        throw new Error('mainRenderer or joyConMainLogic is not available');
+    const mainWindowApiAccessor = (globalThis as typeof globalThis & {
+        mainWindowApiAccessor?: MainWindowApiAccessorApi;
+    }).mainWindowApiAccessor;
+    if (!mainWindowApiAccessor) {
+        throw new Error('mainWindowApiAccessor is not available');
     }
+    const mainRenderer = mainWindowApiAccessor.getApi<MainRendererContext>('mainRenderer');
+    const joyConMainLogic = mainWindowApiAccessor.getApi<JoyConMainLogicApi>('joyConMainLogic');
     const { electronAPI, elements } = mainRenderer;
 
     /**

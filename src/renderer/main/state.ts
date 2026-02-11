@@ -1,16 +1,17 @@
 type ElectronAPI = import('../../shared/main-renderer-types').ElectronAPI;
 type MainRendererContext = import('../../shared/main-renderer-types').MainRendererContext;
 type LocalStorageStoreApi = import('../../shared/local-storage-store-types').LocalStorageStoreApi;
+type MainWindowApiAccessorApi = import('../../shared/main-window-api-types').MainWindowApiAccessorApi;
 
 ((): void => {
-    const electronAPI = (window as Window & { electronAPI?: ElectronAPI }).electronAPI;
-    const localStorageStore = (window as Window & { localStorageStore?: LocalStorageStoreApi }).localStorageStore;
-    if (!electronAPI) {
-        throw new Error('electronAPI is not available');
+    const mainWindowApiAccessor = (globalThis as typeof globalThis & {
+        mainWindowApiAccessor?: MainWindowApiAccessorApi;
+    }).mainWindowApiAccessor;
+    if (!mainWindowApiAccessor) {
+        throw new Error('mainWindowApiAccessor is not available');
     }
-    if (!localStorageStore) {
-        throw new Error('localStorageStore is not available');
-    }
+    const electronAPI = mainWindowApiAccessor.getApi<ElectronAPI>('electronAPI');
+    const localStorageStore = mainWindowApiAccessor.getApi<LocalStorageStoreApi>('localStorageStore');
     const mainRenderer: MainRendererContext = {
         electronAPI,
         elements: {
@@ -57,5 +58,5 @@ type LocalStorageStoreApi = import('../../shared/local-storage-store-types').Loc
         },
     };
 
-    (window as Window & { mainRenderer?: MainRendererContext }).mainRenderer = mainRenderer;
+    mainWindowApiAccessor.setApi<MainRendererContext>('mainRenderer', mainRenderer);
 })();

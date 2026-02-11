@@ -2,14 +2,16 @@
     type MainRendererAccessApi = import('../../shared/main-renderer-types').MainRendererAccessApi;
     type DisplayInfo = import('../../shared/main-renderer-types').DisplayInfo;
     type LocalStorageStoreApi = import('../../shared/local-storage-store-types').LocalStorageStoreApi;
-    const mainRendererAccess = (window as Window & { mainRendererAccess?: MainRendererAccessApi }).mainRendererAccess;
-    const localStorageStore = (window as Window & { localStorageStore?: LocalStorageStoreApi }).localStorageStore;
-    if (!mainRendererAccess) {
-        throw new Error('mainRendererAccess is not available');
+    type MainWindowApiAccessorApi = import('../../shared/main-window-api-types').MainWindowApiAccessorApi;
+
+    const mainWindowApiAccessor = (globalThis as typeof globalThis & {
+        mainWindowApiAccessor?: MainWindowApiAccessorApi;
+    }).mainWindowApiAccessor;
+    if (!mainWindowApiAccessor) {
+        throw new Error('mainWindowApiAccessor is not available');
     }
-    if (!localStorageStore) {
-        throw new Error('localStorageStore is not available');
-    }
+    const mainRendererAccess = mainWindowApiAccessor.getApi<MainRendererAccessApi>('mainRendererAccess');
+    const localStorageStore = mainWindowApiAccessor.getApi<LocalStorageStoreApi>('localStorageStore');
     const mainRenderer = mainRendererAccess.getMainRenderer();
     const { electronAPI, elements } = mainRenderer;
 
