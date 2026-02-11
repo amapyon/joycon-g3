@@ -41,6 +41,30 @@ type RegisterOnChannel = (channel: string, handler: (event: IpcMainEvent, ...arg
 type CursorVisibilityPayload = { id: CursorId; isVisible: boolean };
 
 /**
+ * 単一のタイマー通知設定を解析する。
+ * @param value 入力値
+ * @returns 通知設定。無効な場合は null
+ */
+function parseTimerNotificationConfigItem(value: unknown): TimerNotificationConfig | null {
+    if (!isRecord(value)) {
+        return null;
+    }
+    const parsedTime = parseNumberPayload(value.time);
+    if (parsedTime === null || typeof value.filename !== 'string' || typeof value.absolutePath !== 'string') {
+        return null;
+    }
+    if (value.rumble !== undefined && typeof value.rumble !== 'boolean') {
+        return null;
+    }
+    return {
+        time: parsedTime,
+        filename: value.filename,
+        absolutePath: value.absolutePath,
+        rumble: value.rumble,
+    };
+}
+
+/**
  * タイマー通知設定配列を解析する。
  * @param value 入力値
  * @returns 通知設定配列。無効な場合は null
@@ -51,26 +75,11 @@ function parseTimerNotificationConfigs(value: unknown): TimerNotificationConfig[
     }
     const parsedConfigs: TimerNotificationConfig[] = [];
     for (const item of value) {
-        if (!isRecord(item)) {
+        const parsedItem = parseTimerNotificationConfigItem(item);
+        if (!parsedItem) {
             return null;
         }
-        const time = item.time;
-        const filename = item.filename;
-        const absolutePath = item.absolutePath;
-        const rumble = item.rumble;
-        if (
-            typeof time !== 'number'
-            || !Number.isFinite(time)
-            || typeof filename !== 'string'
-            || typeof absolutePath !== 'string'
-            || (rumble !== undefined && typeof rumble !== 'boolean')
-        ) {
-            return null;
-        }
-        parsedConfigs.push({ time, filename, absolutePath, rumble });
-    }
-    if (parsedConfigs.length !== value.length) {
-        return null;
+        parsedConfigs.push(parsedItem);
     }
     return parsedConfigs;
 }
