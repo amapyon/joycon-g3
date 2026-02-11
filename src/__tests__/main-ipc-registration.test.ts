@@ -147,4 +147,29 @@ describe('main IPC の振動トリガー', (): void => {
 
         expect(joyConRumbleApi.playRumblePattern).not.toHaveBeenCalled();
     });
+
+    it('不正なupdate-timer-notificationsでは配信しない', (): void => {
+        const joyConRumbleApi: JoyConRumbleApiMock = {
+            playRumblePattern: jest.fn(),
+        };
+        const { options, listeners } = createRegisterOptions(joyConRumbleApi);
+        const send = jest.fn();
+        const mockWindow = {
+            isDestroyed: (): boolean => false,
+            webContents: { send },
+        } as unknown as { isDestroyed: () => boolean; webContents: { send: jest.Mock } };
+        options.windowManager = {
+            getCursorWindow: (): unknown => mockWindow,
+            getTimerWindow: (): unknown => null,
+            getMainWindow: (): unknown => null,
+        } as unknown as Parameters<typeof registerMainIpcHandlers>[0]['windowManager'];
+
+        registerMainIpcHandlers(options);
+        listeners['update-timer-notifications']?.(
+            {} as IpcMainEvent,
+            [{ time: 'invalid', filename: 'a.mp3', absolutePath: 'C:\\a.mp3' }],
+        );
+
+        expect(send).not.toHaveBeenCalled();
+    });
 });
