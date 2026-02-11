@@ -1,14 +1,12 @@
 type MessageWheelActionShared = import('../shared/wheel-action-types').WheelAction;
 
 type MessageLogicApi = {
-    normalizeFontSize: (value: number, fallback: number, min: number, max: number) => number;
-    normalizeOpacity: (value: number, fallback: number, min: number, max: number) => number;
+    normalizeNumber: (value: number, fallback: number, min: number, max: number) => number;
     resolveWheelAction: (deltaY: number, shiftKey: boolean) => MessageWheelActionShared;
     isWheelTargetInZone: (target: Node | null, wheelZone: HTMLElement | null) => boolean;
 };
 
 type MessageNumberUtilsApi = {
-    clamp: (value: number, min: number, max: number) => number;
     normalizeNumber: (value: number, fallback: number, min: number, max: number) => number;
 };
 
@@ -32,26 +30,14 @@ const messageWheelActionUtilsApi = messageApiResolverUtils.resolveApi<import('..
 const messageNumberUtilsApi: MessageNumberUtilsApi = messageApiResolverUtils.resolveApi<MessageNumberUtilsApi>('numberUtils', './number-utils');
 
 /**
- * フォントサイズを範囲内に正規化する。
+ * 数値を範囲内に正規化する。
  * @param value 値
  * @param fallback 既定値
  * @param min 最小値
  * @param max 最大値
  * @returns 正規化後の値
  */
-function normalizeFontSize(value: number, fallback: number, min: number, max: number): number {
-    return messageNumberUtilsApi.normalizeNumber(value, fallback, min, max);
-}
-
-/**
- * 透明度を範囲内に正規化する。
- * @param value 値
- * @param fallback 既定値
- * @param min 最小値
- * @param max 最大値
- * @returns 正規化後の値
- */
-function normalizeOpacity(value: number, fallback: number, min: number, max: number): number {
+function normalizeNumber(value: number, fallback: number, min: number, max: number): number {
     return messageNumberUtilsApi.normalizeNumber(value, fallback, min, max);
 }
 
@@ -69,8 +55,7 @@ function isWheelTargetInZone(target: Node | null, wheelZone: HTMLElement | null)
 }
 
 const messageLogicApi: MessageLogicApi = {
-    normalizeFontSize,
-    normalizeOpacity,
+    normalizeNumber,
     resolveWheelAction: messageWheelActionUtilsApi.resolveWheelAction,
     isWheelTargetInZone,
 };

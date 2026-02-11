@@ -4,6 +4,7 @@ import { registerTimerIpcHandlers } from './timer-ipc';
 import { CursorId, CursorMapConfig } from './imu-pointer';
 import { setTimerCounting, setTimerPaused, TimerState } from './timer-state';
 import { isCursorId, isRecord, parseNumberArrayPayload, parseNumberPayload } from './payload-parse-utils';
+import { MAIN_IPC_INBOUND_CHANNELS, MAIN_IPC_OUTBOUND_CHANNELS } from '../shared/main-ipc-channels';
 import type { TimerNotificationConfig } from '../shared/timer-notification-config';
 
 type WindowManagerApi = {
@@ -157,7 +158,7 @@ function broadcastToAppWindows(windowManager: WindowManagerApi, channel: string,
 function registerStateSyncHandlers(registerOnChannel: RegisterOnChannel, options: RegisterMainIpcHandlersOptions): void {
     const { state, windowManager } = options;
 
-    registerOnChannel('cursor-map-config', (_event: IpcMainEvent, config: unknown): void => {
+    registerOnChannel(MAIN_IPC_INBOUND_CHANNELS.CURSOR_MAP_CONFIG, (_event: IpcMainEvent, config: unknown): void => {
         const nextConfig = parseCursorMapConfig(config);
         if (!nextConfig) {
             return;
@@ -166,7 +167,7 @@ function registerStateSyncHandlers(registerOnChannel: RegisterOnChannel, options
         // console.log('[main.ts] Received cursorMapConfig from renderer:', nextConfig);
     });
 
-    registerOnChannel('cursor-visibility-update', (_event: IpcMainEvent, data: unknown): void => {
+    registerOnChannel(MAIN_IPC_INBOUND_CHANNELS.CURSOR_VISIBILITY_UPDATE, (_event: IpcMainEvent, data: unknown): void => {
         const typedData = parseCursorVisibilityPayload(data);
         if (!typedData) {
             return;
@@ -174,32 +175,32 @@ function registerStateSyncHandlers(registerOnChannel: RegisterOnChannel, options
         state.setCursorVisibility(typedData.id, typedData.isVisible);
     });
 
-    registerOnChannel('countdown-initial-value', (_event: IpcMainEvent, value: unknown): void => {
+    registerOnChannel(MAIN_IPC_INBOUND_CHANNELS.COUNTDOWN_INITIAL_VALUE, (_event: IpcMainEvent, value: unknown): void => {
         const nextValue = parseNumberPayload(value);
         if (nextValue === null) {
             return;
         }
         state.setCountdownInitialValue(nextValue);
         // console.log(`[main.ts] Received countdown initial value: ${state.getCountdownInitialValue()}`);
-        broadcastToAppWindows(windowManager, 'update-countdown-initial-value', state.getCountdownInitialValue());
+        broadcastToAppWindows(windowManager, MAIN_IPC_OUTBOUND_CHANNELS.UPDATE_COUNTDOWN_INITIAL_VALUE, state.getCountdownInitialValue());
     });
 
-    registerOnChannel('update-timer-presets', (_event: IpcMainEvent, presets: unknown): void => {
+    registerOnChannel(MAIN_IPC_INBOUND_CHANNELS.UPDATE_TIMER_PRESETS, (_event: IpcMainEvent, presets: unknown): void => {
         const typedPresets = parseNumberArrayPayload(presets);
         if (!typedPresets) {
             return;
         }
         // console.log(`[main.ts] Received timer presets: ${typedPresets}`);
-        broadcastToAppWindows(windowManager, 'update-timer-presets', typedPresets);
+        broadcastToAppWindows(windowManager, MAIN_IPC_OUTBOUND_CHANNELS.UPDATE_TIMER_PRESETS, typedPresets);
     });
 
-    registerOnChannel('update-timer-notifications', (_event: IpcMainEvent, configs: unknown): void => {
+    registerOnChannel(MAIN_IPC_INBOUND_CHANNELS.UPDATE_TIMER_NOTIFICATIONS, (_event: IpcMainEvent, configs: unknown): void => {
         const typedConfigs = parseTimerNotificationConfigs(configs);
         if (!typedConfigs) {
             return;
         }
         // console.log('[main.ts] Received timer notifications update:', typedConfigs);
-        broadcastToAppWindows(windowManager, 'update-timer-notifications', typedConfigs);
+        broadcastToAppWindows(windowManager, MAIN_IPC_OUTBOUND_CHANNELS.UPDATE_TIMER_NOTIFICATIONS, typedConfigs);
     });
 }
 
@@ -211,13 +212,13 @@ function registerStateSyncHandlers(registerOnChannel: RegisterOnChannel, options
 function registerTimerHandlers(registerOnChannel: RegisterOnChannel, options: RegisterMainIpcHandlersOptions): void {
     const { ipcMain, state, windowManager, toggleTimerWindowVisibility, joyConRumbleApi } = options;
 
-    registerOnChannel('update-sound-play-delay', (_event: IpcMainEvent, delayMs: unknown): void => {
+    registerOnChannel(MAIN_IPC_INBOUND_CHANNELS.UPDATE_SOUND_PLAY_DELAY, (_event: IpcMainEvent, delayMs: unknown): void => {
         const parsedDelay = parseNumberPayload(delayMs);
         const normalizedDelay = parsedDelay === null ? 200 : Math.min(Math.max(parsedDelay, 0), 5000);
         state.setSoundPlayDelayMs(normalizedDelay);
         const timerWindow = windowManager.getTimerWindow();
         if (timerWindow && !timerWindow.isDestroyed()) {
-            timerWindow.webContents.send('update-sound-play-delay', normalizedDelay);
+            timerWindow.webContents.send(MAIN_IPC_OUTBOUND_CHANNELS.UPDATE_SOUND_PLAY_DELAY, normalizedDelay);
         }
     });
 
@@ -232,30 +233,30 @@ function registerTimerHandlers(registerOnChannel: RegisterOnChannel, options: Re
         },
     });
 
-    registerOnChannel('hide-timer-window', (): void => {
+    registerOnChannel(MAIN_IPC_INBOUND_CHANNELS.HIDE_TIMER_WINDOW, (): void => {
         const timerWindow = windowManager.getTimerWindow();
         if (timerWindow && !timerWindow.isDestroyed()) {
             timerWindow.hide();
         }
     });
 
-    registerOnChannel('toggle-timer-window', (): void => {
+    registerOnChannel(MAIN_IPC_INBOUND_CHANNELS.TOGGLE_TIMER_WINDOW, (): void => {
         // console.log('[Main] Received toggle-timer-window IPC from renderer.');
         toggleTimerWindowVisibility();
     });
 
-    registerOnChannel('timer-countdown-update', (_event: IpcMainEvent, remainingTime: unknown): void => {
+    registerOnChannel(MAIN_IPC_INBOUND_CHANNELS.TIMER_COUNTDOWN_UPDATE, (_event: IpcMainEvent, remainingTime: unknown): void => {
         const parsedRemaining = parseNumberPayload(remainingTime);
         if (parsedRemaining === null) {
             return;
         }
         const mainWindow = windowManager.getMainWindow();
         if (mainWindow && !mainWindow.isDestroyed()) {
-            mainWindow.webContents.send('main-timer-update', parsedRemaining);
+            mainWindow.webContents.send(MAIN_IPC_OUTBOUND_CHANNELS.MAIN_TIMER_UPDATE, parsedRemaining);
         }
     });
 
-    registerOnChannel('timer-notification-trigger', (_event: IpcMainEvent, _seconds: unknown, shouldRumble: unknown): void => {
+    registerOnChannel(MAIN_IPC_INBOUND_CHANNELS.TIMER_NOTIFICATION_TRIGGER, (_event: IpcMainEvent, _seconds: unknown, shouldRumble: unknown): void => {
         if (shouldRumble === true) {
             if (!ensureJoyConReadyForRumble(joyConRumbleApi)) {
                 return;

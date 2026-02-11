@@ -3,8 +3,7 @@ type MessageRendererElectronAPI = {
     onUpdateMessageText: (callback: (text: string) => void) => void;
 };
 type MessageLogicApi = {
-    normalizeFontSize: (value: number, fallback: number, min: number, max: number) => number;
-    normalizeOpacity: (value: number, fallback: number, min: number, max: number) => number;
+    normalizeNumber: (value: number, fallback: number, min: number, max: number) => number;
     resolveWheelAction: (
         deltaY: number,
         shiftKey: boolean
@@ -29,15 +28,15 @@ const wheelZone = document.getElementById('wheel-zone') as HTMLElement | null;
 const storedFontSize = localStorageStore.getString('messageFontSize', '');
 const storedOpacity = localStorageStore.getString('messageWindowOpacity', '');
 
-let currentFontSize = messageLogic.normalizeFontSize(parseNumberUtils.parseIntOrFallback(storedFontSize, 64), 64, 10, 1000);
-let currentOpacity = messageLogic.normalizeOpacity(parseNumberUtils.parseFloatOrFallback(storedOpacity, 0.8), 0.8, 0.1, 1.0);
+let currentFontSize = messageLogic.normalizeNumber(parseNumberUtils.parseIntOrFallback(storedFontSize, 64), 64, 10, 1000);
+let currentOpacity = messageLogic.normalizeNumber(parseNumberUtils.parseFloatOrFallback(storedOpacity, 0.8), 0.8, 0.1, 1.0);
 
 /**
  * メッセージのフォントサイズを更新する。
  * @param delta 増減量
  */
 function updateFontSize(delta: number): void {
-    currentFontSize = messageLogic.normalizeFontSize(currentFontSize + delta, 64, 10, 1000);
+    currentFontSize = messageLogic.normalizeNumber(currentFontSize + delta, 64, 10, 1000);
     
     // console.log(`[MessageRenderer] Updating font size to: ${currentFontSize}px (delta: ${delta})`);
     
@@ -52,7 +51,7 @@ function updateFontSize(delta: number): void {
  * @param delta 増減量
  */
 function updateTransparency(delta: number): void {
-    currentOpacity = messageLogic.normalizeOpacity(currentOpacity + delta, 0.8, 0.1, 1.0);
+    currentOpacity = messageLogic.normalizeNumber(currentOpacity + delta, 0.8, 0.1, 1.0);
 
     document.body.style.backgroundColor = `rgba(70, 70, 70, ${currentOpacity})`;
     localStorageStore.setString('messageWindowOpacity', String(currentOpacity));
