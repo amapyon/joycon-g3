@@ -3,6 +3,7 @@ import { createStrongTripleRumblePattern, RumbleStep } from './rumble-pattern';
 import { registerTimerIpcHandlers } from './timer-ipc';
 import { CursorId, CursorMapConfig } from './imu-pointer';
 import { setTimerCounting, setTimerPaused, TimerState } from './timer-state';
+import { isCursorId, isRecord, parseNumberArrayPayload, parseNumberPayload } from './payload-parse-utils';
 import type { TimerNotificationConfig } from '../shared/timer-notification-config';
 
 type WindowManagerApi = {
@@ -37,48 +38,6 @@ type RegisterMainIpcHandlersOptions = {
 
 type RegisterOnChannel = (channel: string, handler: (event: IpcMainEvent, ...args: unknown[]) => void) => void;
 type CursorVisibilityPayload = { id: CursorId; isVisible: boolean };
-
-/**
- * 値がオブジェクトかどうかを判定する。
- * @param value 判定対象
- * @returns オブジェクトの場合は true
- */
-function isRecord(value: unknown): value is Record<string, unknown> {
-    return typeof value === 'object' && value !== null;
-}
-
-/**
- * カーソル ID かどうかを判定する。
- * @param value 判定対象
- * @returns カーソル ID の場合は true
- */
-function isCursorId(value: unknown): value is CursorId {
-    return value === 'cursorLeft' || value === 'cursorRight';
-}
-
-/**
- * 数値ペイロードを解析する。
- * @param value 入力値
- * @returns 数値。無効な場合は null
- */
-function parseNumberPayload(value: unknown): number | null {
-    return (typeof value === 'number' && Number.isFinite(value)) ? value : null;
-}
-
-/**
- * 数値配列ペイロードを解析する。
- * @param value 入力値
- * @returns 数値配列。無効な場合は null
- */
-function parseNumberArrayPayload(value: unknown): number[] | null {
-    if (!Array.isArray(value)) {
-        return null;
-    }
-    if (!value.every((item: unknown): boolean => typeof item === 'number' && Number.isFinite(item))) {
-        return null;
-    }
-    return value;
-}
 
 /**
  * タイマー通知設定配列を解析する。

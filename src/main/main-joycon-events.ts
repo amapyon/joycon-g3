@@ -1,8 +1,9 @@
 import { BrowserWindow } from 'electron';
-import { CursorId, ImuData, PointerPositions, decidePointerUpdate } from './imu-pointer';
+import { ImuData, PointerPositions, decidePointerUpdate } from './imu-pointer';
 import { RStickAction, RStickConfig, RStickState, decideRStickAnalog, decideRStickPress } from './r-stick-handler';
 import { getScreenSize } from './screen-state';
 import { isUsableWindow } from './browser-window-utils';
+import { isCursorId, isFiniteNumber, isRecord } from './payload-parse-utils';
 import {
     AttitudeData,
     BatteryStatus,
@@ -16,33 +17,6 @@ import {
 } from './main-joycon-events-types';
 
 let pointerPositions: PointerPositions | null = null;
-
-/**
- * カーソル ID かどうかを判定する。
- * @param value 判定対象
- * @returns カーソル ID の場合は true
- */
-function isCursorId(value: unknown): value is CursorId {
-    return value === 'cursorLeft' || value === 'cursorRight';
-}
-
-/**
- * 値がオブジェクトかどうかを判定する。
- * @param value 判定対象
- * @returns オブジェクトの場合は true
- */
-function isRecord(value: unknown): value is Record<string, unknown> {
-    return typeof value === 'object' && value !== null;
-}
-
-/**
- * 値が有限数かを判定する。
- * @param value 判定対象
- * @returns 有限数の場合は true
- */
-function isFiniteNumber(value: unknown): value is number {
-    return typeof value === 'number' && Number.isFinite(value);
-}
 
 /**
  * 3次元ベクトルを解析する。
