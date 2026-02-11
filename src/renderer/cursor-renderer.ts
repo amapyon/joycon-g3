@@ -5,60 +5,15 @@
 type CursorId = import('../shared/cursor-types').CursorId;
 type SharedCursorLogicApi = import('../shared/cursor-types').CursorLogicApi;
 type SharedCursorRuntimeLogicApi = import('../shared/cursor-types').CursorRuntimeLogicApi;
-
-// カーソルのマッピング設定
-interface CursorMap {
-    xFrom: 'roll' | 'pitch' | 'yaw';
-    yFrom: 'roll' | 'pitch' | 'yaw';
-    xSign: number;
-    ySign: number;
-}
-
-// カーソルの状態データ
-interface CursorData {
-    x: number;
-    y: number;
-    targetX: number;
-    targetY: number;
-    sensitivityX: number;
-    sensitivityY: number;
-    smoothing: number;
-    map: CursorMap;
-    isVisible: boolean;
-    opacity: number;
-    blink: boolean;
-    pendingX: number | null;
-    pendingY: number | null;
-    lastExternalUpdate: number;
-}
-
+type CursorData = import('./cursor-renderer-types').CursorData;
 type CursorMapConfig = import('../shared/cursor-types').CursorMapConfig;
 type UpdatePointerData = import('../shared/joycon-event-types').UpdatePointerData;
 type JoyConAttitudeData = import('../shared/joycon-event-types').JoyConAttitudeData;
 type ButtonStateData = import('../shared/joycon-event-types').JoyConButtonStateData;
 type ButtonPressData = import('../shared/joycon-event-types').JoyConCursorIdData;
 type CursorRendererApiResolverBootstrapApi = import('../shared/renderer-api-resolver-types').RendererApiResolverBootstrapApi;
-type CursorStateSnapshot = {
-    x: number;
-    y: number;
-    sensitivityX: number;
-    sensitivityY: number;
-    map: CursorMap;
-    isVisible: boolean;
-    pendingX: number | null;
-    pendingY: number | null;
-};
-type CursorRendererElectronAPI = {
-    onUpdatePointer: (callback: (pos: UpdatePointerData) => void) => void;
-    onJoyConAttitude: (callback: (data: JoyConAttitudeData) => void) => void;
-    onJoyConButtonX: (callback: (data: ButtonStateData) => void) => void;
-    onJoyConButtonDown: (callback: (data: ButtonStateData) => void) => void;
-    onJoyConButtonXPressed: (callback: (data: ButtonPressData) => void) => void;
-    onJoyConButtonDownPressed: (callback: (data: ButtonPressData) => void) => void;
-    sendCursorVisibilityUpdate: (id: CursorId, isVisible: boolean) => void;
-    sendCursorMapConfig: (config: CursorMapConfig) => void;
-    send?: (channel: string, ...args: unknown[]) => void;
-};
+type CursorStateSnapshot = import('./cursor-renderer-types').CursorStateSnapshot;
+type CursorRendererElectronAPI = import('./cursor-renderer-types').CursorRendererElectronAPI;
 type WindowWithIpcRenderer = Window & { ipcRenderer?: { send: (channel: string, ...args: unknown[]) => void } };
 
 const rendererApiResolverUtils = ((): import('../shared/renderer-api-resolver-types').RendererApiResolverUtilsApi => {

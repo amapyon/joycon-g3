@@ -5,6 +5,27 @@
     type ParseNumberUtilsApi = import('../../shared/parse-number-utils-types').ParseNumberUtilsApi;
     type LocalStorageStoreApi = import('../../shared/local-storage-store-types').LocalStorageStoreApi;
     type MainTimerApiResolverBootstrapApi = import('../../shared/renderer-api-resolver-types').RendererApiResolverBootstrapApi;
+    type TimerUiUtilsApi = {
+        setSelectValue: (select: HTMLSelectElement, value: string) => void;
+        resolveStoredCountdownInitialValue: (
+            storedValue: string,
+            parseCountdownInitialValue: (rawValue: string, min: number, max: number) => number | null,
+            min: number,
+            max: number,
+        ) => number | null;
+        previewSound: (
+            filename: string,
+            getMediaBasePath: () => Promise<string>,
+            buildMediaAbsolutePath: (basePath: string, filename: string) => string,
+            toFileUrl: (absolutePath: string) => string,
+        ) => Promise<void>;
+        applyStoredMediaDir: (
+            storedDir: string,
+            setMediaBasePath: (dir: string) => Promise<boolean>,
+            removeStoredDir: () => void,
+        ) => Promise<void>;
+    };
+    type TimerSoundHandlersApi = import('./timer-sound-handlers').TimerSoundHandlersApi;
 
     const rendererApiResolverUtils = ((): import('../../shared/renderer-api-resolver-types').RendererApiResolverUtilsApi => {
         const root = globalThis as typeof globalThis & {
@@ -22,6 +43,8 @@
     const mainRenderer = rendererApiResolverUtils.resolveGlobal<MainRendererContext>('mainRenderer');
     const timerMainLogic = rendererApiResolverUtils.resolveApi<TimerMainLogicApi>('timerMainLogic', './timer-logic');
     const parseNumberUtils = rendererApiResolverUtils.resolveApi<ParseNumberUtilsApi>('parseNumberUtils', '../parse-number-utils');
+    const timerUiUtils = rendererApiResolverUtils.resolveApi<TimerUiUtilsApi>('timerUiUtils', './timer-ui-utils');
+    const timerSoundHandlers = rendererApiResolverUtils.resolveApi<TimerSoundHandlersApi>('timerSoundHandlers', './timer-sound-handlers');
     const localStorageStore = rendererApiResolverUtils.resolveGlobal<LocalStorageStoreApi>('localStorageStore');
     const { electronAPI, elements, state } = mainRenderer;
 
@@ -154,21 +177,6 @@
     };
 
     /**
-     * セレクトボックスの値を安全に反映する。
-     * @param select セレクトボックス
-     * @param val 設定する値
-     * @returns なし
-     */
-    const setSelectValue = (select: HTMLSelectElement, val: string): void => {
-        for (let i = 0; i < select.options.length; i += 1) {
-            if (select.options[i].value === val) {
-                select.selectedIndex = i;
-                break;
-            }
-        }
-    };
-
-    /**
      * 通知設定をローカルストレージから復元する。
      * @returns なし
      */
@@ -177,12 +185,12 @@
         if (configs.length > 0) {
             if (configs[0]) {
                 elements.sound1TimeInput.value = String(configs[0].time);
-                setSelectValue(elements.sound1Select, configs[0].filename);
+                timerUiUtils.setSelectValue(elements.sound1Select, configs[0].filename);
                 elements.sound1RumbleToggle.checked = !!configs[0].rumble;
             }
             if (configs[1]) {
                 elements.sound2TimeInput.value = String(configs[1].time);
-                setSelectValue(elements.sound2Select, configs[1].filename);
+                timerUiUtils.setSelectValue(elements.sound2Select, configs[1].filename);
                 elements.sound2RumbleToggle.checked = !!configs[1].rumble;
             }
         }
@@ -239,41 +247,6 @@
     };
 
     /**
-     * サウンドファイルをプレビュー再生する。
-     * @param filename ファイル名
-     * @returns 処理完了を示す Promise
-     */
-    const previewSound = async (filename: string): Promise<void> => {
-        if (!filename) {
-            return;
-        }
-        const basePath = await electronAPI.getMediaBasePath();
-        const absolutePath = timerMainLogic.buildMediaAbsolutePath(basePath, filename);
-        const audioUrl = timerMainLogic.toFileUrl(absolutePath);
-        try {
-            const audio = new Audio(audioUrl);
-            void audio.play();
-        } catch {
-            return;
-        }
-    };
-
-    /**
-     * 保存済みのサウンドフォルダーを反映する。
-     * @returns 処理完了を示す Promise
-     */
-    const applyStoredMediaDir = async (): Promise<void> => {
-        const storedDir = localStorageStore.getString('soundMediaDir', '');
-        if (!storedDir) {
-            return;
-        }
-        const applied = await electronAPI.setMediaBasePath(storedDir);
-        if (!applied) {
-            localStorageStore.remove('soundMediaDir');
-        }
-    };
-
-    /**
      * サウンド再生遅延を初期化する。
      * @returns なし
      */
@@ -310,44 +283,6 @@
 
         elements.applyPresetsBtn.addEventListener('click', (): void => {
             applyPresets();
-        });
-    };
-
-    /**
-     * サウンド関連イベントを登録する。
-     * @returns なし
-     */
-    const registerSoundHandlers = (): void => {
-        [elements.sound1Select, elements.sound2Select, elements.sound1TimeInput, elements.sound2TimeInput]
-            .forEach((el: HTMLSelectElement | HTMLInputElement): void => {
-                el.addEventListener('change', (): void => {
-                    void broadcastNotificationUpdate();
-                });
-            });
-
-        elements.sound1PlayBtn.addEventListener('click', (): void => {
-            void previewSound(elements.sound1Select.value);
-        });
-
-        elements.sound2PlayBtn.addEventListener('click', (): void => {
-            void previewSound(elements.sound2Select.value);
-        });
-
-        elements.refreshSoundsBtn.addEventListener('click', (): void => {
-            void loadMediaFiles();
-        });
-
-        elements.soundFolderSelectBtn.addEventListener('click', async (): Promise<void> => {
-            await electronAPI.selectMediaFolder();
-            const basePath = await electronAPI.getMediaBasePath();
-            if (basePath) {
-                localStorageStore.setString('soundMediaDir', basePath);
-            }
-            void loadMediaFiles();
-        });
-
-        electronAPI.onUpdateTimerNotifications((configs: TimerNotificationConfig[]): void => {
-            localStorageStore.setJsonValue('timerNotifications', configs);
         });
     };
 
@@ -389,21 +324,6 @@
     };
 
     /**
-     * 保存済みのカウントダウン初期値を反映する。
-     * @returns なし
-     */
-    const applyStoredCountdownInitialValue = (): void => {
-        const savedInitialValue = localStorageStore.getString('countdownInitialValue', '');
-        if (!savedInitialValue) {
-            return;
-        }
-        const value = timerMainLogic.parseCountdownInitialValue(savedInitialValue, 1, 3600);
-        if (value !== null) {
-            applyCountdownInitialValue(value, true, false);
-        }
-    };
-
-    /**
      * タイマーセクションを初期化する。
      * @returns なし
      */
@@ -416,17 +336,41 @@
         initSoundPlayDelay();
         renderPresetConfig();
         registerTimerSyncHandlers();
-        registerSoundHandlers();
+        timerSoundHandlers.registerSoundHandlers({
+            elements,
+            electronAPI,
+            localStorageStore,
+            timerUiUtils,
+            timerMainLogic,
+            loadMediaFiles,
+            broadcastNotificationUpdate,
+        });
         registerCountdownInputHandler();
 
         electronAPI.updateTimerPresets(state.currentPresets);
 
-        void applyStoredMediaDir().then(() => loadMediaFiles());
+        void timerUiUtils
+            .applyStoredMediaDir(
+                localStorageStore.getString('soundMediaDir', ''),
+                electronAPI.setMediaBasePath,
+                (): void => {
+                    localStorageStore.remove('soundMediaDir');
+                },
+            )
+            .then(() => loadMediaFiles());
 
         elements.toggleTimerWindowBtn.addEventListener('click', (): void => {
             electronAPI.toggleTimerWindow();
         });
-        applyStoredCountdownInitialValue();
+        const storedInitialValue = timerUiUtils.resolveStoredCountdownInitialValue(
+            localStorageStore.getString('countdownInitialValue', ''),
+            timerMainLogic.parseCountdownInitialValue,
+            1,
+            3600,
+        );
+        if (storedInitialValue !== null) {
+            applyCountdownInitialValue(storedInitialValue, true, false);
+        }
     };
 
     mainRenderer.initTimerSection = initTimerSection;
