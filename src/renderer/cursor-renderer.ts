@@ -37,7 +37,7 @@ type UpdatePointerData = import('../shared/joycon-event-types').UpdatePointerDat
 type JoyConAttitudeData = import('../shared/joycon-event-types').JoyConAttitudeData;
 type ButtonStateData = import('../shared/joycon-event-types').JoyConButtonStateData;
 type ButtonPressData = import('../shared/joycon-event-types').JoyConCursorIdData;
-type WindowWithRendererApiResolver = import('../shared/renderer-api-resolver-types').WindowWithRendererApiResolver;
+type CursorRendererApiResolverBootstrapApi = import('../shared/renderer-api-resolver-types').RendererApiResolverBootstrapApi;
 type CursorStateSnapshot = {
     x: number;
     y: number;
@@ -61,10 +61,19 @@ type CursorRendererElectronAPI = {
 };
 type WindowWithIpcRenderer = Window & { ipcRenderer?: { send: (channel: string, ...args: unknown[]) => void } };
 
-const rendererApiResolverUtils = (window as WindowWithRendererApiResolver).rendererApiResolverUtils;
-if (!rendererApiResolverUtils) {
-    throw new Error('rendererApiResolverUtils is not available');
-}
+const rendererApiResolverUtils = ((): import('../shared/renderer-api-resolver-types').RendererApiResolverUtilsApi => {
+    const root = globalThis as typeof globalThis & {
+        rendererApiResolverBootstrap?: CursorRendererApiResolverBootstrapApi;
+    };
+    if (root.rendererApiResolverBootstrap) {
+        return root.rendererApiResolverBootstrap.getRendererApiResolverUtils('./api-resolver-access');
+    }
+    if (typeof require !== 'undefined') {
+        // eslint-disable-next-line @typescript-eslint/no-var-requires -- CommonJS 形式の読み込みが必要
+        return (require('./api-resolver-utils') as CursorRendererApiResolverBootstrapApi).getRendererApiResolverUtils('./api-resolver-access');
+    }
+    throw new Error('rendererApiResolverBootstrap API is not available');
+})();
 
 const electronAPI = rendererApiResolverUtils.resolveGlobal<CursorRendererElectronAPI>('electronAPI');
 const cursorLogic = rendererApiResolverUtils.resolveApi<SharedCursorLogicApi>('cursorLogic', './cursor-logic');

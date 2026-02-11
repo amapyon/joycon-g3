@@ -4,12 +4,21 @@
     type TimerNotificationConfig = import('../../shared/timer-notification-config').TimerNotificationConfig;
     type ParseNumberUtilsApi = import('../../shared/parse-number-utils-types').ParseNumberUtilsApi;
     type LocalStorageStoreApi = import('../../shared/local-storage-store-types').LocalStorageStoreApi;
-    type WindowWithRendererApiResolver = import('../../shared/renderer-api-resolver-types').WindowWithRendererApiResolver;
+    type MainTimerApiResolverBootstrapApi = import('../../shared/renderer-api-resolver-types').RendererApiResolverBootstrapApi;
 
-    const rendererApiResolverUtils = (window as WindowWithRendererApiResolver).rendererApiResolverUtils;
-    if (!rendererApiResolverUtils) {
-        throw new Error('rendererApiResolverUtils is not available');
-    }
+    const rendererApiResolverUtils = ((): import('../../shared/renderer-api-resolver-types').RendererApiResolverUtilsApi => {
+        const root = globalThis as typeof globalThis & {
+            rendererApiResolverBootstrap?: MainTimerApiResolverBootstrapApi;
+        };
+        if (root.rendererApiResolverBootstrap) {
+            return root.rendererApiResolverBootstrap.getRendererApiResolverUtils('../api-resolver-access');
+        }
+        if (typeof require !== 'undefined') {
+            // eslint-disable-next-line @typescript-eslint/no-var-requires -- CommonJS 形式の読み込みが必要
+            return (require('../api-resolver-utils') as MainTimerApiResolverBootstrapApi).getRendererApiResolverUtils('../api-resolver-access');
+        }
+        throw new Error('rendererApiResolverBootstrap API is not available');
+    })();
     const mainRenderer = rendererApiResolverUtils.resolveGlobal<MainRendererContext>('mainRenderer');
     const timerMainLogic = rendererApiResolverUtils.resolveApi<TimerMainLogicApi>('timerMainLogic', './timer-logic');
     const parseNumberUtils = rendererApiResolverUtils.resolveApi<ParseNumberUtilsApi>('parseNumberUtils', '../parse-number-utils');
