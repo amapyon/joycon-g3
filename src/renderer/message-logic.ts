@@ -12,20 +12,20 @@ type MessageNumberUtilsApi = {
     normalizeNumber: (value: number, fallback: number, min: number, max: number) => number;
 };
 
-type MessageApiResolverAccessApi = import('../shared/renderer-api-resolver-types').RendererApiResolverAccessApi;
+type MessageApiResolverBootstrapApi = import('../shared/renderer-api-resolver-types').RendererApiResolverBootstrapApi;
 
 const messageApiResolverUtils = ((): import('../shared/renderer-api-resolver-types').RendererApiResolverUtilsApi => {
     const root = globalThis as typeof globalThis & {
-        rendererApiResolverAccess?: MessageApiResolverAccessApi;
+        rendererApiResolverBootstrap?: MessageApiResolverBootstrapApi;
     };
-    if (root.rendererApiResolverAccess) {
-        return root.rendererApiResolverAccess.getRendererApiResolverUtils();
+    if (root.rendererApiResolverBootstrap) {
+        return root.rendererApiResolverBootstrap.getRendererApiResolverUtils('./api-resolver-access');
     }
     if (typeof require !== 'undefined') {
         // eslint-disable-next-line @typescript-eslint/no-var-requires -- CommonJS 形式の読み込みが必要
-        return (require('./api-resolver-access') as MessageApiResolverAccessApi).getRendererApiResolverUtils();
+        return (require('./api-resolver-utils') as MessageApiResolverBootstrapApi).getRendererApiResolverUtils('./api-resolver-access');
     }
-    throw new Error('rendererApiResolverAccess API is not available');
+    throw new Error('rendererApiResolverBootstrap API is not available');
 })();
 
 const messageWheelActionUtilsApi = messageApiResolverUtils.resolveApi<import('../shared/wheel-action-types').WheelActionUtilsApi>('wheelActionUtils', './wheel-action-utils');

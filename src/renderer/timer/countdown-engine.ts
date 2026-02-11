@@ -25,20 +25,20 @@ type CountdownNumberUtilsApi = {
     normalizeNumber: (value: number, fallback: number, min: number, max: number) => number;
 };
 
-type CountdownApiResolverAccessApi = import('../../shared/renderer-api-resolver-types').RendererApiResolverAccessApi;
+type CountdownApiResolverBootstrapApi = import('../../shared/renderer-api-resolver-types').RendererApiResolverBootstrapApi;
 
 const countdownApiResolverUtils = ((): import('../../shared/renderer-api-resolver-types').RendererApiResolverUtilsApi => {
     const root = globalThis as typeof globalThis & {
-        rendererApiResolverAccess?: CountdownApiResolverAccessApi;
+        rendererApiResolverBootstrap?: CountdownApiResolverBootstrapApi;
     };
-    if (root.rendererApiResolverAccess) {
-        return root.rendererApiResolverAccess.getRendererApiResolverUtils();
+    if (root.rendererApiResolverBootstrap) {
+        return root.rendererApiResolverBootstrap.getRendererApiResolverUtils('../api-resolver-access');
     }
     if (typeof require !== 'undefined') {
         // eslint-disable-next-line @typescript-eslint/no-var-requires -- CommonJS 形式の読み込みが必要
-        return (require('../api-resolver-access') as CountdownApiResolverAccessApi).getRendererApiResolverUtils();
+        return (require('../api-resolver-utils') as CountdownApiResolverBootstrapApi).getRendererApiResolverUtils('../api-resolver-access');
     }
-    throw new Error('rendererApiResolverAccess API is not available');
+    throw new Error('rendererApiResolverBootstrap API is not available');
 })();
 
 const countdownTimeFormatApi: CountdownTimeFormatApi = countdownApiResolverUtils.resolveApi<CountdownTimeFormatApi>('timerTimeFormat', './time-format-utils');

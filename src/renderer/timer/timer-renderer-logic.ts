@@ -6,20 +6,20 @@ type TimerRendererTickResult = import('../../shared/timer-renderer-types').Timer
 type TimerRendererTickAction = import('../../shared/timer-renderer-types').TimerRendererTickAction;
 type TimerRendererLogicApi = import('../../shared/timer-renderer-types').TimerRendererLogicApi;
 
-type TimerRendererLogicApiResolverAccessApi = import('../../shared/renderer-api-resolver-types').RendererApiResolverAccessApi;
+type TimerRendererLogicApiResolverBootstrapApi = import('../../shared/renderer-api-resolver-types').RendererApiResolverBootstrapApi;
 
 const timerRendererLogicApiResolverUtils = ((): import('../../shared/renderer-api-resolver-types').RendererApiResolverUtilsApi => {
     const root = globalThis as typeof globalThis & {
-        rendererApiResolverAccess?: TimerRendererLogicApiResolverAccessApi;
+        rendererApiResolverBootstrap?: TimerRendererLogicApiResolverBootstrapApi;
     };
-    if (root.rendererApiResolverAccess) {
-        return root.rendererApiResolverAccess.getRendererApiResolverUtils();
+    if (root.rendererApiResolverBootstrap) {
+        return root.rendererApiResolverBootstrap.getRendererApiResolverUtils('../api-resolver-access');
     }
     if (typeof require !== 'undefined') {
         // eslint-disable-next-line @typescript-eslint/no-var-requires -- CommonJS 形式の読み込みが必要
-        return (require('../api-resolver-access') as TimerRendererLogicApiResolverAccessApi).getRendererApiResolverUtils();
+        return (require('../api-resolver-utils') as TimerRendererLogicApiResolverBootstrapApi).getRendererApiResolverUtils('../api-resolver-access');
     }
-    throw new Error('rendererApiResolverAccess API is not available');
+    throw new Error('rendererApiResolverBootstrap API is not available');
 })();
 
 const timerRendererWheelActionUtilsApi: TimerRendererWheelActionUtilsSharedApi =

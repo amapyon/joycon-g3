@@ -7,6 +7,10 @@ export type RendererApiResolverAccessApi = {
     getRendererApiResolverUtils: () => RendererApiResolverUtilsApi;
 };
 
+export type RendererApiResolverBootstrapApi = {
+    getRendererApiResolverUtils: (accessRequirePath: string) => RendererApiResolverUtilsApi;
+};
+
 export type WindowWithRendererApiResolver = Window & {
     rendererApiResolverUtils?: RendererApiResolverUtilsApi;
 };

@@ -1,6 +1,7 @@
 {
 type RendererApiResolverUtilsApi = import('../shared/renderer-api-resolver-types').RendererApiResolverUtilsApi;
 type RendererApiResolverAccessApi = import('../shared/renderer-api-resolver-types').RendererApiResolverAccessApi;
+type RendererApiResolverBootstrapApi = import('../shared/renderer-api-resolver-types').RendererApiResolverBootstrapApi;
 type GlobalApiRegistry = typeof globalThis & { [key: string]: unknown };
 
 /**
@@ -54,7 +55,34 @@ const rendererApiResolverAccessRoot = globalThis as typeof globalThis & {
 };
 rendererApiResolverAccessRoot.rendererApiResolverAccess = rendererApiResolverAccessApi;
 
+/**
+ * rendererApiResolverUtils を access API 経由で解決する。
+ * @param accessRequirePath rendererApiResolverAccess の require パス
+ * @returns API リゾルバー
+ */
+const getRendererApiResolverUtils = (accessRequirePath: string): RendererApiResolverUtilsApi => {
+    if (rendererApiResolverAccessRoot.rendererApiResolverAccess) {
+        return rendererApiResolverAccessRoot.rendererApiResolverAccess.getRendererApiResolverUtils();
+    }
+    if (typeof require !== 'undefined') {
+        // eslint-disable-next-line @typescript-eslint/no-var-requires -- CommonJS 形式の読み込みが必要
+        return (require(accessRequirePath) as RendererApiResolverAccessApi).getRendererApiResolverUtils();
+    }
+    throw new Error('rendererApiResolverAccess API is not available');
+};
+
+const rendererApiResolverBootstrapApi: RendererApiResolverBootstrapApi = {
+    getRendererApiResolverUtils,
+};
+const rendererApiResolverBootstrapRoot = globalThis as typeof globalThis & {
+    rendererApiResolverBootstrap?: RendererApiResolverBootstrapApi;
+};
+rendererApiResolverBootstrapRoot.rendererApiResolverBootstrap = rendererApiResolverBootstrapApi;
+
 if (typeof module !== 'undefined' && module && module.exports) {
-    module.exports = rendererApiResolverUtilsApi;
+    module.exports = {
+        ...rendererApiResolverUtilsApi,
+        getRendererApiResolverUtils,
+    };
 }
 }
