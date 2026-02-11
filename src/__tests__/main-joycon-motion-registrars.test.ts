@@ -15,11 +15,17 @@ type TestContextBundle = {
     setRStickState: jest.Mock;
 };
 
+type TestContextOverrides = {
+    getCursorWindow?: () => ReturnType<JoyConEventsContext['options']['windowManager']['getCursorWindow']>;
+    getCursorVisibility?: JoyConEventsContext['options']['getCursorVisibility'];
+};
+
 /**
  * テスト用の Joy-Con イベントコンテキストを生成する。
+ * @param overrides 一部依存の差し替え設定
  * @returns コンテキストとハンドラ参照
  */
-function createTestContext(): TestContextBundle {
+function createTestContext(overrides: TestContextOverrides = {}): TestContextBundle {
     const joyConHandlers: JoyConHandlerMap = {};
     const imuHandlers: ImuHandlerMap = {};
     const imuUpdate = jest.fn();
@@ -63,7 +69,7 @@ function createTestContext(): TestContextBundle {
                 },
             },
             windowManager: {
-                getCursorWindow: () => null,
+                getCursorWindow: overrides.getCursorWindow ?? (() : ReturnType<JoyConEventsContext['options']['windowManager']['getCursorWindow']> => null),
                 getTimerWindow: () => null,
                 getMainWindow: () => null,
                 closeCursorWindow: jest.fn(),
@@ -71,7 +77,7 @@ function createTestContext(): TestContextBundle {
             ensureTimerWindow: () => null,
             toggleTimerWindowVisibility: jest.fn(),
             getCursorMapConfig: () => ({}),
-            getCursorVisibility: () => true,
+            getCursorVisibility: overrides.getCursorVisibility ?? (() : boolean => true),
             powerpointControl: {
                 next: () => false,
                 previous: () => false,
@@ -111,6 +117,49 @@ describe('main-joycon-motion-registrars', (): void => {
         });
 
         expect(imuUpdate).toHaveBeenCalledTimes(1);
+    });
+
+    it('有効なIMUデータでカーソルウィンドウがあれば送信する', (): void => {
+        const send = jest.fn();
+        const cursorWindow = {
+            isDestroyed: (): boolean => false,
+            webContents: { send },
+        } as unknown as ReturnType<JoyConEventsContext['options']['windowManager']['getCursorWindow']>;
+        const { context, joyConHandlers, imuUpdate } = createTestContext({
+            getCursorWindow: () => cursorWindow,
+        });
+        registerImuHandlers(context);
+
+        joyConHandlers[JOYCON_MANAGER_EVENTS.IMU_DATA]?.({
+            id: 'cursorLeft',
+            accel: { x: 1, y: 2, z: 3 },
+            gyro: { x: 4, y: 5, z: 6 },
+        });
+
+        expect(imuUpdate).toHaveBeenCalledTimes(1);
+        expect(send).toHaveBeenCalledTimes(1);
+    });
+
+    it('カーソル非表示時は有効なIMUデータでも送信しない', (): void => {
+        const send = jest.fn();
+        const cursorWindow = {
+            isDestroyed: (): boolean => false,
+            webContents: { send },
+        } as unknown as ReturnType<JoyConEventsContext['options']['windowManager']['getCursorWindow']>;
+        const { context, joyConHandlers, imuUpdate } = createTestContext({
+            getCursorWindow: () => cursorWindow,
+            getCursorVisibility: () => false,
+        });
+        registerImuHandlers(context);
+
+        joyConHandlers[JOYCON_MANAGER_EVENTS.IMU_DATA]?.({
+            id: 'cursorLeft',
+            accel: { x: 1, y: 2, z: 3 },
+            gyro: { x: 4, y: 5, z: 6 },
+        });
+
+        expect(imuUpdate).toHaveBeenCalledTimes(1);
+        expect(send).not.toHaveBeenCalled();
     });
 
     it('Rスティック押下データが不正なら状態更新・dispatchしない', (): void => {
