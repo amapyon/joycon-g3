@@ -8,6 +8,7 @@ import { setScreenSize } from './screen-state';
 import { MediaDirectoryStore } from './media-directory-store';
 import { findDisplayById, resolveDisplayId, toPhysicalScreenSize } from './ipc-handler-logic';
 import { isUsableWindow } from './browser-window-utils';
+import { IPC_HANDLER_INBOUND_CHANNELS, IPC_HANDLER_OUTBOUND_CHANNELS } from '../shared/ipc-handler-channels';
 
 type IpcHandlerDependencies = {
     mediaDirectoryStore?: MediaDirectoryStore;
@@ -26,8 +27,8 @@ type IpcHandlerContext = {
  */
 function sendStartCountdownToTimerWindow(timerWin: BrowserWindow, duration: number): void {
     const sendPayload = (): void => {
-        timerWin.webContents.send('set-timer-mode', 'timer');
-        timerWin.webContents.send('start-countdown', duration);
+        timerWin.webContents.send(IPC_HANDLER_OUTBOUND_CHANNELS.SET_TIMER_MODE, 'timer');
+        timerWin.webContents.send(IPC_HANDLER_OUTBOUND_CHANNELS.START_COUNTDOWN, duration);
     };
 
     if (timerWin.webContents.isLoading()) {
@@ -49,7 +50,7 @@ function sendStartCountdownToTimerWindow(timerWin: BrowserWindow, duration: numb
 function registerCursorWindowHandlers(context: IpcHandlerContext): void {
     const { windowManagerInstance } = context;
 
-    ipcMain.on('launch-cursor-window', (_event: IpcMainEvent, displayId: string) => {
+    ipcMain.on(IPC_HANDLER_INBOUND_CHANNELS.LAUNCH_CURSOR_WINDOW, (_event: IpcMainEvent, displayId: string) => {
         // console.log(`IPC Handler: Received 'launch-cursor-window' for display ID: ${displayId}`);
         try {
             const targetId = resolveDisplayId(displayId);
@@ -69,7 +70,7 @@ function registerCursorWindowHandlers(context: IpcHandlerContext): void {
         }
     });
 
-    ipcMain.on('close-cursor-window', () => {
+    ipcMain.on(IPC_HANDLER_INBOUND_CHANNELS.CLOSE_CURSOR_WINDOW, () => {
         // console.log("IPC Handler: Received 'close-cursor-window' request.");
         const windowToClose = windowManagerInstance.getCursorWindow();
         if (isUsableWindow(windowToClose)) {
@@ -80,7 +81,7 @@ function registerCursorWindowHandlers(context: IpcHandlerContext): void {
         // console.log('IPC Handler: Cursor window already closed or not found.');
         const mainWin = windowManagerInstance.getMainWindow();
         if (isUsableWindow(mainWin)) {
-            mainWin.webContents.send('cursor-window-closed');
+            mainWin.webContents.send(IPC_HANDLER_OUTBOUND_CHANNELS.CURSOR_WINDOW_CLOSED);
         }
     });
 }
@@ -92,12 +93,12 @@ function registerCursorWindowHandlers(context: IpcHandlerContext): void {
 function registerPresentationHandlers(context: IpcHandlerContext): void {
     const { windowManagerInstance } = context;
 
-    ipcMain.on('set-target-presentation', (_event: IpcMainEvent, identifier: string) => {
+    ipcMain.on(IPC_HANDLER_INBOUND_CHANNELS.SET_TARGET_PRESENTATION, (_event: IpcMainEvent, identifier: string) => {
         // console.log(`[IPC Handler] Received 'set-target-presentation': ${identifier}`);
         powerpointControl.setTarget(identifier);
     });
 
-    ipcMain.handle('get-open-powerpoint-presentations', async () => {
+    ipcMain.handle(IPC_HANDLER_INBOUND_CHANNELS.GET_OPEN_POWERPOINT_PRESENTATIONS, async () => {
         // console.log("[IPC Handler] Received 'get-open-powerpoint-presentations' request.");
         try {
             return powerpointControl.getOpenPresentations();
@@ -117,22 +118,22 @@ function registerPresentationHandlers(context: IpcHandlerContext): void {
 function registerCalibrationAndStatusHandlers(context: IpcHandlerContext): void {
     const { windowManagerInstance, joyconManager } = context;
 
-    ipcMain.on('start-calibration', () => {
+    ipcMain.on(IPC_HANDLER_INBOUND_CHANNELS.START_CALIBRATION, () => {
         // console.log("[IPC Handler] Received 'start-calibration' request.");
         imuProcessor.startGyroCalibration('cursorLeft');
         imuProcessor.startGyroCalibration('cursorRight');
     });
 
-    ipcMain.on('request-joycon-status', () => {
+    ipcMain.on(IPC_HANDLER_INBOUND_CHANNELS.REQUEST_JOYCON_STATUS, () => {
         // console.log("IPC Handler: Received 'request-joycon-status'.");
         const status = joyconManager.getConnectionStatus();
         const mainWin = windowManagerInstance.getMainWindow();
         if (isUsableWindow(mainWin)) {
-            mainWin.webContents.send('joycon-status-update', status);
+            mainWin.webContents.send(IPC_HANDLER_OUTBOUND_CHANNELS.JOYCON_STATUS_UPDATE, status);
         }
     });
 
-    ipcMain.on('recenter-imu', (_event: IpcMainEvent, id: 'cursorLeft' | 'cursorRight') => {
+    ipcMain.on(IPC_HANDLER_INBOUND_CHANNELS.RECENTER_IMU, (_event: IpcMainEvent, id: 'cursorLeft' | 'cursorRight') => {
         // console.log(`[IPC Handler] Received 'recenter-imu' request for ${id}.`);
         imuProcessor.recenter(id);
     });
@@ -145,7 +146,7 @@ function registerCalibrationAndStatusHandlers(context: IpcHandlerContext): void 
 function registerTimerHandlers(context: IpcHandlerContext): void {
     const { windowManagerInstance } = context;
 
-    ipcMain.on('start-countdown-timer', (_event: IpcMainEvent, duration: number) => {
+    ipcMain.on(IPC_HANDLER_INBOUND_CHANNELS.START_COUNTDOWN_TIMER, (_event: IpcMainEvent, duration: number) => {
         // console.log(`[IPC Handler] Received 'start-countdown-timer': ${duration}s`);
         const timerWin = windowManagerInstance.getTimerWindow();
         if (isUsableWindow(timerWin)) {
@@ -163,17 +164,17 @@ function registerTimerHandlers(context: IpcHandlerContext): void {
         sendStartCountdownToTimerWindow(newTimerWin, duration);
     });
 
-    ipcMain.on('toggle-timer-pause', () => {
+    ipcMain.on(IPC_HANDLER_INBOUND_CHANNELS.TOGGLE_TIMER_PAUSE, () => {
         const timerWin = windowManagerInstance.getTimerWindow();
         if (isUsableWindow(timerWin)) {
-            timerWin.webContents.send('timer-toggle-pause');
+            timerWin.webContents.send(IPC_HANDLER_OUTBOUND_CHANNELS.TIMER_TOGGLE_PAUSE);
         }
     });
 
-    ipcMain.on('add-minute-timer', () => {
+    ipcMain.on(IPC_HANDLER_INBOUND_CHANNELS.ADD_MINUTE_TIMER, () => {
         const timerWin = windowManagerInstance.getTimerWindow();
         if (isUsableWindow(timerWin)) {
-            timerWin.webContents.send('timer-add-minute');
+            timerWin.webContents.send(IPC_HANDLER_OUTBOUND_CHANNELS.TIMER_ADD_MINUTE);
         }
     });
 }
@@ -185,7 +186,7 @@ function registerTimerHandlers(context: IpcHandlerContext): void {
 function registerDisplayAndConnectionHandlers(context: IpcHandlerContext): void {
     const { windowManagerInstance, joyconManager } = context;
 
-    ipcMain.on('set-target-display', (_event: IpcMainEvent, displayId: number | string) => {
+    ipcMain.on(IPC_HANDLER_INBOUND_CHANNELS.SET_TARGET_DISPLAY, (_event: IpcMainEvent, displayId: number | string) => {
         // console.log(`[IPC Handler] Received 'set-target-display': ${displayId}`);
         const id = resolveDisplayId(displayId);
         if (id === null) {
@@ -200,7 +201,7 @@ function registerDisplayAndConnectionHandlers(context: IpcHandlerContext): void 
         }
     });
 
-    ipcMain.on('connect-joycon', (event: IpcMainEvent, isLeft: boolean) => {
+    ipcMain.on(IPC_HANDLER_INBOUND_CHANNELS.CONNECT_JOYCON, (event: IpcMainEvent, isLeft: boolean) => {
         // console.log(`[IPC Handler] Received 'connect-joycon' request for ${isLeft ? 'L' : 'R'}.`);
         if (isLeft) {
             joyconManager.autoConnectL = true;
@@ -208,13 +209,13 @@ function registerDisplayAndConnectionHandlers(context: IpcHandlerContext): void 
             joyconManager.autoConnectR = true;
         }
         joyconManager.connectAll();
-        event.reply('joycon-status-update', joyconManager.getConnectionStatus());
+        event.reply(IPC_HANDLER_OUTBOUND_CHANNELS.JOYCON_STATUS_UPDATE, joyconManager.getConnectionStatus());
     });
 
-    ipcMain.on('shutdown-joycon', (event: IpcMainEvent, isLeft: boolean) => {
+    ipcMain.on(IPC_HANDLER_INBOUND_CHANNELS.SHUTDOWN_JOYCON, (event: IpcMainEvent, isLeft: boolean) => {
         // console.log(`[IPC Handler] Received 'shutdown-joycon' request for ${isLeft ? 'L' : 'R'}.`);
         joyconManager.shutdownJoyCon(isLeft);
-        event.reply('joycon-status-update', joyconManager.getConnectionStatus());
+        event.reply(IPC_HANDLER_OUTBOUND_CHANNELS.JOYCON_STATUS_UPDATE, joyconManager.getConnectionStatus());
     });
 }
 
@@ -230,10 +231,10 @@ function registerMediaHandlers(context: IpcHandlerContext): void {
         return mediaDirectoryStore.selectMediaFolder(mainWin ?? undefined);
     };
 
-    ipcMain.handle('select-media-folder', async () => selectMediaFolder());
-    ipcMain.handle('get-media-files', async () => mediaDirectoryStore.getMediaFiles());
-    ipcMain.handle('get-media-base-path', () => mediaDirectoryStore.getMediaBasePath());
-    ipcMain.handle('set-media-base-path', (_event: IpcMainInvokeEvent, dir: string) => {
+    ipcMain.handle(IPC_HANDLER_INBOUND_CHANNELS.SELECT_MEDIA_FOLDER, async () => selectMediaFolder());
+    ipcMain.handle(IPC_HANDLER_INBOUND_CHANNELS.GET_MEDIA_FILES, async () => mediaDirectoryStore.getMediaFiles());
+    ipcMain.handle(IPC_HANDLER_INBOUND_CHANNELS.GET_MEDIA_BASE_PATH, () => mediaDirectoryStore.getMediaBasePath());
+    ipcMain.handle(IPC_HANDLER_INBOUND_CHANNELS.SET_MEDIA_BASE_PATH, (_event: IpcMainInvokeEvent, dir: string) => {
         return mediaDirectoryStore.setMediaBasePath(dir);
     });
 }
@@ -246,22 +247,22 @@ function registerMessageHandlers(context: IpcHandlerContext): void {
     const { windowManagerInstance } = context;
     let lastMessageText = '';
 
-    ipcMain.on('send-message-text', (_event: IpcMainEvent, text: string) => {
+    ipcMain.on(IPC_HANDLER_INBOUND_CHANNELS.SEND_MESSAGE_TEXT, (_event: IpcMainEvent, text: string) => {
         lastMessageText = text;
         const msgWin = windowManagerInstance.getMessageWindow();
         if (isUsableWindow(msgWin)) {
-            msgWin.webContents.send('update-message-text', text);
+            msgWin.webContents.send(IPC_HANDLER_OUTBOUND_CHANNELS.UPDATE_MESSAGE_TEXT, text);
         }
     });
 
-    ipcMain.on('toggle-message-window', () => {
+    ipcMain.on(IPC_HANDLER_INBOUND_CHANNELS.TOGGLE_MESSAGE_WINDOW, () => {
         let msgWin = windowManagerInstance.getMessageWindow();
         if (isUsableWindow(msgWin)) {
             if (msgWin.isVisible()) {
                 msgWin.hide();
             } else {
                 msgWin.show();
-                msgWin.webContents.send('update-message-text', lastMessageText);
+                msgWin.webContents.send(IPC_HANDLER_OUTBOUND_CHANNELS.UPDATE_MESSAGE_TEXT, lastMessageText);
             }
             return;
         }
@@ -275,7 +276,7 @@ function registerMessageHandlers(context: IpcHandlerContext): void {
         }
         msgWin.webContents.once('did-finish-load', () => {
             if (isUsableWindow(msgWin)) {
-                msgWin.webContents.send('update-message-text', lastMessageText);
+                msgWin.webContents.send(IPC_HANDLER_OUTBOUND_CHANNELS.UPDATE_MESSAGE_TEXT, lastMessageText);
             }
         });
     });
