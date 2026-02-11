@@ -1,5 +1,6 @@
 import { RStickConfig, RStickState } from './r-stick-handler';
 import { dispatchRStickActions, sendToWindow } from './main-joycon-window-dispatch';
+import type { PointerPositions } from './imu-pointer';
 import {
     parseBatteryStatus,
     parseJoyConStatus,
@@ -55,8 +56,13 @@ export function registerMainJoyConEvents(options: RegisterMainJoyConEventsOption
         lastFontSizeChangeTime: 0,
         isTimerMenuNavActive: false,
     };
+    const pointerPositions: PointerPositions = {
+        cursorLeft: { x: 600, y: 300 },
+        cursorRight: { x: 600, y: 300 },
+    };
     const context: JoyConEventsContext = {
         options,
+        pointerPositions,
         rStickConfig,
         rStickState,
         setRStickState: (state: RStickState): void => { rStickState = state; context.rStickState = state; },

@@ -14,9 +14,7 @@ type ButtonForwardConfig = {
 
 type PressForwardConfig = {
     eventName: JoyConManagerEventName;
-    shouldEnsureTimerWindow: boolean;
-    beforeSend?: (id: 'cursorLeft' | 'cursorRight') => void;
-    onRightCursorOnly?: () => void;
+    handle: (id: 'cursorLeft' | 'cursorRight') => void;
 };
 
 /**
@@ -50,42 +48,47 @@ function registerButtonPressHandlers(context: JoyConEventsContext): void {
     const pressForwardConfigs: PressForwardConfig[] = [
         {
             eventName: JOYCON_MANAGER_EVENTS.BUTTON_X_PRESSED,
-            shouldEnsureTimerWindow: false,
-            beforeSend: (id: 'cursorLeft' | 'cursorRight'): void => {
+            handle: (id: 'cursorLeft' | 'cursorRight'): void => {
                 if (isCursorId(id)) {
                     imuProcessor.recenter(id);
                 }
+                sendToWindow(windowManager.getCursorWindow(), JOYCON_IPC_CHANNELS.BUTTON_X_PRESSED, { id });
             },
         },
         {
             eventName: JOYCON_MANAGER_EVENTS.BUTTON_PLUS_PRESSED,
-            shouldEnsureTimerWindow: false,
-            beforeSend: (): void => {
+            handle: (id: 'cursorLeft' | 'cursorRight'): void => {
                 toggleTimerWindowVisibility();
+                sendToWindow(windowManager.getTimerWindow(), JOYCON_IPC_CHANNELS.BUTTON_PLUS_PRESSED, { id });
             },
         },
         {
             eventName: JOYCON_MANAGER_EVENTS.BUTTON_MINUS_PRESSED,
-            shouldEnsureTimerWindow: true,
+            handle: (id: 'cursorLeft' | 'cursorRight'): void => {
+                sendToTimerWhenReady(ensureTimerWindow(), JOYCON_MANAGER_EVENTS.BUTTON_MINUS_PRESSED, { id });
+            },
         },
         {
             eventName: JOYCON_MANAGER_EVENTS.BUTTON_SR_PRESSED,
-            shouldEnsureTimerWindow: true,
+            handle: (id: 'cursorLeft' | 'cursorRight'): void => {
+                sendToTimerWhenReady(ensureTimerWindow(), JOYCON_MANAGER_EVENTS.BUTTON_SR_PRESSED, { id });
+            },
         },
         {
             eventName: JOYCON_MANAGER_EVENTS.BUTTON_DOWN_PRESSED,
-            shouldEnsureTimerWindow: false,
-            beforeSend: (id: 'cursorLeft' | 'cursorRight'): void => {
+            handle: (id: 'cursorLeft' | 'cursorRight'): void => {
                 if (isCursorId(id)) {
                     imuProcessor.recenter(id);
                 }
+                sendToWindow(windowManager.getCursorWindow(), JOYCON_IPC_CHANNELS.BUTTON_DOWN_PRESSED, { id });
             },
         },
         {
             eventName: JOYCON_MANAGER_EVENTS.BUTTON_HOME_PRESSED,
-            shouldEnsureTimerWindow: false,
-            onRightCursorOnly: (): void => {
-                windowManager.closeCursorWindow();
+            handle: (id: 'cursorLeft' | 'cursorRight'): void => {
+                if (id === 'cursorRight') {
+                    windowManager.closeCursorWindow();
+                }
             },
         },
     ];
@@ -96,36 +99,7 @@ function registerButtonPressHandlers(context: JoyConEventsContext): void {
             if (!typedData) {
                 return;
             }
-
-            if (config.beforeSend) {
-                config.beforeSend(typedData.id);
-            }
-
-            if (config.onRightCursorOnly) {
-                if (typedData.id === 'cursorRight') {
-                    config.onRightCursorOnly();
-                }
-                return;
-            }
-
-            if (config.shouldEnsureTimerWindow) {
-                sendToTimerWhenReady(ensureTimerWindow(), config.eventName, typedData);
-                return;
-            }
-
-            if (config.eventName === JOYCON_MANAGER_EVENTS.BUTTON_PLUS_PRESSED) {
-                sendToWindow(windowManager.getTimerWindow(), JOYCON_IPC_CHANNELS.BUTTON_PLUS_PRESSED, typedData);
-                return;
-            }
-
-            if (config.eventName === JOYCON_MANAGER_EVENTS.BUTTON_X_PRESSED) {
-                sendToWindow(windowManager.getCursorWindow(), JOYCON_IPC_CHANNELS.BUTTON_X_PRESSED, typedData);
-                return;
-            }
-
-            if (config.eventName === JOYCON_MANAGER_EVENTS.BUTTON_DOWN_PRESSED) {
-                sendToWindow(windowManager.getCursorWindow(), JOYCON_IPC_CHANNELS.BUTTON_DOWN_PRESSED, typedData);
-            }
+            config.handle(typedData.id);
         });
     });
 }

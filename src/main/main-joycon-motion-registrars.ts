@@ -1,4 +1,4 @@
-import { PointerPositions, decidePointerUpdate } from './imu-pointer';
+import { decidePointerUpdate } from './imu-pointer';
 import { decideRStickAnalog, decideRStickPress } from './r-stick-handler';
 import { getScreenSize } from './screen-state';
 import { sendToWindow } from './main-joycon-window-dispatch';
@@ -11,8 +11,6 @@ import {
 } from './main-joycon-event-parsers';
 import { JOYCON_IPC_CHANNELS, JOYCON_MANAGER_EVENTS } from '../shared/joycon-event-channels';
 import type { JoyConEventsContext } from './main-joycon-events-types';
-
-let pointerPositions: PointerPositions | null = null;
 
 /**
  * IMU イベントの ID からカーソル ID を解決する。
@@ -27,17 +25,6 @@ function resolveCursorIdFromImuId(id: string): 'cursorLeft' | 'cursorRight' | nu
         return 'cursorLeft';
     }
     return null;
-}
-
-/**
- * 初期ポインター位置を確保する。
- * @returns 初期化済みポインター位置
- */
-function ensurePointerPositions(): PointerPositions {
-    if (!pointerPositions) {
-        pointerPositions = { cursorLeft: { x: 600, y: 300 }, cursorRight: { x: 600, y: 300 } };
-    }
-    return pointerPositions;
 }
 
 /**
@@ -59,7 +46,7 @@ export function registerImuHandlers(context: JoyConEventsContext): void {
         }
         imuProcessor.update({ id: cursorId, accel: imuData.accel, gyro: imuData.gyro });
 
-        const positions = ensurePointerPositions();
+        const positions = context.pointerPositions;
         const state = imuProcessor.states[cursorId];
         const decision = decidePointerUpdate({
             data: imuData,

@@ -17,6 +17,7 @@ type TestContextBundle = {
 
 type TestContextOverrides = {
     getCursorWindow?: () => ReturnType<JoyConEventsContext['options']['windowManager']['getCursorWindow']>;
+    getMainWindow?: () => ReturnType<JoyConEventsContext['options']['windowManager']['getMainWindow']>;
     getCursorVisibility?: JoyConEventsContext['options']['getCursorVisibility'];
 };
 
@@ -71,7 +72,7 @@ function createTestContext(overrides: TestContextOverrides = {}): TestContextBun
             windowManager: {
                 getCursorWindow: overrides.getCursorWindow ?? (() : ReturnType<JoyConEventsContext['options']['windowManager']['getCursorWindow']> => null),
                 getTimerWindow: () => null,
-                getMainWindow: () => null,
+                getMainWindow: overrides.getMainWindow ?? (() : ReturnType<JoyConEventsContext['options']['windowManager']['getMainWindow']> => null),
                 closeCursorWindow: jest.fn(),
             },
             ensureTimerWindow: () => null,
@@ -86,6 +87,10 @@ function createTestContext(overrides: TestContextOverrides = {}): TestContextBun
                 next: () => false,
                 previous: () => false,
             },
+        },
+        pointerPositions: {
+            cursorLeft: { x: 600, y: 300 },
+            cursorRight: { x: 600, y: 300 },
         },
         rStickConfig,
         rStickState,
@@ -160,6 +165,46 @@ describe('main-joycon-motion-registrars', (): void => {
 
         expect(imuUpdate).toHaveBeenCalledTimes(1);
         expect(send).not.toHaveBeenCalled();
+    });
+
+    it('attitude-update が有効ならカーソルウィンドウへ送信する', (): void => {
+        const send = jest.fn();
+        const cursorWindow = {
+            isDestroyed: (): boolean => false,
+            webContents: { send },
+        } as unknown as ReturnType<JoyConEventsContext['options']['windowManager']['getCursorWindow']>;
+        const { context, imuHandlers } = createTestContext({
+            getCursorWindow: () => cursorWindow,
+        });
+        registerImuHandlers(context);
+
+        imuHandlers['attitude-update']?.({
+            id: 'cursorLeft',
+            roll: 1,
+            pitch: 2,
+            yaw: 3,
+        });
+
+        expect(send).toHaveBeenCalledTimes(1);
+    });
+
+    it('calibration-status が有効ならメインウィンドウへ送信する', (): void => {
+        const send = jest.fn();
+        const mainWindow = {
+            isDestroyed: (): boolean => false,
+            webContents: { send },
+        } as unknown as ReturnType<JoyConEventsContext['options']['windowManager']['getMainWindow']>;
+        const { context, imuHandlers } = createTestContext({
+            getMainWindow: () => mainWindow,
+        });
+        registerImuHandlers(context);
+
+        imuHandlers['calibration-status']?.({
+            id: 'cursorLeft',
+            status: 'complete',
+        });
+
+        expect(send).toHaveBeenCalledTimes(1);
     });
 
     it('Rスティック押下データが不正なら状態更新・dispatchしない', (): void => {
