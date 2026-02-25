@@ -25,7 +25,17 @@
             removeStoredDir: () => void,
         ) => Promise<void>;
     };
-    type TimerSoundHandlersApi = import('./timer-sound-handlers').TimerSoundHandlersApi;
+    type TimerSoundHandlersApi = {
+        registerSoundHandlers: (deps: {
+            elements: MainRendererContext['elements'];
+            electronAPI: MainRendererContext['electronAPI'];
+            localStorageStore: LocalStorageStoreApi;
+            timerUiUtils: TimerUiUtilsApi;
+            timerMainLogic: TimerMainLogicApi;
+            loadMediaFiles: () => Promise<void>;
+            broadcastNotificationUpdate: () => Promise<void>;
+        }) => void;
+    };
 
     const rendererApiResolverUtils = ((): import('../../shared/renderer-api-resolver-types').RendererApiResolverUtilsApi => {
         const root = globalThis as typeof globalThis & {
