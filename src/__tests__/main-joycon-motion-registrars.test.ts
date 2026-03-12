@@ -78,6 +78,7 @@ function createTestContext(overrides: TestContextOverrides = {}): TestContextBun
             ensureTimerWindow: () => null,
             toggleTimerWindowVisibility: jest.fn(),
             getCursorMapConfig: () => ({}),
+            getPointerMotionSettings: () => ({ moveSpeed: 0.05, gyroDeadzone: 120 }),
             getCursorVisibility: overrides.getCursorVisibility ?? (() : boolean => true),
             powerpointControl: {
                 next: () => false,
@@ -143,6 +144,27 @@ describe('main-joycon-motion-registrars', (): void => {
 
         expect(imuUpdate).toHaveBeenCalledTimes(1);
         expect(send).toHaveBeenCalledTimes(1);
+    });
+
+    it('ポインター設定に応じて移動量を反映する', (): void => {
+        const send = jest.fn();
+        const cursorWindow = {
+            isDestroyed: (): boolean => false,
+            webContents: { send },
+        } as unknown as ReturnType<JoyConEventsContext['options']['windowManager']['getCursorWindow']>;
+        const { context, joyConHandlers } = createTestContext({
+            getCursorWindow: () => cursorWindow,
+        });
+        context.options.getPointerMotionSettings = (): { moveSpeed: number; gyroDeadzone: number } => ({ moveSpeed: 0.02, gyroDeadzone: 100 });
+        registerImuHandlers(context);
+
+        joyConHandlers[JOYCON_MANAGER_EVENTS.IMU_DATA]?.({
+            id: 'cursorLeft',
+            accel: { x: 1, y: 2, z: 3 },
+            gyro: { x: 0, y: 0, z: 1000 },
+        });
+
+        expect(send).toHaveBeenCalledWith('update-pointer', { id: 'cursorLeft', x: 620, y: 300 });
     });
 
     it('カーソル非表示時は有効なIMUデータでも送信しない', (): void => {

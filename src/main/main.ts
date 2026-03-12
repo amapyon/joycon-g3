@@ -16,12 +16,14 @@ import {
 } from './imu-pointer';
 import { registerMainJoyConEvents } from './main-joycon-events';
 import { createTimerWindowBootstrap, initializeScreenSize } from './main-bootstrap';
+import { DEFAULT_POINTER_MOTION_SETTINGS, PointerMotionSettings } from '../shared/pointer-motion-settings';
 
 // --- IMU Pointer Control Variables ---
 const isCursorVisible: { cursorLeft: boolean; cursorRight: boolean } = { cursorLeft: false, cursorRight: false }; // Track visibility per cursor
 let countdownInitialValue: number = 10; // Default value
 let timerState = createTimerState();
 let soundPlayDelayMs = 200;
+let pointerMotionSettings: PointerMotionSettings = DEFAULT_POINTER_MOTION_SETTINGS;
 
 const joyconManager = new JoyConManager();
 
@@ -61,6 +63,9 @@ app.whenReady().then(() => {
             setCursorMapConfig: (config: CursorMapConfig): void => {
                 cursorMapConfig = config;
             },
+            setPointerMotionSettings: (settings: PointerMotionSettings): void => {
+                pointerMotionSettings = settings;
+            },
             setCursorVisibility: (id: CursorId, isVisible: boolean): void => {
                 isCursorVisible[id] = isVisible;
             },
@@ -86,6 +91,7 @@ app.whenReady().then(() => {
         ensureTimerWindow,
         toggleTimerWindowVisibility,
         getCursorMapConfig: (): CursorMapConfig => cursorMapConfig,
+        getPointerMotionSettings: (): PointerMotionSettings => pointerMotionSettings,
         getCursorVisibility: (id: CursorId): boolean => isCursorVisible[id],
         powerpointControl,
         googleSlidesControl,

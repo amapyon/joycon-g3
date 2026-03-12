@@ -5,6 +5,7 @@ import { CursorId, CursorMapConfig } from './imu-pointer';
 import { setTimerCounting, setTimerPaused, TimerState } from './timer-state';
 import { isCursorId, isRecord, parseNumberArrayPayload, parseNumberPayload } from './payload-parse-utils';
 import { MAIN_IPC_INBOUND_CHANNELS, MAIN_IPC_OUTBOUND_CHANNELS } from '../shared/main-ipc-channels';
+import { normalizePointerMotionSettings, PointerMotionSettings } from '../shared/pointer-motion-settings';
 import type { TimerNotificationConfig } from '../shared/timer-notification-config';
 
 type WindowManagerApi = {
@@ -21,6 +22,7 @@ type JoyConRumbleApi = {
 
 type MainIpcStateAccessors = {
     setCursorMapConfig: (config: CursorMapConfig) => void;
+    setPointerMotionSettings: (settings: PointerMotionSettings) => void;
     setCursorVisibility: (id: CursorId, isVisible: boolean) => void;
     setCountdownInitialValue: (value: number) => void;
     getCountdownInitialValue: () => number;
@@ -62,6 +64,23 @@ function parseTimerNotificationConfigItem(value: unknown): TimerNotificationConf
         absolutePath: value.absolutePath,
         rumble: value.rumble,
     };
+}
+
+/**
+ * ポインター移動設定を解析する。
+ * @param value 入力値
+ * @returns 設定。無効な場合は null
+ */
+function parsePointerMotionSettings(value: unknown): PointerMotionSettings | null {
+    if (!isRecord(value)) {
+        return null;
+    }
+    const moveSpeed = parseNumberPayload(value.moveSpeed);
+    const gyroDeadzone = parseNumberPayload(value.gyroDeadzone);
+    if (moveSpeed === null || gyroDeadzone === null) {
+        return null;
+    }
+    return normalizePointerMotionSettings({ moveSpeed, gyroDeadzone });
 }
 
 /**
@@ -174,6 +193,14 @@ function registerStateSyncHandlers(registerOnChannel: RegisterOnChannel, options
         }
         state.setCursorMapConfig(nextConfig);
         // console.log('[main.ts] Received cursorMapConfig from renderer:', nextConfig);
+    });
+
+    registerOnChannel(MAIN_IPC_INBOUND_CHANNELS.UPDATE_POINTER_MOTION_SETTINGS, (_event: IpcMainEvent, settings: unknown): void => {
+        const nextSettings = parsePointerMotionSettings(settings);
+        if (!nextSettings) {
+            return;
+        }
+        state.setPointerMotionSettings(nextSettings);
     });
 
     registerOnChannel(MAIN_IPC_INBOUND_CHANNELS.CURSOR_VISIBILITY_UPDATE, (_event: IpcMainEvent, data: unknown): void => {

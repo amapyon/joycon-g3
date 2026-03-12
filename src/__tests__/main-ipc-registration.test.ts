@@ -51,6 +51,7 @@ function createRegisterOptions(joyConRumbleApi: JoyConRumbleApiMock): {
         joyConRumbleApi,
         state: {
             setCursorMapConfig: (): void => {},
+            setPointerMotionSettings: (): void => {},
             setCursorVisibility: (): void => {},
             setCountdownInitialValue: (): void => {},
             getCountdownInitialValue: (): number => 10,
@@ -146,6 +147,34 @@ describe('main IPC の振動トリガー', (): void => {
         listeners['timer-notification-trigger']?.({} as IpcMainEvent, 5, 'true');
 
         expect(joyConRumbleApi.playRumblePattern).not.toHaveBeenCalled();
+    });
+
+    it('有効なpointer-motion-settingsなら状態更新する', (): void => {
+        const joyConRumbleApi: JoyConRumbleApiMock = {
+            playRumblePattern: jest.fn(),
+        };
+        const { options, listeners } = createRegisterOptions(joyConRumbleApi);
+        const setPointerMotionSettings = jest.fn();
+        options.state.setPointerMotionSettings = setPointerMotionSettings;
+
+        registerMainIpcHandlers(options);
+        listeners['update-pointer-motion-settings']?.({} as IpcMainEvent, { moveSpeed: 0.02, gyroDeadzone: 180 });
+
+        expect(setPointerMotionSettings).toHaveBeenCalledWith({ moveSpeed: 0.02, gyroDeadzone: 180 });
+    });
+
+    it('不正なpointer-motion-settingsでは状態更新しない', (): void => {
+        const joyConRumbleApi: JoyConRumbleApiMock = {
+            playRumblePattern: jest.fn(),
+        };
+        const { options, listeners } = createRegisterOptions(joyConRumbleApi);
+        const setPointerMotionSettings = jest.fn();
+        options.state.setPointerMotionSettings = setPointerMotionSettings;
+
+        registerMainIpcHandlers(options);
+        listeners['update-pointer-motion-settings']?.({} as IpcMainEvent, { moveSpeed: 'fast', gyroDeadzone: 180 });
+
+        expect(setPointerMotionSettings).not.toHaveBeenCalled();
     });
 
     it('不正なupdate-timer-notificationsでは配信しない', (): void => {

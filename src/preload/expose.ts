@@ -15,6 +15,7 @@ import type {
     TimerNotificationConfig,
     UpdatePointerData,
 } from './types';
+import type { PointerMotionSettings } from '../shared/pointer-motion-settings';
 
 /**
  * Renderer から利用する IPC API。
@@ -62,6 +63,11 @@ export const electronAPI: ElectronAPI = {
      * @param delayMs 遅延時間（ミリ秒）
      */
     updateSoundPlayDelay: (delayMs: number): void => ipcRenderer.send('update-sound-play-delay', delayMs),
+    /**
+     * ポインター移動設定を更新する。
+     * @param settings 設定値
+     */
+    updatePointerMotionSettings: (settings: PointerMotionSettings): void => ipcRenderer.send('update-pointer-motion-settings', settings),
 
     // --- Cursor Window Control ---
     /**

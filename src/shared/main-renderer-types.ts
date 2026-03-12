@@ -1,4 +1,5 @@
 import type { TimerNotificationConfig } from './timer-notification-config';
+import type { PointerMotionSettings } from './pointer-motion-settings';
 import type {
     BatteryStatus,
     CalibrationStatus,
@@ -42,6 +43,7 @@ export type ElectronAPI = {
     selectMediaFolder: () => Promise<string>;
     setMediaBasePath: (dir: string) => Promise<boolean>;
     updateSoundPlayDelay: (delayMs: number) => void;
+    updatePointerMotionSettings: (settings: PointerMotionSettings) => void;
     updateTimerNotifications: (configs: TimerNotificationConfig[]) => void;
     onUpdateTimerNotifications: (callback: (configs: TimerNotificationConfig[]) => void) => void;
     onUpdateSoundPlayDelay: (callback: (delayMs: number) => void) => void;
@@ -58,6 +60,10 @@ export type MainRendererElements = {
     displaySelect: HTMLSelectElement;
     cursorToggleBtn: HTMLButtonElement;
     errorMessageDiv: HTMLElement;
+    pointerMoveSpeedInput: HTMLInputElement;
+    pointerMoveSpeedValue: HTMLElement;
+    pointerGyroDeadzoneInput: HTMLInputElement;
+    pointerSettingsResetBtn: HTMLButtonElement;
     mainBatteryStatusLeft: HTMLElement;
     mainBatteryStatusRight: HTMLElement;
     pptSelect: HTMLSelectElement;
@@ -103,6 +109,7 @@ export type MainRendererContext = {
     elements: MainRendererElements;
     state: MainRendererState;
     initDisplaySection?: () => void;
+    initPointerSettingsSection?: () => void;
     initPptSection?: () => void;
     initJoyConSection?: () => void;
     initTimerSection?: () => void;

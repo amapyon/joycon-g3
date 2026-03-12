@@ -21,6 +21,7 @@
         elements.pptSelect.disabled = true;
 
         mainRenderer.initDisplaySection?.();
+        mainRenderer.initPointerSettingsSection?.();
         mainRenderer.initPptSection?.();
         mainRenderer.initJoyConSection?.();
         mainRenderer.initTimerSection?.();

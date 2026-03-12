@@ -1,6 +1,7 @@
 import { BrowserWindow } from 'electron';
 import { CursorId, CursorMapConfig, PointerPositions } from './imu-pointer';
 import { RStickAction, RStickConfig, RStickState } from './r-stick-handler';
+import type { PointerMotionSettings } from '../shared/pointer-motion-settings';
 import type {
     JoyConAttitudeData,
     JoyConButtonStateData as SharedJoyConButtonStateData,
@@ -37,6 +38,7 @@ export type RegisterMainJoyConEventsOptions = {
     ensureTimerWindow: () => BrowserWindow | null;
     toggleTimerWindowVisibility: () => void;
     getCursorMapConfig: () => CursorMapConfig;
+    getPointerMotionSettings: () => PointerMotionSettings;
     getCursorVisibility: (id: CursorId) => boolean;
     powerpointControl: PowerPointControlLike;
     googleSlidesControl: GoogleSlidesControlLike;

@@ -48,6 +48,7 @@ export function registerImuHandlers(context: JoyConEventsContext): void {
 
         const positions = context.pointerPositions;
         const state = imuProcessor.states[cursorId];
+        const pointerMotionSettings = options.getPointerMotionSettings();
         const decision = decidePointerUpdate({
             data: imuData,
             cursorId,
@@ -58,8 +59,8 @@ export function registerImuHandlers(context: JoyConEventsContext): void {
             currentPosition: positions[cursorId],
             defaultPosition: { x: 600, y: 300 },
             screenSize: getScreenSize(),
-            moveSpeed: 0.1,
-            gyroDeadzone: 90,
+            moveSpeed: pointerMotionSettings.moveSpeed,
+            gyroDeadzone: pointerMotionSettings.gyroDeadzone,
         });
 
         if (!decision) {

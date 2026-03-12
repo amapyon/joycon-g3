@@ -3,6 +3,7 @@
  */
 export const MAIN_IPC_INBOUND_CHANNELS = {
     CURSOR_MAP_CONFIG: 'cursor-map-config',
+    UPDATE_POINTER_MOTION_SETTINGS: 'update-pointer-motion-settings',
     CURSOR_VISIBILITY_UPDATE: 'cursor-visibility-update',
     COUNTDOWN_INITIAL_VALUE: 'countdown-initial-value',
     UPDATE_TIMER_PRESETS: 'update-timer-presets',
