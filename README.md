@@ -30,6 +30,10 @@ Joy-Con を使用して Windows 上で複数のマウスカーソル操作や Po
     *   `assets/`: アイコンなどの静的リソース。
     *   `src/renderer/styles/style.css`: 共通スタイルシート。
 
+## 使い方
+
+詳細な操作手順は [USAGE.md](./USAGE.md) を参照してください。
+
 ## 🚀 開発環境セットアップと起動
 
 Node.js (Windows環境推奨) が必要です。ネイティブモジュール (`node-hid`, `winax`) を使用しているため、ビルドツール等の環境依存に注意してください。
@@ -91,3 +95,4 @@ GitHub Actions で `push` / `pull_request` 時に以下を実行します。
 ## ⚠️ 注意事項
 *   **Windows 専用**: `winax` (ActiveX/COM) を使用しているため、PowerPoint 連携機能は Windows 環境でのみ動作します。
 *   **再ビルド**: Electron のバージョンを変更した場合や、Node.js の環境が変わった場合は必ず `npm run rebuild` を実行してください。
+
