@@ -89,6 +89,9 @@ export type MainRendererElements = {
     soundPlayDelayInput: HTMLInputElement;
     sound1PlayBtn: HTMLButtonElement;
     sound2PlayBtn: HTMLButtonElement;
+    standaloneSoundPadToggleBtn: HTMLButtonElement;
+    standaloneSoundPadContainer: HTMLElement;
+    standaloneSoundPadGrid: HTMLElement;
     sound1RumbleToggle: HTMLInputElement;
     sound2RumbleToggle: HTMLInputElement;
     toggleTimerWindowBtn: HTMLButtonElement;

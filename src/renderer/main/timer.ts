@@ -57,6 +57,9 @@
     const timerSoundHandlers = rendererApiResolverUtils.resolveApi<TimerSoundHandlersApi>('timerSoundHandlers', './timer-sound-handlers');
     const localStorageStore = rendererApiResolverUtils.resolveGlobal<LocalStorageStoreApi>('localStorageStore');
     const { electronAPI, elements, state } = mainRenderer;
+    const standalonePadCount = 10;
+    const standalonePadAssignmentsKey = 'standalonePadAssignments';
+    const standalonePadVisibilityKey = 'standalonePadVisible';
 
     /**
      * カウントダウン初期値を反映して通知する。
@@ -208,6 +211,174 @@
     };
 
     /**
+     * ファイル名をパッド表示用に整形する。
+     * @param filename 元のファイル名
+     * @returns 表示用ラベル
+     */
+    const formatPadLabel = (filename: string): string => {
+        if (filename.length <= 18) {
+            return filename;
+        }
+        return `${filename.slice(0, 15)}...`;
+    };
+
+    /**
+     * 保存済みのパッド割り当てを取得する。
+     * @returns パッドごとの割り当てファイル名
+     */
+    const loadStandalonePadAssignments = (): string[] => {
+        const stored = localStorageStore.getJsonValue<unknown[]>(standalonePadAssignmentsKey, []);
+        const assignments = Array.from({ length: standalonePadCount }, (): string => '');
+        stored.slice(0, standalonePadCount).forEach((value: unknown, index: number): void => {
+            if (typeof value === 'string') {
+                assignments[index] = value;
+            }
+        });
+        return assignments;
+    };
+
+    /**
+     * パッド割り当てを保存する。
+     * @param assignments 保存する割り当て
+     */
+    const saveStandalonePadAssignments = (assignments: string[]): void => {
+        localStorageStore.setJsonValue(standalonePadAssignmentsKey, assignments);
+    };
+
+    /**
+     * パッドの表示状態を更新する。
+     * @param button 再生ボタン
+     * @param fileLabel 表示ラベル
+     * @param padIndex パッド番号
+     * @param filename 割り当て済みファイル名
+     */
+    const applyPadPresentation = (
+        button: HTMLButtonElement,
+        fileLabel: HTMLElement,
+        padIndex: number,
+        filename: string,
+    ): void => {
+        button.disabled = !filename;
+        fileLabel.textContent = filename ? formatPadLabel(filename) : `PAD ${padIndex + 1} sound`;
+    };
+
+    /**
+     * 開いているパッド設定 UI を閉じる。
+     * @returns なし
+     */
+    const closeAllPadSelectors = (): void => {
+        elements.standaloneSoundPadGrid
+            .querySelectorAll('.sound-pad-card.is-config-open')
+            .forEach((element: Element): void => {
+                element.classList.remove('is-config-open');
+            });
+    };
+
+    /**
+     * パッドエリアの表示状態を反映する。
+     * @param isVisible 表示するなら true
+     */
+    const applyStandalonePadVisibility = (isVisible: boolean): void => {
+        elements.standaloneSoundPadGrid.style.display = isVisible ? 'grid' : 'none';
+        elements.standaloneSoundPadToggleBtn.textContent = isVisible ? 'Hide Pads' : 'Show Pads';
+        localStorageStore.setString(standalonePadVisibilityKey, isVisible ? '1' : '0');
+        if (!isVisible) {
+            closeAllPadSelectors();
+        }
+    };
+
+    /**
+     * 単発再生用パッドを描画する。
+     * @param files 音声ファイル一覧
+     * @returns なし
+     */
+    const renderStandaloneSoundPads = (files: string[]): void => {
+        const assignments = loadStandalonePadAssignments().map((filename: string): string => {
+            return files.includes(filename) ? filename : '';
+        });
+        saveStandalonePadAssignments(assignments);
+        elements.standaloneSoundPadGrid.innerHTML = '';
+        for (let index = 0; index < standalonePadCount; index += 1) {
+            const card = document.createElement('div');
+            const header = document.createElement('div');
+            const button = document.createElement('button');
+            const fileLabel = document.createElement('span');
+            const configButton = document.createElement('button');
+            const select = document.createElement('select');
+            const filename = assignments[index];
+
+            card.className = 'sound-pad-card';
+            header.className = 'sound-pad-header';
+            button.type = 'button';
+            button.className = 'sound-pad-btn';
+            button.addEventListener('click', (): void => {
+                const nextFilename = assignments[index];
+                if (!nextFilename) {
+                    return;
+                }
+                void timerUiUtils.previewSound(
+                    nextFilename,
+                    electronAPI.getMediaBasePath,
+                    timerMainLogic.buildMediaAbsolutePath,
+                    timerMainLogic.toFileUrl,
+                );
+            });
+
+            const indexLabel = document.createElement('span');
+            indexLabel.className = 'sound-pad-index';
+            indexLabel.textContent = `PAD ${index + 1}`;
+
+            configButton.type = 'button';
+            configButton.className = 'sound-pad-config-btn';
+            configButton.textContent = 'SET';
+            configButton.addEventListener('click', (event: MouseEvent): void => {
+                event.stopPropagation();
+                const shouldOpen = !card.classList.contains('is-config-open');
+                closeAllPadSelectors();
+                if (shouldOpen) {
+                    card.classList.add('is-config-open');
+                    select.focus();
+                }
+            });
+
+            fileLabel.className = 'sound-pad-label';
+            applyPadPresentation(button, fileLabel, index, filename);
+
+            select.className = 'sound-pad-selector';
+            const emptyOption = document.createElement('option');
+            emptyOption.value = '';
+            emptyOption.text = '-- Select Sound --';
+            select.appendChild(emptyOption);
+            files.forEach((file: string): void => {
+                const option = document.createElement('option');
+                option.value = file;
+                option.text = file;
+                if (file === filename) {
+                    option.selected = true;
+                }
+                select.appendChild(option);
+            });
+            select.addEventListener('change', (): void => {
+                assignments[index] = select.value;
+                saveStandalonePadAssignments(assignments);
+                applyPadPresentation(button, fileLabel, index, assignments[index]);
+                card.classList.remove('is-config-open');
+            });
+            select.addEventListener('blur', (): void => {
+                card.classList.remove('is-config-open');
+            });
+
+            header.appendChild(indexLabel);
+            header.appendChild(configButton);
+            button.appendChild(header);
+            button.appendChild(fileLabel);
+            card.appendChild(button);
+            card.appendChild(select);
+            elements.standaloneSoundPadGrid.appendChild(card);
+        }
+    };
+
+    /**
      * 通知設定の更新を全ウィンドウへ通知する。
      * @returns 処理完了を示す Promise
      */
@@ -254,6 +425,7 @@
             }
         });
         restoreNotificationSettings();
+        renderStandaloneSoundPads(files);
     };
 
     /**
@@ -356,6 +528,10 @@
             broadcastNotificationUpdate,
         });
         registerCountdownInputHandler();
+        elements.standaloneSoundPadToggleBtn.addEventListener('click', (): void => {
+            const isVisible = elements.standaloneSoundPadGrid.style.display !== 'none';
+            applyStandalonePadVisibility(!isVisible);
+        });
 
         electronAPI.updateTimerPresets(state.currentPresets);
 
@@ -381,6 +557,7 @@
         if (storedInitialValue !== null) {
             applyCountdownInitialValue(storedInitialValue, true, false);
         }
+        applyStandalonePadVisibility(localStorageStore.getString(standalonePadVisibilityKey, '0') !== '0');
     };
 
     mainRenderer.initTimerSection = initTimerSection;
