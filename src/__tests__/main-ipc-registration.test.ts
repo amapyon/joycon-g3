@@ -1,5 +1,6 @@
 import type { IpcMain, IpcMainEvent } from 'electron';
 import { registerMainIpcHandlers } from '../main/main-ipc-registration';
+import type { WifiTimerAudioTones, WifiTimerCapabilities, WifiTimerStatus, WifiTimerWifiInfo } from '../shared/wifi-timer-api-types';
 
 type Listener = (event: IpcMainEvent, ...args: unknown[]) => void;
 
@@ -13,6 +14,27 @@ type JoyConRumbleApiMock = {
     playRumblePattern: jest.Mock<void, [Array<{ on: boolean; durationMs: number }>]>;
     getConnectionStatus?: jest.Mock<{ leftConnected: boolean; rightConnected: boolean }, []>;
     connectAll?: jest.Mock<void, []>;
+};
+
+type WifiTimerClientApiMock = {
+    updateSettings: jest.Mock<void, [{ enabled: boolean; ipAddress: string }]>;
+    syncInitialValue: jest.Mock<Promise<void>, [number]>;
+    handleTimerStarted: jest.Mock<Promise<void>, [number]>;
+    handleTimerPaused: jest.Mock<Promise<void>, []>;
+    handleTimerResumed: jest.Mock<Promise<void>, []>;
+    getCapabilities: jest.Mock<Promise<WifiTimerCapabilities>, []>;
+    getAudioTones: jest.Mock<Promise<WifiTimerAudioTones>, []>;
+    getStatus: jest.Mock<Promise<WifiTimerStatus>, []>;
+    updateDisplaySettings: jest.Mock<Promise<WifiTimerStatus>, [object]>;
+    updateAudioSettings: jest.Mock<Promise<WifiTimerStatus>, [object]>;
+    testAudioSettings: jest.Mock<Promise<WifiTimerStatus>, [object]>;
+    getWifiInfo: jest.Mock<Promise<WifiTimerWifiInfo>, []>;
+    saveWifiProfile: jest.Mock<Promise<WifiTimerWifiInfo>, [object]>;
+    deleteWifiProfile: jest.Mock<Promise<WifiTimerWifiInfo>, [number]>;
+    connectWifiProfile: jest.Mock<Promise<WifiTimerWifiInfo>, [number]>;
+    moveUpWifiProfile: jest.Mock<Promise<WifiTimerWifiInfo>, [number]>;
+    moveDownWifiProfile: jest.Mock<Promise<WifiTimerWifiInfo>, [number]>;
+    reboot: jest.Mock<Promise<void>, []>;
 };
 
 /**
@@ -39,8 +61,86 @@ function createRegisterOptions(joyConRumbleApi: JoyConRumbleApiMock): {
     ipcMain: IpcMain;
     options: Parameters<typeof registerMainIpcHandlers>[0];
     listeners: Record<string, Listener>;
+    wifiTimerClient: WifiTimerClientApiMock;
 } {
     const ipcMainMock = createIpcMainMock();
+    const statusFallback: WifiTimerStatus = {
+        state: 'idle',
+        initialSeconds: 10,
+        remainingSeconds: 10,
+        ip: '192.168.0.10',
+        activeBrightness: 255,
+        idleBrightness: 32,
+        rotate180: false,
+        alertVolume: 50,
+        alertRepeatCount: 1,
+        alertToneKind: 0,
+        alertToneName: 'beep',
+        alertCustomSpeedPercent: 100,
+        audioPlaying: false,
+    };
+    const wifiInfoFallback: WifiTimerWifiInfo = {
+        ready: true,
+        currentSsid: 'test',
+        ip: '192.168.0.10',
+        activeProfileIndex: 0,
+        reconnectPending: false,
+        apMode: false,
+        profiles: [],
+    };
+    const capabilitiesFallback: WifiTimerCapabilities = {
+        deviceType: 'led-timer',
+        apiVersion: '1.3.0',
+        openapi: '/openapi.json',
+        features: ['timer-control'],
+        endpoints: {},
+    };
+    const audioTonesFallback: WifiTimerAudioTones = {
+        apiVersion: '1.0',
+        limits: {
+            toneIdMin: 0,
+            toneIdMax: 8,
+            volumeMin: 0,
+            volumeMax: 100,
+            repeatCountMin: 1,
+            repeatCountMax: 20,
+            customSpeedMin: 60,
+            customSpeedMax: 120,
+        },
+        tones: [],
+        defaults: {
+            toneKind: 0,
+            volume: 50,
+            repeatCount: 1,
+            customSpeed: 100,
+        },
+        current: {
+            toneKind: 0,
+            volume: 50,
+            repeatCount: 1,
+            customSpeed: 100,
+        },
+    };
+    const wifiTimerClient: WifiTimerClientApiMock = {
+        updateSettings: jest.fn(),
+        syncInitialValue: jest.fn().mockResolvedValue(undefined),
+        handleTimerStarted: jest.fn().mockResolvedValue(undefined),
+        handleTimerPaused: jest.fn().mockResolvedValue(undefined),
+        handleTimerResumed: jest.fn().mockResolvedValue(undefined),
+        getCapabilities: jest.fn().mockResolvedValue(capabilitiesFallback),
+        getAudioTones: jest.fn().mockResolvedValue(audioTonesFallback),
+        getStatus: jest.fn().mockResolvedValue(statusFallback),
+        updateDisplaySettings: jest.fn().mockResolvedValue(statusFallback),
+        updateAudioSettings: jest.fn().mockResolvedValue(statusFallback),
+        testAudioSettings: jest.fn().mockResolvedValue(statusFallback),
+        getWifiInfo: jest.fn().mockResolvedValue(wifiInfoFallback),
+        saveWifiProfile: jest.fn().mockResolvedValue(wifiInfoFallback),
+        deleteWifiProfile: jest.fn().mockResolvedValue(wifiInfoFallback),
+        connectWifiProfile: jest.fn().mockResolvedValue(wifiInfoFallback),
+        moveUpWifiProfile: jest.fn().mockResolvedValue(wifiInfoFallback),
+        moveDownWifiProfile: jest.fn().mockResolvedValue(wifiInfoFallback),
+        reboot: jest.fn().mockResolvedValue(undefined),
+    };
     const options: Parameters<typeof registerMainIpcHandlers>[0] = {
         ipcMain: ipcMainMock as unknown as IpcMain,
         windowManager: {
@@ -49,6 +149,7 @@ function createRegisterOptions(joyConRumbleApi: JoyConRumbleApiMock): {
             getMainWindow: () => null,
         },
         joyConRumbleApi,
+        wifiTimerClient,
         state: {
             setCursorMapConfig: (): void => {},
             setPointerMotionSettings: (): void => {},
@@ -61,7 +162,7 @@ function createRegisterOptions(joyConRumbleApi: JoyConRumbleApiMock): {
         },
         toggleTimerWindowVisibility: (): void => {},
     };
-    return { ipcMain: ipcMainMock as unknown as IpcMain, options, listeners: ipcMainMock.listeners };
+    return { ipcMain: ipcMainMock as unknown as IpcMain, options, listeners: ipcMainMock.listeners, wifiTimerClient };
 }
 
 describe('main IPC の振動トリガー', (): void => {
@@ -149,6 +250,30 @@ describe('main IPC の振動トリガー', (): void => {
         expect(joyConRumbleApi.playRumblePattern).not.toHaveBeenCalled();
     });
 
+    it('有効なWiFiタイマー設定ならメイン側へ反映する', (): void => {
+        const joyConRumbleApi: JoyConRumbleApiMock = {
+            playRumblePattern: jest.fn(),
+        };
+        const { options, listeners, wifiTimerClient } = createRegisterOptions(joyConRumbleApi);
+
+        registerMainIpcHandlers(options);
+        listeners['update-wifi-timer-settings']?.({} as IpcMainEvent, { enabled: true, ipAddress: ' 192.168.0.10 ' });
+
+        expect(wifiTimerClient.updateSettings).toHaveBeenCalledWith({ enabled: true, ipAddress: '192.168.0.10' });
+    });
+
+    it('不正なWiFiタイマー設定は無視する', (): void => {
+        const joyConRumbleApi: JoyConRumbleApiMock = {
+            playRumblePattern: jest.fn(),
+        };
+        const { options, listeners, wifiTimerClient } = createRegisterOptions(joyConRumbleApi);
+
+        registerMainIpcHandlers(options);
+        listeners['update-wifi-timer-settings']?.({} as IpcMainEvent, { enabled: 'yes', ipAddress: '192.168.0.10' });
+
+        expect(wifiTimerClient.updateSettings).not.toHaveBeenCalled();
+    });
+
     it('有効なpointer-motion-settingsなら状態更新する', (): void => {
         const joyConRumbleApi: JoyConRumbleApiMock = {
             playRumblePattern: jest.fn(),
@@ -200,5 +325,74 @@ describe('main IPC の振動トリガー', (): void => {
         );
 
         expect(send).not.toHaveBeenCalled();
+    });
+
+    it('countdown-initial-value 更新時に WiFi タイマーへも秒数を同期する', (): void => {
+        const joyConRumbleApi: JoyConRumbleApiMock = {
+            playRumblePattern: jest.fn(),
+        };
+        const { options, listeners, wifiTimerClient } = createRegisterOptions(joyConRumbleApi);
+        let countdownInitialValue = 10;
+        options.state.setCountdownInitialValue = (value: number): void => {
+            countdownInitialValue = value;
+        };
+        options.state.getCountdownInitialValue = (): number => countdownInitialValue;
+
+        registerMainIpcHandlers(options);
+        listeners['countdown-initial-value']?.({} as IpcMainEvent, 90);
+
+        expect(wifiTimerClient.syncInitialValue).toHaveBeenCalledWith(90);
+    });
+
+    it('タイマー開始時に WiFi タイマー開始を同期する', (): void => {
+        const joyConRumbleApi: JoyConRumbleApiMock = {
+            playRumblePattern: jest.fn(),
+        };
+        const { options, listeners, wifiTimerClient } = createRegisterOptions(joyConRumbleApi);
+        let timerState = { isCounting: false, isPaused: false };
+        options.state.getTimerState = (): typeof timerState => timerState;
+        options.state.setTimerState = (nextState: typeof timerState): void => {
+            timerState = nextState;
+        };
+        options.state.getCountdownInitialValue = (): number => 180;
+
+        registerMainIpcHandlers(options);
+        listeners['timer-status-update']?.({} as IpcMainEvent, true);
+
+        expect(wifiTimerClient.handleTimerStarted).toHaveBeenCalledWith(180);
+    });
+
+    it('タイマー一時停止時に WiFi タイマー一時停止を同期する', (): void => {
+        const joyConRumbleApi: JoyConRumbleApiMock = {
+            playRumblePattern: jest.fn(),
+        };
+        const { options, listeners, wifiTimerClient } = createRegisterOptions(joyConRumbleApi);
+        let timerState = { isCounting: true, isPaused: false };
+        options.state.getTimerState = (): typeof timerState => timerState;
+        options.state.setTimerState = (nextState: typeof timerState): void => {
+            timerState = nextState;
+        };
+
+        registerMainIpcHandlers(options);
+        listeners['timer-pause-update']?.({} as IpcMainEvent, true);
+
+        expect(wifiTimerClient.handleTimerPaused).toHaveBeenCalledTimes(1);
+    });
+
+    it('一時停止解除時に WiFi タイマー再開を同期する', (): void => {
+        const joyConRumbleApi: JoyConRumbleApiMock = {
+            playRumblePattern: jest.fn(),
+        };
+        const { options, listeners, wifiTimerClient } = createRegisterOptions(joyConRumbleApi);
+        let timerState = { isCounting: true, isPaused: true };
+        options.state.getTimerState = (): typeof timerState => timerState;
+        options.state.setTimerState = (nextState: typeof timerState): void => {
+            timerState = nextState;
+        };
+
+        registerMainIpcHandlers(options);
+        listeners['timer-pause-update']?.({} as IpcMainEvent, false);
+
+        expect(wifiTimerClient.handleTimerResumed).toHaveBeenCalledTimes(1);
     });
 });

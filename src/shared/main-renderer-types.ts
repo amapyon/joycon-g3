@@ -1,5 +1,15 @@
 import type { TimerNotificationConfig } from './timer-notification-config';
 import type { PointerMotionSettings } from './pointer-motion-settings';
+import type { WifiTimerSettings } from './wifi-timer-settings';
+import type {
+    WifiTimerAudioSettings,
+    WifiTimerAudioTones,
+    WifiTimerCapabilities,
+    WifiTimerDisplaySettings,
+    WifiTimerStatus,
+    WifiTimerWifiInfo,
+    WifiTimerWifiProfileInput,
+} from './wifi-timer-api-types';
 import type {
     BatteryStatus,
     CalibrationStatus,
@@ -42,6 +52,20 @@ export type ElectronAPI = {
     getMediaBasePath: () => Promise<string>;
     selectMediaFolder: () => Promise<string>;
     setMediaBasePath: (dir: string) => Promise<boolean>;
+    updateWifiTimerSettings: (settings: WifiTimerSettings) => void;
+    getWifiTimerCapabilities: () => Promise<WifiTimerCapabilities>;
+    getWifiTimerAudioTones: () => Promise<WifiTimerAudioTones>;
+    getWifiTimerStatus: () => Promise<WifiTimerStatus>;
+    updateWifiTimerDisplaySettings: (settings: WifiTimerDisplaySettings) => Promise<WifiTimerStatus>;
+    updateWifiTimerAudioSettings: (settings: WifiTimerAudioSettings) => Promise<WifiTimerStatus>;
+    testWifiTimerAudioSettings: (settings: WifiTimerAudioSettings) => Promise<WifiTimerStatus>;
+    getWifiTimerWifi: () => Promise<WifiTimerWifiInfo>;
+    saveWifiTimerWifiProfile: (profile: WifiTimerWifiProfileInput) => Promise<WifiTimerWifiInfo>;
+    deleteWifiTimerWifiProfile: (id: number) => Promise<WifiTimerWifiInfo>;
+    connectWifiTimerWifiProfile: (id: number) => Promise<WifiTimerWifiInfo>;
+    moveUpWifiTimerWifiProfile: (id: number) => Promise<WifiTimerWifiInfo>;
+    moveDownWifiTimerWifiProfile: (id: number) => Promise<WifiTimerWifiInfo>;
+    rebootWifiTimer: () => Promise<void>;
     updateSoundPlayDelay: (delayMs: number) => void;
     updatePointerMotionSettings: (settings: PointerMotionSettings) => void;
     updateTimerNotifications: (configs: TimerNotificationConfig[]) => void;
@@ -97,6 +121,36 @@ export type MainRendererElements = {
     toggleTimerWindowBtn: HTMLButtonElement;
     toggleTimerPauseBtn: HTMLButtonElement;
     addMinuteMainBtn: HTMLButtonElement;
+    wifiTimerEnabledInput: HTMLInputElement;
+    wifiTimerIpAddressInput: HTMLInputElement;
+    wifiTimerPanelContainer: HTMLElement;
+    wifiTimerPanelToggleBtn: HTMLButtonElement;
+    wifiTimerRefreshBtn: HTMLButtonElement;
+    wifiTimerStateLabel: HTMLElement;
+    wifiTimerIpLabel: HTMLElement;
+    wifiTimerCurrentSsidLabel: HTMLElement;
+    wifiTimerActiveBrightnessInput: HTMLInputElement;
+    wifiTimerIdleBrightnessInput: HTMLInputElement;
+    wifiTimerRotate180Input: HTMLInputElement;
+    wifiTimerApplyDisplayBtn: HTMLButtonElement;
+    wifiTimerToneKindSelect: HTMLSelectElement;
+    wifiTimerVolumeInput: HTMLInputElement;
+    wifiTimerRepeatCountInput: HTMLInputElement;
+    wifiTimerCustomSpeedInput: HTMLInputElement;
+    wifiTimerApplyAudioBtn: HTMLButtonElement;
+    wifiTimerTestAudioBtn: HTMLButtonElement;
+    wifiTimerWifiRefreshBtn: HTMLButtonElement;
+    wifiTimerWifiProfileSelect: HTMLSelectElement;
+    wifiTimerConnectProfileBtn: HTMLButtonElement;
+    wifiTimerDeleteProfileBtn: HTMLButtonElement;
+    wifiTimerMoveUpProfileBtn: HTMLButtonElement;
+    wifiTimerMoveDownProfileBtn: HTMLButtonElement;
+    wifiTimerSsidInput: HTMLInputElement;
+    wifiTimerPasswordInput: HTMLInputElement;
+    wifiTimerSaveProfileBtn: HTMLButtonElement;
+    wifiTimerUpdateProfileBtn: HTMLButtonElement;
+    wifiTimerRebootBtn: HTMLButtonElement;
+    wifiTimerOperationMessage: HTMLElement;
     mainCountdownDisplay: HTMLElement;
     messageInput: HTMLDivElement;
     toggleMessageButton: HTMLButtonElement;
@@ -105,6 +159,7 @@ export type MainRendererElements = {
 
 export type MainRendererState = {
     currentPresets: number[];
+    wifiTimerSettings: WifiTimerSettings;
 };
 
 export type MainRendererContext = {

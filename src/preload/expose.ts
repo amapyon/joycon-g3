@@ -16,6 +16,14 @@ import type {
     UpdatePointerData,
 } from './types';
 import type { PointerMotionSettings } from '../shared/pointer-motion-settings';
+import type { WifiTimerSettings } from '../shared/wifi-timer-settings';
+import type {
+    WifiTimerAudioSettings,
+    WifiTimerAudioTones,
+    WifiTimerCapabilities,
+    WifiTimerDisplaySettings,
+    WifiTimerWifiProfileInput,
+} from '../shared/wifi-timer-api-types';
 
 /**
  * Renderer から利用する IPC API。
@@ -58,6 +66,92 @@ export const electronAPI: ElectronAPI = {
      * @returns 設定に成功したかどうか
      */
     setMediaBasePath: (dir: string): Promise<boolean> => ipcRenderer.invoke('set-media-base-path', dir),
+    /**
+     * WiFi タイマー連携設定を更新する。
+     * @param settings 設定値
+     */
+    updateWifiTimerSettings: (settings: WifiTimerSettings): void => ipcRenderer.send('update-wifi-timer-settings', settings),
+    /**
+     * WiFi タイマーの連携メタ情報を取得する。
+     * @returns 連携メタ情報
+     */
+    getWifiTimerCapabilities: (): Promise<WifiTimerCapabilities> => ipcRenderer.invoke('get-wifi-timer-capabilities'),
+    /**
+     * WiFi タイマーの音色カタログを取得する。
+     * @returns 音色カタログ
+     */
+    getWifiTimerAudioTones: (): Promise<WifiTimerAudioTones> => ipcRenderer.invoke('get-wifi-timer-audio-tones'),
+    /**
+     * WiFi タイマー状態を取得する。
+     * @returns 状態
+     */
+    getWifiTimerStatus: (): Promise<import('../shared/wifi-timer-api-types').WifiTimerStatus> => ipcRenderer.invoke('get-wifi-timer-status'),
+    /**
+     * WiFi タイマーの表示設定を更新する。
+     * @param settings 表示設定
+     * @returns 更新後の状態
+     */
+    updateWifiTimerDisplaySettings: (settings: WifiTimerDisplaySettings): Promise<import('../shared/wifi-timer-api-types').WifiTimerStatus> =>
+        ipcRenderer.invoke('update-wifi-timer-display-settings', settings),
+    /**
+     * WiFi タイマーの音設定を更新する。
+     * @param settings 音設定
+     * @returns 更新後の状態
+     */
+    updateWifiTimerAudioSettings: (settings: WifiTimerAudioSettings): Promise<import('../shared/wifi-timer-api-types').WifiTimerStatus> =>
+        ipcRenderer.invoke('update-wifi-timer-audio-settings', settings),
+    /**
+     * WiFi タイマーの音設定を試聴する。
+     * @param settings 音設定
+     * @returns 更新後の状態
+     */
+    testWifiTimerAudioSettings: (settings: WifiTimerAudioSettings): Promise<import('../shared/wifi-timer-api-types').WifiTimerStatus> =>
+        ipcRenderer.invoke('test-wifi-timer-audio-settings', settings),
+    /**
+     * WiFi タイマーの WiFi 情報を取得する。
+     * @returns WiFi 情報
+     */
+    getWifiTimerWifi: (): Promise<import('../shared/wifi-timer-api-types').WifiTimerWifiInfo> => ipcRenderer.invoke('get-wifi-timer-wifi'),
+    /**
+     * WiFi プロファイルを保存する。
+     * @param profile 保存対象
+     * @returns 更新後の WiFi 情報
+     */
+    saveWifiTimerWifiProfile: (profile: WifiTimerWifiProfileInput): Promise<import('../shared/wifi-timer-api-types').WifiTimerWifiInfo> =>
+        ipcRenderer.invoke('save-wifi-timer-wifi-profile', profile),
+    /**
+     * WiFi プロファイルを削除する。
+     * @param id プロファイル ID
+     * @returns 更新後の WiFi 情報
+     */
+    deleteWifiTimerWifiProfile: (id: number): Promise<import('../shared/wifi-timer-api-types').WifiTimerWifiInfo> =>
+        ipcRenderer.invoke('delete-wifi-timer-wifi-profile', id),
+    /**
+     * WiFi プロファイルへ接続する。
+     * @param id プロファイル ID
+     * @returns 更新後の WiFi 情報
+     */
+    connectWifiTimerWifiProfile: (id: number): Promise<import('../shared/wifi-timer-api-types').WifiTimerWifiInfo> =>
+        ipcRenderer.invoke('connect-wifi-timer-wifi-profile', id),
+    /**
+     * WiFi プロファイルを上へ移動する。
+     * @param id プロファイル ID
+     * @returns 更新後の WiFi 情報
+     */
+    moveUpWifiTimerWifiProfile: (id: number): Promise<import('../shared/wifi-timer-api-types').WifiTimerWifiInfo> =>
+        ipcRenderer.invoke('move-up-wifi-timer-wifi-profile', id),
+    /**
+     * WiFi プロファイルを下へ移動する。
+     * @param id プロファイル ID
+     * @returns 更新後の WiFi 情報
+     */
+    moveDownWifiTimerWifiProfile: (id: number): Promise<import('../shared/wifi-timer-api-types').WifiTimerWifiInfo> =>
+        ipcRenderer.invoke('move-down-wifi-timer-wifi-profile', id),
+    /**
+     * WiFi タイマーを再起動する。
+     * @returns なし
+     */
+    rebootWifiTimer: (): Promise<void> => ipcRenderer.invoke('reboot-wifi-timer'),
     /**
      * サウンド再生遅延を更新する。
      * @param delayMs 遅延時間（ミリ秒）

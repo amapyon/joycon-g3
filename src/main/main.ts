@@ -10,6 +10,7 @@ import {
     createTimerState,
 } from './timer-state';
 import { registerMainIpcHandlers } from './main-ipc-registration';
+import { createWifiTimerClient } from './wifi-timer-client';
 import {
     CursorId,
     CursorMapConfig,
@@ -26,6 +27,7 @@ let soundPlayDelayMs = 200;
 let pointerMotionSettings: PointerMotionSettings = DEFAULT_POINTER_MOTION_SETTINGS;
 
 const joyconManager = new JoyConManager();
+const wifiTimerClient = createWifiTimerClient();
 
 // --- カーソルマップ設定を保持する変数 ---
 let cursorMapConfig: CursorMapConfig = {};
@@ -35,7 +37,7 @@ app.whenReady().then(() => {
     initializeScreenSize();
     // console.log('App Ready. Initializing modules...');
     WindowManager.createMainWindow();
-    IpcHandler.setupIpcHandlers(WindowManager, joyconManager);
+    IpcHandler.setupIpcHandlers(WindowManager, joyconManager, { wifiTimerClient });
     const timerWindowBootstrap = createTimerWindowBootstrap({
         windowManager: WindowManager,
         getTimerState: (): typeof timerState => timerState,
@@ -59,6 +61,7 @@ app.whenReady().then(() => {
         ipcMain,
         windowManager: WindowManager,
         joyConRumbleApi: joyconManager,
+        wifiTimerClient,
         state: {
             setCursorMapConfig: (config: CursorMapConfig): void => {
                 cursorMapConfig = config;

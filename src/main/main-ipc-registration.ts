@@ -7,6 +7,8 @@ import { isCursorId, isRecord, parseNumberArrayPayload, parseNumberPayload } fro
 import { MAIN_IPC_INBOUND_CHANNELS, MAIN_IPC_OUTBOUND_CHANNELS } from '../shared/main-ipc-channels';
 import { normalizePointerMotionSettings, PointerMotionSettings } from '../shared/pointer-motion-settings';
 import type { TimerNotificationConfig } from '../shared/timer-notification-config';
+import type { WifiTimerSettings } from '../shared/wifi-timer-settings';
+import type { WifiTimerClientApi } from './wifi-timer-client';
 
 type WindowManagerApi = {
     getCursorWindow: () => BrowserWindow | null;
@@ -35,12 +37,28 @@ type RegisterMainIpcHandlersOptions = {
     ipcMain: IpcMain;
     windowManager: WindowManagerApi;
     joyConRumbleApi: JoyConRumbleApi;
+    wifiTimerClient: WifiTimerClientApi;
     state: MainIpcStateAccessors;
     toggleTimerWindowVisibility: () => void;
 };
 
 type RegisterOnChannel = (channel: string, handler: (event: IpcMainEvent, ...args: unknown[]) => void) => void;
 type CursorVisibilityPayload = { id: CursorId; isVisible: boolean };
+
+/**
+ * WiFi タイマー設定を解析する。
+ * @param value 入力値
+ * @returns 設定。無効な場合は null
+ */
+function parseWifiTimerSettings(value: unknown): WifiTimerSettings | null {
+    if (!isRecord(value) || typeof value.enabled !== 'boolean' || typeof value.ipAddress !== 'string') {
+        return null;
+    }
+    return {
+        enabled: value.enabled,
+        ipAddress: value.ipAddress.trim(),
+    };
+}
 
 /**
  * 単一のタイマー通知設定を解析する。
@@ -184,7 +202,7 @@ function broadcastToAppWindows(windowManager: WindowManagerApi, channel: string,
  * @param options 登録オプション
  */
 function registerStateSyncHandlers(registerOnChannel: RegisterOnChannel, options: RegisterMainIpcHandlersOptions): void {
-    const { state, windowManager } = options;
+    const { state, windowManager, wifiTimerClient } = options;
 
     registerOnChannel(MAIN_IPC_INBOUND_CHANNELS.CURSOR_MAP_CONFIG, (_event: IpcMainEvent, config: unknown): void => {
         const nextConfig = parseCursorMapConfig(config);
@@ -219,6 +237,7 @@ function registerStateSyncHandlers(registerOnChannel: RegisterOnChannel, options
         state.setCountdownInitialValue(nextValue);
         // console.log(`[main.ts] Received countdown initial value: ${state.getCountdownInitialValue()}`);
         broadcastToAppWindows(windowManager, MAIN_IPC_OUTBOUND_CHANNELS.UPDATE_COUNTDOWN_INITIAL_VALUE, state.getCountdownInitialValue());
+        void wifiTimerClient.syncInitialValue(state.getCountdownInitialValue()).catch(() => undefined);
     });
 
     registerOnChannel(MAIN_IPC_INBOUND_CHANNELS.UPDATE_TIMER_PRESETS, (_event: IpcMainEvent, presets: unknown): void => {
@@ -238,6 +257,14 @@ function registerStateSyncHandlers(registerOnChannel: RegisterOnChannel, options
         // console.log('[main.ts] Received timer notifications update:', typedConfigs);
         broadcastToAppWindows(windowManager, MAIN_IPC_OUTBOUND_CHANNELS.UPDATE_TIMER_NOTIFICATIONS, typedConfigs);
     });
+
+    registerOnChannel(MAIN_IPC_INBOUND_CHANNELS.UPDATE_WIFI_TIMER_SETTINGS, (_event: IpcMainEvent, settings: unknown): void => {
+        const typedSettings = parseWifiTimerSettings(settings);
+        if (!typedSettings) {
+            return;
+        }
+        wifiTimerClient.updateSettings(typedSettings);
+    });
 }
 
 /**
@@ -246,7 +273,7 @@ function registerStateSyncHandlers(registerOnChannel: RegisterOnChannel, options
  * @param options 登録オプション
  */
 function registerTimerHandlers(registerOnChannel: RegisterOnChannel, options: RegisterMainIpcHandlersOptions): void {
-    const { ipcMain, state, windowManager, toggleTimerWindowVisibility, joyConRumbleApi } = options;
+    const { ipcMain, state, windowManager, toggleTimerWindowVisibility, joyConRumbleApi, wifiTimerClient } = options;
 
     registerOnChannel(MAIN_IPC_INBOUND_CHANNELS.UPDATE_SOUND_PLAY_DELAY, (_event: IpcMainEvent, delayMs: unknown): void => {
         const parsedDelay = parseNumberPayload(delayMs);
@@ -261,11 +288,26 @@ function registerTimerHandlers(registerOnChannel: RegisterOnChannel, options: Re
     registerTimerIpcHandlers(ipcMain, {
         onStatusUpdate: (isCountingUpdate: boolean): void => {
             // console.log(`[main.ts] Timer status update: ${isCountingUpdate}`);
+            const previousState = state.getTimerState();
             state.setTimerState(setTimerCounting(state.getTimerState(), isCountingUpdate));
+            if (!previousState.isCounting && isCountingUpdate) {
+                void wifiTimerClient.handleTimerStarted(state.getCountdownInitialValue()).catch(() => undefined);
+            }
         },
         onPauseUpdate: (isPausedUpdate: boolean): void => {
             // console.log(`[main.ts] Timer pause update: ${isPausedUpdate}`);
+            const previousState = state.getTimerState();
             state.setTimerState(setTimerPaused(state.getTimerState(), isPausedUpdate));
+            if (!previousState.isCounting) {
+                return;
+            }
+            if (isPausedUpdate) {
+                void wifiTimerClient.handleTimerPaused().catch(() => undefined);
+                return;
+            }
+            if (previousState.isPaused) {
+                void wifiTimerClient.handleTimerResumed().catch(() => undefined);
+            }
         },
     });
 

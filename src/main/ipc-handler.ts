@@ -9,16 +9,99 @@ import { MediaDirectoryStore } from './media-directory-store';
 import { findDisplayById, resolveDisplayId, toPhysicalScreenSize } from './ipc-handler-logic';
 import { isUsableWindow } from './browser-window-utils';
 import { IPC_HANDLER_INBOUND_CHANNELS, IPC_HANDLER_OUTBOUND_CHANNELS } from '../shared/ipc-handler-channels';
+import type { WifiTimerClientApi } from './wifi-timer-client';
+import type {
+    WifiTimerAudioSettings,
+    WifiTimerDisplaySettings,
+    WifiTimerWifiProfileInput,
+} from '../shared/wifi-timer-api-types';
 
 type IpcHandlerDependencies = {
     mediaDirectoryStore?: MediaDirectoryStore;
+    wifiTimerClient?: WifiTimerClientApi;
 };
 
 type IpcHandlerContext = {
     windowManagerInstance: typeof WindowManager;
     joyconManager: JoyConManager;
     mediaDirectoryStore: MediaDirectoryStore;
+    wifiTimerClient?: WifiTimerClientApi;
 };
+
+/**
+ * WiFi タイマーの表示設定入力を検証する。
+ * @param value 入力値
+ * @returns 正常化済み設定
+ */
+function parseWifiTimerDisplaySettings(value: unknown): WifiTimerDisplaySettings {
+    if (
+        typeof value !== 'object' || value === null
+        || typeof (value as { activeBrightness?: unknown }).activeBrightness !== 'number'
+        || typeof (value as { idleBrightness?: unknown }).idleBrightness !== 'number'
+        || typeof (value as { rotate180?: unknown }).rotate180 !== 'boolean'
+    ) {
+        throw new Error('invalid WiFi timer display settings');
+    }
+    return {
+        activeBrightness: (value as { activeBrightness: number }).activeBrightness,
+        idleBrightness: (value as { idleBrightness: number }).idleBrightness,
+        rotate180: (value as { rotate180: boolean }).rotate180,
+    };
+}
+
+/**
+ * WiFi タイマーの音設定入力を検証する。
+ * @param value 入力値
+ * @returns 正常化済み設定
+ */
+function parseWifiTimerAudioSettings(value: unknown): WifiTimerAudioSettings {
+    if (
+        typeof value !== 'object' || value === null
+        || typeof (value as { toneKind?: unknown }).toneKind !== 'number'
+        || typeof (value as { volume?: unknown }).volume !== 'number'
+        || typeof (value as { repeatCount?: unknown }).repeatCount !== 'number'
+        || typeof (value as { customSpeed?: unknown }).customSpeed !== 'number'
+    ) {
+        throw new Error('invalid WiFi timer audio settings');
+    }
+    return {
+        toneKind: (value as { toneKind: number }).toneKind,
+        volume: (value as { volume: number }).volume,
+        repeatCount: (value as { repeatCount: number }).repeatCount,
+        customSpeed: (value as { customSpeed: number }).customSpeed,
+    };
+}
+
+/**
+ * WiFi プロファイル入力を検証する。
+ * @param value 入力値
+ * @returns 正常化済み入力
+ */
+function parseWifiTimerWifiProfileInput(value: unknown): WifiTimerWifiProfileInput {
+    if (
+        typeof value !== 'object' || value === null
+        || typeof (value as { ssid?: unknown }).ssid !== 'string'
+        || typeof (value as { password?: unknown }).password !== 'string'
+    ) {
+        throw new Error('invalid WiFi timer Wi-Fi profile');
+    }
+    return {
+        ssid: (value as { ssid: string }).ssid,
+        password: (value as { password: string }).password,
+    };
+}
+
+/**
+ * WiFi プロファイル ID を検証する。
+ * @param value 入力値
+ * @returns プロファイル ID
+ */
+function parseWifiTimerProfileId(value: unknown): number {
+    if (typeof value !== 'number' || !Number.isInteger(value)) {
+        throw new Error('invalid WiFi timer Wi-Fi profile id');
+    }
+    return value;
+}
 
 /**
  * タイマーウィンドウへ安全にメッセージを送る。
@@ -240,6 +323,47 @@ function registerMediaHandlers(context: IpcHandlerContext): void {
 }
 
 /**
+ * WiFi タイマー関連 IPC を登録する。
+ * @param context ハンドラ依存
+ */
+function registerWifiTimerHandlers(context: IpcHandlerContext): void {
+    const { wifiTimerClient } = context;
+    if (!wifiTimerClient) {
+        return;
+    }
+
+    ipcMain.handle(IPC_HANDLER_INBOUND_CHANNELS.GET_WIFI_TIMER_CAPABILITIES, async () => wifiTimerClient.getCapabilities());
+    ipcMain.handle(IPC_HANDLER_INBOUND_CHANNELS.GET_WIFI_TIMER_AUDIO_TONES, async () => wifiTimerClient.getAudioTones());
+    ipcMain.handle(IPC_HANDLER_INBOUND_CHANNELS.GET_WIFI_TIMER_STATUS, async () => wifiTimerClient.getStatus());
+    ipcMain.handle(IPC_HANDLER_INBOUND_CHANNELS.UPDATE_WIFI_TIMER_DISPLAY_SETTINGS, async (_event: IpcMainInvokeEvent, settings: unknown) => {
+        return wifiTimerClient.updateDisplaySettings(parseWifiTimerDisplaySettings(settings));
+    });
+    ipcMain.handle(IPC_HANDLER_INBOUND_CHANNELS.UPDATE_WIFI_TIMER_AUDIO_SETTINGS, async (_event: IpcMainInvokeEvent, settings: unknown) => {
+        return wifiTimerClient.updateAudioSettings(parseWifiTimerAudioSettings(settings));
+    });
+    ipcMain.handle(IPC_HANDLER_INBOUND_CHANNELS.TEST_WIFI_TIMER_AUDIO_SETTINGS, async (_event: IpcMainInvokeEvent, settings: unknown) => {
+        return wifiTimerClient.testAudioSettings(parseWifiTimerAudioSettings(settings));
+    });
+    ipcMain.handle(IPC_HANDLER_INBOUND_CHANNELS.GET_WIFI_TIMER_WIFI, async () => wifiTimerClient.getWifiInfo());
+    ipcMain.handle(IPC_HANDLER_INBOUND_CHANNELS.SAVE_WIFI_TIMER_WIFI_PROFILE, async (_event: IpcMainInvokeEvent, profile: unknown) => {
+        return wifiTimerClient.saveWifiProfile(parseWifiTimerWifiProfileInput(profile));
+    });
+    ipcMain.handle(IPC_HANDLER_INBOUND_CHANNELS.DELETE_WIFI_TIMER_WIFI_PROFILE, async (_event: IpcMainInvokeEvent, id: unknown) => {
+        return wifiTimerClient.deleteWifiProfile(parseWifiTimerProfileId(id));
+    });
+    ipcMain.handle(IPC_HANDLER_INBOUND_CHANNELS.CONNECT_WIFI_TIMER_WIFI_PROFILE, async (_event: IpcMainInvokeEvent, id: unknown) => {
+        return wifiTimerClient.connectWifiProfile(parseWifiTimerProfileId(id));
+    });
+    ipcMain.handle(IPC_HANDLER_INBOUND_CHANNELS.MOVE_UP_WIFI_TIMER_WIFI_PROFILE, async (_event: IpcMainInvokeEvent, id: unknown) => {
+        return wifiTimerClient.moveUpWifiProfile(parseWifiTimerProfileId(id));
+    });
+    ipcMain.handle(IPC_HANDLER_INBOUND_CHANNELS.MOVE_DOWN_WIFI_TIMER_WIFI_PROFILE, async (_event: IpcMainInvokeEvent, id: unknown) => {
+        return wifiTimerClient.moveDownWifiProfile(parseWifiTimerProfileId(id));
+    });
+    ipcMain.handle(IPC_HANDLER_INBOUND_CHANNELS.REBOOT_WIFI_TIMER, async () => wifiTimerClient.reboot());
+}
+
+/**
  * メッセージウィンドウ関連 IPC を登録する。
  * @param context ハンドラ依存
  */
@@ -298,6 +422,7 @@ export function setupIpcHandlers(
         windowManagerInstance,
         joyconManager,
         mediaDirectoryStore: dependencies.mediaDirectoryStore ?? MediaDirectoryStore.createDefault(),
+        wifiTimerClient: dependencies.wifiTimerClient,
     };
 
     registerCursorWindowHandlers(context);
@@ -306,6 +431,7 @@ export function setupIpcHandlers(
     registerTimerHandlers(context);
     registerDisplayAndConnectionHandlers(context);
     registerMediaHandlers(context);
+    registerWifiTimerHandlers(context);
     registerMessageHandlers(context);
     // console.log('IPC Handlers setup complete.');
 }

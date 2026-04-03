@@ -66,7 +66,6 @@
             <button id="toggle-timer-pause-btn" style="background: #f0ad4e; color: white;">一時停止／再開</button>
             <button id="add-minute-main-btn" style="background: #5cb85c; color: white;">+1分</button>
         </div>
-
         <div id="preset-edit-container" class="section" style="background: #fff; display: none;">
             <div id="preset-inputs-list" style="margin-bottom: 5px;"></div>
             <div style="display: flex; gap: 5px;">
@@ -118,6 +117,95 @@
                         <button id="standalone-sound-pad-toggle-btn" style="background: #8a6c18; color: white; margin-right: 0;">Hide Pads</button>
                     </div>
                     <div id="standalone-sound-pad-grid" class="sound-pad-grid"></div>
+                </div>
+            </div>
+            <div style="display: flex; gap: 8px; align-items: flex-start; margin-top: 8px;">
+                <span style="color: #856404; font-weight: bold; width: 32px; flex-shrink: 0; margin: 0; line-height: 20px;">WiFi:</span>
+                <div id="wifi-timer-panel-container" style="flex: 1;">
+                    <div style="display: flex; justify-content: flex-end; margin-bottom: 4px;">
+                        <button id="wifi-timer-panel-toggle-btn" style="background: #7a5a00; color: white; margin-right: 0;">Hide WiFi Timer</button>
+                    </div>
+                    <div class="wifi-timer-panel">
+                        <div class="sub-section" style="gap: 8px; flex-wrap: wrap; height: auto; min-height: 26px;">
+                            <label style="width: 85px;">WiFi Timer:</label>
+                            <label style="display: flex; align-items: center; gap: 4px; color: #856404;">
+                                <input type="checkbox" id="wifi-timer-enabled">
+                                使用する
+                            </label>
+                            <input
+                                type="text"
+                                id="wifi-timer-ip-address"
+                                placeholder="192.168.0.10"
+                                spellcheck="false"
+                                style="width: 180px;"
+                            >
+                            <button id="wifi-timer-refresh-btn" style="background: #5f8f3b; color: white;">Refresh</button>
+                            <span id="wifi-timer-state" style="font-size: 11px; color: #856404;">State: --</span>
+                            <span id="wifi-timer-current-ip" style="font-size: 11px; color: #856404;">IP: --</span>
+                            <span id="wifi-timer-current-ssid" style="font-size: 11px; color: #856404;">SSID: --</span>
+                        </div>
+                        <div class="wifi-timer-panel-grid">
+                            <div class="wifi-timer-group">
+                                <div class="wifi-timer-group-title">Display</div>
+                                <div class="wifi-timer-grid">
+                                    <label for="wifi-timer-active-brightness">Active</label>
+                                    <input type="number" id="wifi-timer-active-brightness" min="0" max="255" value="255">
+                                    <label for="wifi-timer-idle-brightness">Idle</label>
+                                    <input type="number" id="wifi-timer-idle-brightness" min="0" max="255" value="32">
+                                    <label for="wifi-timer-rotate180">Rotate</label>
+                                    <label class="wifi-timer-checkbox-label">
+                                        <input type="checkbox" id="wifi-timer-rotate180">
+                                        180°
+                                    </label>
+                                </div>
+                                <button id="wifi-timer-apply-display-btn" class="wifi-timer-action-btn">Apply Display</button>
+                            </div>
+                            <div class="wifi-timer-group">
+                                <div class="wifi-timer-group-title">Audio</div>
+                                <div class="wifi-timer-grid">
+                                    <label for="wifi-timer-tone-kind">Tone</label>
+                                    <select id="wifi-timer-tone-kind">
+                                        <option value="">-- Loading Tones --</option>
+                                    </select>
+                                    <label for="wifi-timer-volume">Volume</label>
+                                    <input type="number" id="wifi-timer-volume" min="0" max="100" value="50">
+                                    <label for="wifi-timer-repeat-count">Repeat</label>
+                                    <input type="number" id="wifi-timer-repeat-count" min="1" max="20" value="1">
+                                    <label for="wifi-timer-custom-speed">Speed</label>
+                                    <input type="number" id="wifi-timer-custom-speed" min="60" max="120" value="100">
+                                </div>
+                                <div class="wifi-timer-button-row">
+                                    <button id="wifi-timer-apply-audio-btn" class="wifi-timer-action-btn">Apply Audio</button>
+                                    <button id="wifi-timer-test-audio-btn" class="wifi-timer-action-btn secondary">Test Audio</button>
+                                </div>
+                            </div>
+                            <div class="wifi-timer-group wifi-timer-group-wide">
+                                <div class="wifi-timer-group-title">Wi-Fi</div>
+                                <div class="wifi-timer-profile-row">
+                                    <select id="wifi-timer-profile-select">
+                                        <option value="">-- No Profiles --</option>
+                                    </select>
+                                    <button id="wifi-timer-wifi-refresh-btn" class="wifi-timer-action-btn secondary">Refresh Wi-Fi</button>
+                                    <button id="wifi-timer-move-up-profile-btn" class="wifi-timer-action-btn secondary">Move Up</button>
+                                    <button id="wifi-timer-move-down-profile-btn" class="wifi-timer-action-btn secondary">Move Down</button>
+                                    <button id="wifi-timer-connect-profile-btn" class="wifi-timer-action-btn">Connect</button>
+                                    <button id="wifi-timer-delete-profile-btn" class="wifi-timer-action-btn danger">Delete</button>
+                                </div>
+                                <div class="wifi-timer-grid">
+                                    <label for="wifi-timer-ssid">SSID</label>
+                                    <input type="text" id="wifi-timer-ssid" spellcheck="false">
+                                    <label for="wifi-timer-password">Password</label>
+                                    <input type="password" id="wifi-timer-password" spellcheck="false">
+                                </div>
+                                <div class="wifi-timer-button-row">
+                                    <button id="wifi-timer-save-profile-btn" class="wifi-timer-action-btn">Add Profile</button>
+                                    <button id="wifi-timer-update-profile-btn" class="wifi-timer-action-btn secondary">Update Selected</button>
+                                    <button id="wifi-timer-reboot-btn" class="wifi-timer-action-btn reboot">Reboot</button>
+                                </div>
+                                <div id="wifi-timer-operation-message" class="wifi-timer-operation-message"></div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>

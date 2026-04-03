@@ -9,6 +9,7 @@ export const MAIN_IPC_INBOUND_CHANNELS = {
     UPDATE_TIMER_PRESETS: 'update-timer-presets',
     UPDATE_TIMER_NOTIFICATIONS: 'update-timer-notifications',
     UPDATE_SOUND_PLAY_DELAY: 'update-sound-play-delay',
+    UPDATE_WIFI_TIMER_SETTINGS: 'update-wifi-timer-settings',
     HIDE_TIMER_WINDOW: 'hide-timer-window',
     TOGGLE_TIMER_WINDOW: 'toggle-timer-window',
     TIMER_COUNTDOWN_UPDATE: 'timer-countdown-update',
