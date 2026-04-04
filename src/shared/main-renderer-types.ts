@@ -3,6 +3,10 @@ import type { PointerMotionSettings } from './pointer-motion-settings';
 import type { WifiTimerSettings } from './wifi-timer-settings';
 import type {
     WifiTimerAudioSettings,
+    WifiTimerAudioStreamChunkResult,
+    WifiTimerAudioStreamEndResult,
+    WifiTimerAudioStreamStartInput,
+    WifiTimerAudioStreamStartResult,
     WifiTimerAudioTones,
     WifiTimerCapabilities,
     WifiTimerDisplaySettings,
@@ -59,6 +63,11 @@ export type ElectronAPI = {
     updateWifiTimerDisplaySettings: (settings: WifiTimerDisplaySettings) => Promise<WifiTimerStatus>;
     updateWifiTimerAudioSettings: (settings: WifiTimerAudioSettings) => Promise<WifiTimerStatus>;
     testWifiTimerAudioSettings: (settings: WifiTimerAudioSettings) => Promise<WifiTimerStatus>;
+    startWifiTimerAudioStream: (input: WifiTimerAudioStreamStartInput) => Promise<WifiTimerAudioStreamStartResult>;
+    sendWifiTimerAudioStreamChunk: (chunk: Uint8Array) => Promise<WifiTimerAudioStreamChunkResult>;
+    endWifiTimerAudioStream: () => Promise<WifiTimerAudioStreamEndResult>;
+    cancelWifiTimerAudioStream: () => Promise<void>;
+    updateWifiTimerAudioStreamVolume: (volume: number) => Promise<void>;
     getWifiTimerWifi: () => Promise<WifiTimerWifiInfo>;
     saveWifiTimerWifiProfile: (profile: WifiTimerWifiProfileInput) => Promise<WifiTimerWifiInfo>;
     deleteWifiTimerWifiProfile: (id: number) => Promise<WifiTimerWifiInfo>;
@@ -139,6 +148,10 @@ export type MainRendererElements = {
     wifiTimerCustomSpeedInput: HTMLInputElement;
     wifiTimerApplyAudioBtn: HTMLButtonElement;
     wifiTimerTestAudioBtn: HTMLButtonElement;
+    wifiTimerLocalAudioFileInput: HTMLInputElement;
+    wifiTimerStreamAudioBtn: HTMLButtonElement;
+    wifiTimerCancelStreamBtn: HTMLButtonElement;
+    wifiTimerStreamStatus: HTMLElement;
     wifiTimerWifiRefreshBtn: HTMLButtonElement;
     wifiTimerWifiProfileSelect: HTMLSelectElement;
     wifiTimerConnectProfileBtn: HTMLButtonElement;

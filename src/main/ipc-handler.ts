@@ -12,6 +12,7 @@ import { IPC_HANDLER_INBOUND_CHANNELS, IPC_HANDLER_OUTBOUND_CHANNELS } from '../
 import type { WifiTimerClientApi } from './wifi-timer-client';
 import type {
     WifiTimerAudioSettings,
+    WifiTimerAudioStreamStartInput,
     WifiTimerDisplaySettings,
     WifiTimerWifiProfileInput,
 } from '../shared/wifi-timer-api-types';
@@ -70,6 +71,40 @@ function parseWifiTimerAudioSettings(value: unknown): WifiTimerAudioSettings {
         repeatCount: (value as { repeatCount: number }).repeatCount,
         customSpeed: (value as { customSpeed: number }).customSpeed,
     };
+}
+
+/**
+ * WiFi タイマーのローカル音声ストリーム開始入力を検証する。
+ * @param value 入力値
+ * @returns 正常化済み入力
+ */
+function parseWifiTimerAudioStreamStartInput(value: unknown): WifiTimerAudioStreamStartInput {
+    if (
+        typeof value !== 'object' || value === null
+        || typeof (value as { volume?: unknown }).volume !== 'number'
+        || typeof (value as { sampleRate?: unknown }).sampleRate !== 'number'
+    ) {
+        throw new Error('invalid WiFi timer audio stream start input');
+    }
+    return {
+        volume: (value as { volume: number }).volume,
+        sampleRate: (value as { sampleRate: number }).sampleRate,
+    };
+}
+
+/**
+ * WiFi タイマーのローカル音声ストリームチャンクを検証する。
+ * @param value 入力値
+ * @returns 正常化済みチャンク
+ */
+function parseWifiTimerAudioStreamChunk(value: unknown): Uint8Array {
+    if (value instanceof ArrayBuffer) {
+        return new Uint8Array(value);
+    }
+    if (ArrayBuffer.isView(value)) {
+        return new Uint8Array(value.buffer.slice(value.byteOffset, value.byteOffset + value.byteLength));
+    }
+    throw new Error('invalid WiFi timer audio stream chunk');
 }
 
 /**
@@ -343,6 +378,20 @@ function registerWifiTimerHandlers(context: IpcHandlerContext): void {
     });
     ipcMain.handle(IPC_HANDLER_INBOUND_CHANNELS.TEST_WIFI_TIMER_AUDIO_SETTINGS, async (_event: IpcMainInvokeEvent, settings: unknown) => {
         return wifiTimerClient.testAudioSettings(parseWifiTimerAudioSettings(settings));
+    });
+    ipcMain.handle(IPC_HANDLER_INBOUND_CHANNELS.START_WIFI_TIMER_AUDIO_STREAM, async (_event: IpcMainInvokeEvent, input: unknown) => {
+        return wifiTimerClient.startAudioStream(parseWifiTimerAudioStreamStartInput(input));
+    });
+    ipcMain.handle(IPC_HANDLER_INBOUND_CHANNELS.SEND_WIFI_TIMER_AUDIO_STREAM_CHUNK, async (_event: IpcMainInvokeEvent, chunk: unknown) => {
+        return wifiTimerClient.sendAudioStreamChunk(parseWifiTimerAudioStreamChunk(chunk));
+    });
+    ipcMain.handle(IPC_HANDLER_INBOUND_CHANNELS.END_WIFI_TIMER_AUDIO_STREAM, async () => wifiTimerClient.endAudioStream());
+    ipcMain.handle(IPC_HANDLER_INBOUND_CHANNELS.CANCEL_WIFI_TIMER_AUDIO_STREAM, async () => wifiTimerClient.cancelAudioStream());
+    ipcMain.handle(IPC_HANDLER_INBOUND_CHANNELS.UPDATE_WIFI_TIMER_AUDIO_STREAM_VOLUME, async (_event: IpcMainInvokeEvent, volume: unknown) => {
+        if (typeof volume !== 'number') {
+            throw new Error('invalid WiFi timer audio stream volume');
+        }
+        await wifiTimerClient.updateAudioStreamVolume(volume);
     });
     ipcMain.handle(IPC_HANDLER_INBOUND_CHANNELS.GET_WIFI_TIMER_WIFI, async () => wifiTimerClient.getWifiInfo());
     ipcMain.handle(IPC_HANDLER_INBOUND_CHANNELS.SAVE_WIFI_TIMER_WIFI_PROFILE, async (_event: IpcMainInvokeEvent, profile: unknown) => {

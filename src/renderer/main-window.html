@@ -2,7 +2,7 @@
 <html>
 <head>
     <meta charset="UTF-8">
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; media-src 'self' blob:; connect-src 'self' http: https:">
     <title>Select Display & PPT</title>
     <link rel="stylesheet" href="styles/style.css">
     <style>
@@ -178,6 +178,22 @@
                                     <button id="wifi-timer-apply-audio-btn" class="wifi-timer-action-btn">Apply Audio</button>
                                     <button id="wifi-timer-test-audio-btn" class="wifi-timer-action-btn secondary">Test Audio</button>
                                 </div>
+                            </div>
+                            <div class="wifi-timer-group">
+                                <div class="wifi-timer-group-title">Local Stream</div>
+                                <div class="wifi-timer-grid">
+                                    <label for="wifi-timer-local-audio-file">File</label>
+                                    <input
+                                        type="file"
+                                        id="wifi-timer-local-audio-file"
+                                        accept=".mp3,.mp4,.m4a,.wav,audio/*,video/mp4"
+                                    >
+                                </div>
+                                <div class="wifi-timer-button-row">
+                                    <button id="wifi-timer-stream-audio-btn" class="wifi-timer-action-btn">Stream &amp; Play</button>
+                                    <button id="wifi-timer-cancel-stream-btn" class="wifi-timer-action-btn secondary" disabled>Cancel Stream</button>
+                                </div>
+                                <div id="wifi-timer-stream-status" class="wifi-timer-stream-status"></div>
                             </div>
                             <div class="wifi-timer-group wifi-timer-group-wide">
                                 <div class="wifi-timer-group-title">Wi-Fi</div>

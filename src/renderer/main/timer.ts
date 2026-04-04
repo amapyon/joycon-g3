@@ -13,6 +13,9 @@
     type WifiTimerWifiProfile = import('../../shared/wifi-timer-api-types').WifiTimerWifiProfile;
     type WifiTimerDisplaySettings = import('../../shared/wifi-timer-api-types').WifiTimerDisplaySettings;
     type WifiTimerAudioSettings = import('../../shared/wifi-timer-api-types').WifiTimerAudioSettings;
+    type WifiTimerAudioStreamChunkResult = import('../../shared/wifi-timer-api-types').WifiTimerAudioStreamChunkResult;
+    type WifiTimerAudioStreamEndResult = import('../../shared/wifi-timer-api-types').WifiTimerAudioStreamEndResult;
+    type WifiTimerAudioStreamStartResult = import('../../shared/wifi-timer-api-types').WifiTimerAudioStreamStartResult;
     type WifiTimerWifiProfileInput = import('../../shared/wifi-timer-api-types').WifiTimerWifiProfileInput;
     type MainTimerApiResolverBootstrapApi = import('../../shared/renderer-api-resolver-types').RendererApiResolverBootstrapApi;
     type TimerUiUtilsApi = {
@@ -52,6 +55,13 @@
         playButton: HTMLButtonElement | null;
         pauseButton: HTMLButtonElement | null;
         stopButton: HTMLButtonElement | null;
+    };
+    type WifiTimerAudioStreamProgress = {
+        producedBytes: number;
+        sentBytes: number;
+        bufferedBytes: number;
+        maxBufferedBytes: number;
+        totalOnDevice: number;
     };
 
     const rendererApiResolverUtils = ((): import('../../shared/renderer-api-resolver-types').RendererApiResolverUtilsApi => {
@@ -98,6 +108,10 @@
     let currentWifiTimerProfiles: WifiTimerWifiProfile[] = [];
     let currentWifiTimerAudioToneLimits: WifiTimerAudioToneLimits = defaultWifiTimerAudioToneLimits;
     let currentWifiTimerAudioSettings: WifiTimerAudioSettings = defaultWifiTimerAudioSettings;
+    let currentWifiTimerAudioTones: WifiTimerAudioTones | null = null;
+    let wifiTimerStreamBusy = false;
+    let wifiTimerStreamCancelRequested = false;
+    let wifiTimerStreamVolumeUpdateTimer: number | null = null;
     const standalonePadAudioStates: StandalonePadAudioState[] = Array.from({ length: standalonePadCount }, (): StandalonePadAudioState => ({
         audio: null,
         assignedFile: '',
@@ -311,6 +325,81 @@
     };
 
     /**
+     * WiFi タイマーのストリーム状態表示を更新する。
+     * @param message 表示内容
+     * @param isError エラー表示かどうか
+     */
+    const setWifiTimerStreamStatus = (message: string, isError: boolean = false): void => {
+        elements.wifiTimerStreamStatus.textContent = message;
+        elements.wifiTimerStreamStatus.style.color = isError ? '#b04a3f' : '#7a5a00';
+    };
+
+    /**
+     * WiFi タイマーのストリーム操作可否を更新する。
+     * @param isBusy ストリーム中なら true
+     */
+    const setWifiTimerStreamBusy = (isBusy: boolean): void => {
+        wifiTimerStreamBusy = isBusy;
+        if (!isBusy) {
+            wifiTimerStreamCancelRequested = false;
+        }
+        elements.wifiTimerStreamAudioBtn.disabled = isBusy;
+        elements.wifiTimerCancelStreamBtn.disabled = !isBusy;
+        elements.wifiTimerLocalAudioFileInput.disabled = isBusy;
+    };
+
+    /**
+     * WiFi タイマー用の直接アクセス URL を構築する。
+     * @param path API パス
+     * @param params クエリパラメータ
+     * @returns URL 文字列
+     */
+    const buildWifiTimerDirectUrl = (path: string, params?: Record<string, string>): string => {
+        const trimmedIpAddress = state.wifiTimerSettings.ipAddress.trim();
+        if (!trimmedIpAddress) {
+            throw new Error('WiFi timer IP address is not configured');
+        }
+        const withProtocol = /^[a-z]+:\/\//i.test(trimmedIpAddress) ? trimmedIpAddress : `http://${trimmedIpAddress}`;
+        const baseUrl = new URL(withProtocol);
+        const url = new URL(path, `${baseUrl.origin}/`);
+        if (params) {
+            Object.entries(params).forEach(([key, value]: [string, string]): void => {
+                url.searchParams.set(key, value);
+            });
+        }
+        return url.toString();
+    };
+
+    /**
+     * WiFi タイマーへ直接 JSON リクエストを送る。
+     * @param path API パス
+     * @param init fetch 初期化引数
+     * @param params クエリパラメータ
+     * @returns 解析済み JSON
+     */
+    const requestWifiTimerDirectJson = async <T>(
+        path: string,
+        init: RequestInit,
+        params?: Record<string, string>,
+    ): Promise<T> => {
+        const response = await fetch(buildWifiTimerDirectUrl(path, params), init);
+        const raw = await response.text();
+        if (!response.ok) {
+            let errorMessage = raw || `WiFi timer request failed: ${response.status}`;
+            try {
+                const parsed = JSON.parse(raw) as { error?: string };
+                if (parsed.error) {
+                    errorMessage = parsed.error;
+                }
+            } catch {
+                void 0;
+            }
+            throw new Error(errorMessage);
+        }
+        return JSON.parse(raw) as T;
+    };
+
+    /**
      * WiFi タイマー状態を UI に反映する。
      * @param status 状態
      */
@@ -356,6 +445,7 @@
         preferredToneKind?: number,
         shouldSyncAudioSettings: boolean = true,
     ): void => {
+        currentWifiTimerAudioTones = audioTones;
         currentWifiTimerAudioToneLimits = audioTones.limits;
         if (shouldSyncAudioSettings) {
             currentWifiTimerAudioSettings = {
@@ -395,6 +485,20 @@
         if (!elements.wifiTimerToneKindSelect.value && audioTones.tones[0]) {
             elements.wifiTimerToneKindSelect.value = String(audioTones.tones[0].id);
         }
+    };
+
+    /**
+     * 利用可能な live-stream 音色 ID を取得する。
+     * @returns live-stream 音色 ID。未対応時は null
+     */
+    const getWifiTimerLiveStreamToneId = (): number | null => {
+        if (!currentWifiTimerAudioTones) {
+            return null;
+        }
+        const liveStreamTone = currentWifiTimerAudioTones.tones.find((tone: WifiTimerAudioTone): boolean => {
+            return tone.kind === 'live-stream' && tone.available;
+        }) ?? null;
+        return liveStreamTone?.id ?? null;
     };
 
     /**
@@ -498,6 +602,319 @@
     };
 
     /**
+     * 指定ミリ秒待機する。
+     * @param ms 待機時間
+     * @returns 完了 Promise
+     */
+    const sleepMs = async (ms: number): Promise<void> => {
+        await new Promise<void>((resolve: () => void): void => {
+            window.setTimeout((): void => resolve(), ms);
+        });
+    };
+
+    /**
+     * キュー先頭から指定サイズまでのチャンクを結合する。
+     * @param queue PCM チャンクキュー
+     * @param targetBytes 目標サイズ
+     * @returns 結合済みチャンク。取り出せない場合は null
+     */
+    const dequeueWifiTimerStreamChunk = (queue: Uint8Array[], targetBytes: number): Uint8Array | null => {
+        const firstChunk = queue.shift() ?? null;
+        if (!firstChunk) {
+            return null;
+        }
+        let totalBytes = firstChunk.byteLength;
+        const chunks: Uint8Array[] = [firstChunk];
+        while (queue.length > 0 && totalBytes < targetBytes) {
+            const nextChunk = queue[0];
+            if (!nextChunk) {
+                break;
+            }
+            queue.shift();
+            chunks.push(nextChunk);
+            totalBytes += nextChunk.byteLength;
+        }
+        if (chunks.length === 1) {
+            return firstChunk;
+        }
+        const mergedChunk = new Uint8Array(totalBytes);
+        let offset = 0;
+        chunks.forEach((chunk: Uint8Array): void => {
+            mergedChunk.set(chunk, offset);
+            offset += chunk.byteLength;
+        });
+        return mergedChunk;
+    };
+
+    /**
+     * 次の描画フレームまで待機する。
+     * @returns 完了 Promise
+     */
+    const waitForNextFrame = async (): Promise<void> => {
+        await new Promise<void>((resolve: () => void): void => {
+            window.requestAnimationFrame((): void => resolve());
+        });
+    };
+
+    /**
+     * AudioBuffer を PCM16LE モノラルへ変換する。
+     * @param inputBuffer 入力バッファ
+     * @returns PCM バイト列
+     */
+    const floatToInt16PcmMono = (inputBuffer: AudioBuffer): Uint8Array => {
+        const channels = inputBuffer.numberOfChannels;
+        const frames = inputBuffer.length;
+        const pcm = new Int16Array(frames);
+        for (let frameIndex = 0; frameIndex < frames; frameIndex += 1) {
+            let mixed = 0;
+            for (let channelIndex = 0; channelIndex < channels; channelIndex += 1) {
+                mixed += inputBuffer.getChannelData(channelIndex)[frameIndex];
+            }
+            mixed /= channels;
+            const clamped = Math.max(-1, Math.min(1, mixed));
+            pcm[frameIndex] = clamped < 0 ? Math.round(clamped * 32768) : Math.round(clamped * 32767);
+        }
+        return new Uint8Array(pcm.buffer);
+    };
+
+    /**
+     * ストリーム終了結果から状態オブジェクトを取り出す。
+     * @param endResult 終了結果
+     * @returns 状態。取得できない場合は null
+     */
+    const resolveWifiTimerStatusFromStreamEnd = (endResult: WifiTimerAudioStreamEndResult): WifiTimerStatus | null => {
+        const rawStatus = endResult.status;
+        if (!rawStatus) {
+            return null;
+        }
+        if (typeof rawStatus === 'string') {
+            try {
+                return JSON.parse(rawStatus) as WifiTimerStatus;
+            } catch {
+                return null;
+            }
+        }
+        return rawStatus as WifiTimerStatus;
+    };
+
+    /**
+     * ストリーム中の音量変更を反映する。
+     * @returns 完了 Promise
+     */
+    const applyWifiTimerStreamVolumeIfNeeded = async (): Promise<void> => {
+        if (!wifiTimerStreamBusy) {
+            return;
+        }
+        const volume = parseNumberUtils.parseIntOrFallback(elements.wifiTimerVolumeInput.value, currentWifiTimerAudioSettings.volume);
+        try {
+            await requestWifiTimerDirectJson<Record<string, unknown>>(
+                'api/audio/stream/volume',
+                { method: 'POST' },
+                { volume: String(volume) },
+            );
+            setWifiTimerStreamStatus(`Streaming volume updated: ${volume}`);
+        } catch (error: unknown) {
+            setWifiTimerStreamStatus(error instanceof Error ? error.message : String(error), true);
+        }
+    };
+
+    /**
+     * ストリームチャンク送信をバッファフル時リトライ付きで行う。
+     * @param chunkBytes PCM チャンク
+     * @param onBuffered バッファ更新時コールバック
+     * @returns 送信結果
+     */
+    const sendWifiTimerStreamChunkWithRetry = async (
+        chunkBytes: Uint8Array,
+        onBuffered?: (result: WifiTimerAudioStreamChunkResult) => void,
+    ): Promise<WifiTimerAudioStreamChunkResult> => {
+        const maxRetryCount = 200;
+        for (let retryIndex = 0; retryIndex < maxRetryCount; retryIndex += 1) {
+            try {
+                const formData = new FormData();
+                const chunkCopy = new Uint8Array(chunkBytes.byteLength);
+                chunkCopy.set(chunkBytes);
+                formData.append('chunk', new Blob([chunkCopy.buffer], { type: 'application/octet-stream' }), 'chunk.pcm');
+                const result = await requestWifiTimerDirectJson<WifiTimerAudioStreamChunkResult>(
+                    'api/audio/stream/chunk',
+                    { method: 'POST', body: formData },
+                );
+                if (onBuffered) {
+                    onBuffered(result);
+                }
+                return result;
+            } catch (error: unknown) {
+                const message = error instanceof Error ? error.message : String(error);
+                const isRetryable = message.includes('429')
+                    || message.includes('stream buffer full')
+                    || message.includes('ECONNRESET')
+                    || message.includes('connection was reset')
+                    || message.includes('fetch failed')
+                    || message.includes('socket hang up');
+                if (!isRetryable) {
+                    throw error;
+                }
+                await sleepMs(20);
+            }
+        }
+        throw new Error('stream buffer full または接続断が継続したため中断しました');
+    };
+
+    /**
+     * ローカル音声をデバイスへリアルタイム送信する。
+     * @param file 対象ファイル
+     * @param onProgress 進捗通知
+     * @returns 完了情報
+     */
+    const streamWifiTimerLocalAudioRealtime = async (
+        file: File,
+        onProgress?: (progress: WifiTimerAudioStreamProgress) => void,
+    ): Promise<{ sampleRate: number; sentBytes: number; endResult: WifiTimerAudioStreamEndResult }> => {
+        const AudioContextCtor = window.AudioContext
+            ?? (window as Window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+        if (!AudioContextCtor) {
+            throw new Error('This browser does not support Web Audio API');
+        }
+
+        const audioContext = new AudioContextCtor({ sampleRate: 16000, latencyHint: 'interactive' });
+        const htmlAudio = new Audio();
+        const objectUrl = URL.createObjectURL(file);
+        htmlAudio.src = objectUrl;
+        htmlAudio.preload = 'auto';
+        htmlAudio.muted = false;
+        htmlAudio.volume = 1;
+
+        const sourceNode = audioContext.createMediaElementSource(htmlAudio);
+        const processorNode = audioContext.createScriptProcessor(4096, 2, 1);
+        const muteGain = audioContext.createGain();
+        muteGain.gain.value = 0;
+
+        sourceNode.connect(processorNode);
+        processorNode.connect(muteGain);
+        muteGain.connect(audioContext.destination);
+
+        const queue: Uint8Array[] = [];
+        let producedBytes = 0;
+        let sentBytes = 0;
+        let senderRunning = false;
+        let ended = false;
+        let senderError: unknown = null;
+        const targetChunkBytes = 8192;
+
+        const processQueue = async (): Promise<void> => {
+            if (senderRunning) {
+                return;
+            }
+            senderRunning = true;
+            try {
+                while ((!ended || queue.length > 0) && !wifiTimerStreamCancelRequested) {
+                    const nextChunk = dequeueWifiTimerStreamChunk(queue, targetChunkBytes);
+                    if (!nextChunk) {
+                        await sleepMs(8);
+                        continue;
+                    }
+                    const result = await sendWifiTimerStreamChunkWithRetry(nextChunk, (chunkResult: WifiTimerAudioStreamChunkResult): void => {
+                        if (onProgress) {
+                            onProgress({
+                                producedBytes,
+                                sentBytes,
+                                bufferedBytes: chunkResult.bufferedBytes ?? 0,
+                                maxBufferedBytes: chunkResult.maxBufferedBytes ?? 0,
+                                totalOnDevice: chunkResult.bytes ?? 0,
+                            });
+                        }
+                    });
+                    sentBytes += nextChunk.byteLength;
+                    if (onProgress) {
+                        onProgress({
+                            producedBytes,
+                            sentBytes,
+                            bufferedBytes: result.bufferedBytes ?? 0,
+                            maxBufferedBytes: result.maxBufferedBytes ?? 0,
+                            totalOnDevice: result.bytes ?? 0,
+                        });
+                    }
+                }
+            } catch (error: unknown) {
+                senderError = error;
+            } finally {
+                senderRunning = false;
+            }
+        };
+
+        try {
+            const volume = parseNumberUtils.parseIntOrFallback(elements.wifiTimerVolumeInput.value, currentWifiTimerAudioSettings.volume);
+            const startInfo: WifiTimerAudioStreamStartResult = await requestWifiTimerDirectJson<WifiTimerAudioStreamStartResult>(
+                'api/audio/stream/start',
+                { method: 'POST' },
+                {
+                    volume: String(volume),
+                    sampleRate: String(Math.round(audioContext.sampleRate)),
+                },
+            );
+            if (!startInfo.ok) {
+                throw new Error('stream start failed');
+            }
+
+            processorNode.onaudioprocess = (event: AudioProcessingEvent): void => {
+                if (wifiTimerStreamCancelRequested) {
+                    return;
+                }
+                const chunk = floatToInt16PcmMono(event.inputBuffer);
+                if (chunk.byteLength > 0) {
+                    queue.push(chunk);
+                    producedBytes += chunk.byteLength;
+                    void processQueue();
+                }
+            };
+
+            await audioContext.resume();
+            await htmlAudio.play();
+            await new Promise<void>((resolve: () => void, reject: (reason?: unknown) => void): void => {
+                htmlAudio.addEventListener('ended', (): void => resolve(), { once: true });
+                htmlAudio.addEventListener('error', (): void => reject(new Error('audio decode/playback failed in browser')), { once: true });
+            });
+
+            ended = true;
+            if (wifiTimerStreamCancelRequested) {
+                throw new Error('Audio stream canceled');
+            }
+            while (senderRunning || queue.length > 0) {
+                await sleepMs(12);
+            }
+
+            if (senderError) {
+                throw senderError;
+            }
+
+            if (wifiTimerStreamCancelRequested) {
+                await requestWifiTimerDirectJson<Record<string, unknown>>('api/audio/stream/cancel', { method: 'POST' });
+                throw new Error('Audio stream canceled');
+            }
+
+            const endResult = await requestWifiTimerDirectJson<WifiTimerAudioStreamEndResult>('api/audio/stream/end', { method: 'POST' });
+            const status = resolveWifiTimerStatusFromStreamEnd(endResult);
+            if (status) {
+                applyWifiTimerStatus(status);
+            }
+            return {
+                sampleRate: audioContext.sampleRate,
+                sentBytes,
+                endResult,
+            };
+        } finally {
+            processorNode.onaudioprocess = null;
+            sourceNode.disconnect();
+            processorNode.disconnect();
+            muteGain.disconnect();
+            htmlAudio.pause();
+            htmlAudio.src = '';
+            URL.revokeObjectURL(objectUrl);
+            await audioContext.close();
+        }
+    };
+
+    /**
      * 輝度・回転設定をフォームから読み取る。
      * @returns 表示設定
      */
@@ -598,11 +1015,50 @@
     };
 
     /**
+     * ローカル音声ストリーム再生に必要な音色設定を整える。
+     * @returns 完了 Promise
+     */
+    const prepareWifiTimerLiveStreamPlayback = async (): Promise<void> => {
+        const liveStreamToneId = getWifiTimerLiveStreamToneId();
+        if (liveStreamToneId === null) {
+            throw new Error('WiFi timer does not provide an available live-stream tone');
+        }
+        const currentSettings = readWifiTimerAudioSettings();
+        if (currentSettings.toneKind === liveStreamToneId) {
+            return;
+        }
+        const status = await electronAPI.updateWifiTimerAudioSettings({
+            toneKind: liveStreamToneId,
+            volume: currentSettings.volume,
+            repeatCount: currentSettings.repeatCount,
+            customSpeed: currentSettings.customSpeed,
+        });
+        applyWifiTimerStatus(status);
+        timerUiUtils.setSelectValue(elements.wifiTimerToneKindSelect, String(liveStreamToneId));
+    };
+
+    /**
      * WiFi タイマー設定操作を初期化する。
      */
     const initWifiTimerAdminPanel = (): void => {
+        setWifiTimerStreamBusy(false);
+        setWifiTimerStreamStatus('');
+
         elements.wifiTimerWifiProfileSelect.addEventListener('change', (): void => {
             syncWifiTimerProfileSelection();
+        });
+
+        elements.wifiTimerVolumeInput.addEventListener('input', (): void => {
+            if (!wifiTimerStreamBusy) {
+                return;
+            }
+            if (wifiTimerStreamVolumeUpdateTimer !== null) {
+                window.clearTimeout(wifiTimerStreamVolumeUpdateTimer);
+            }
+            wifiTimerStreamVolumeUpdateTimer = window.setTimeout((): void => {
+                wifiTimerStreamVolumeUpdateTimer = null;
+                void applyWifiTimerStreamVolumeIfNeeded();
+            }, 120);
         });
 
         elements.wifiTimerRefreshBtn.addEventListener('click', (): void => {
@@ -645,6 +1101,77 @@
                 })
                 .catch((error: unknown): void => {
                     setWifiTimerOperationMessage(error instanceof Error ? error.message : String(error), true);
+                });
+        });
+
+        elements.wifiTimerStreamAudioBtn.addEventListener('click', (): void => {
+            if (wifiTimerStreamBusy) {
+                return;
+            }
+            const file = elements.wifiTimerLocalAudioFileInput.files?.[0] ?? null;
+            if (!file) {
+                setWifiTimerStreamStatus('ローカル音声ファイルを選択してください。', true);
+                return;
+            }
+
+            const startedAt = performance.now();
+            setWifiTimerStreamBusy(true);
+            setWifiTimerStreamStatus('Starting real-time stream...');
+            void waitForNextFrame()
+                .then((): Promise<void> => prepareWifiTimerLiveStreamPlayback())
+                .then((): Promise<{ sampleRate: number; sentBytes: number; endResult: WifiTimerAudioStreamEndResult }> => {
+                    return streamWifiTimerLocalAudioRealtime(file, (progress: WifiTimerAudioStreamProgress): void => {
+                        const bufferedPercent = progress.maxBufferedBytes > 0
+                            ? Math.round((progress.bufferedBytes / progress.maxBufferedBytes) * 100)
+                            : 0;
+                        setWifiTimerStreamStatus(
+                            `Streaming... sent=${progress.sentBytes}B produced=${progress.producedBytes}B buffer=${bufferedPercent}% `
+                            + `(${progress.bufferedBytes}/${progress.maxBufferedBytes})`,
+                        );
+                    });
+                })
+                .then((result: { sampleRate: number; sentBytes: number; endResult: WifiTimerAudioStreamEndResult }): void => {
+                    const totalMs = Math.round(performance.now() - startedAt);
+                    const deviceMs = typeof result.endResult.elapsedMs === 'number'
+                        ? result.endResult.elapsedMs
+                        : totalMs;
+                    setWifiTimerStreamStatus(
+                        `Playing streamed audio | sampleRate=${result.sampleRate}Hz sent=${result.sentBytes}B device=${deviceMs}ms total=${totalMs}ms`,
+                    );
+                    setWifiTimerOperationMessage('Local audio stream completed.');
+                })
+                .catch((error: unknown): void => {
+                    const message = error instanceof Error ? error.message : String(error);
+                    setWifiTimerStreamStatus(message, true);
+                    setWifiTimerOperationMessage(message, true);
+                })
+                .finally((): void => {
+                    if (wifiTimerStreamVolumeUpdateTimer !== null) {
+                        window.clearTimeout(wifiTimerStreamVolumeUpdateTimer);
+                        wifiTimerStreamVolumeUpdateTimer = null;
+                    }
+                    setWifiTimerStreamBusy(false);
+                });
+        });
+
+        elements.wifiTimerCancelStreamBtn.addEventListener('click', (): void => {
+            wifiTimerStreamCancelRequested = true;
+            void requestWifiTimerDirectJson<Record<string, unknown>>('api/audio/stream/cancel', { method: 'POST' })
+                .then((): void => {
+                    setWifiTimerStreamStatus('Audio stream canceled');
+                    setWifiTimerOperationMessage('Audio stream canceled.');
+                })
+                .catch((error: unknown): void => {
+                    const message = error instanceof Error ? error.message : String(error);
+                    setWifiTimerStreamStatus(message, true);
+                    setWifiTimerOperationMessage(message, true);
+                })
+                .finally((): void => {
+                    if (wifiTimerStreamVolumeUpdateTimer !== null) {
+                        window.clearTimeout(wifiTimerStreamVolumeUpdateTimer);
+                        wifiTimerStreamVolumeUpdateTimer = null;
+                    }
+                    setWifiTimerStreamBusy(false);
                 });
         });
 

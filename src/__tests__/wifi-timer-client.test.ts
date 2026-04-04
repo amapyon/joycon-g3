@@ -1,5 +1,12 @@
 import { createWifiTimerClient, normalizeWifiTimerBaseUrl } from '../main/wifi-timer-client';
-import type { WifiTimerAudioTones, WifiTimerStatus, WifiTimerWifiInfo } from '../shared/wifi-timer-api-types';
+import type {
+    WifiTimerAudioStreamChunkResult,
+    WifiTimerAudioStreamEndResult,
+    WifiTimerAudioStreamStartResult,
+    WifiTimerAudioTones,
+    WifiTimerStatus,
+    WifiTimerWifiInfo,
+} from '../shared/wifi-timer-api-types';
 
 type FetchResponse = {
     ok: boolean;
@@ -213,6 +220,63 @@ describe('WiFi タイマークライアント', (): void => {
 
         await expect(client.updateAudioSettings({ toneKind: 8, volume: 80, repeatCount: 4, customSpeed: 115 })).resolves.toEqual(status);
         expect(fetchMock).toHaveBeenCalledWith('http://192.168.0.10/api/audio?toneKind=8&volume=80&repeatCount=4&customSpeed=115', { method: 'POST' });
+    });
+
+    it('ローカル音声ストリーム開始 API を呼ぶ', async (): Promise<void> => {
+        const startResult: WifiTimerAudioStreamStartResult = {
+            ok: true,
+            sampleRate: 16000,
+            channels: 1,
+            bitsPerSample: 16,
+            maxBufferedBytes: 98304,
+        };
+        const fetchMock = jest.fn<Promise<FetchResponse>, [string, { method?: string; body?: BodyInit; headers?: Record<string, string> } | undefined]>()
+            .mockResolvedValue(okResponse(startResult));
+        const client = createWifiTimerClient(fetchMock, { enabled: false, ipAddress: '192.168.0.10' });
+
+        await expect(client.startAudioStream({ volume: 55, sampleRate: 16000 })).resolves.toEqual(startResult);
+        expect(fetchMock).toHaveBeenCalledWith('http://192.168.0.10/api/audio/stream/start?volume=55&sampleRate=16000', { method: 'POST' });
+    });
+
+    it('ローカル音声ストリームチャンク送信 API を呼ぶ', async (): Promise<void> => {
+        const chunkResult: WifiTimerAudioStreamChunkResult = {
+            bufferedBytes: 4096,
+            maxBufferedBytes: 98304,
+            bytes: 4096,
+        };
+        const fetchMock = jest.fn<Promise<FetchResponse>, [string, { method?: string; body?: BodyInit; headers?: Record<string, string> } | undefined]>()
+            .mockResolvedValue(okResponse(chunkResult));
+        const client = createWifiTimerClient(fetchMock, { enabled: false, ipAddress: '192.168.0.10' });
+
+        await expect(client.sendAudioStreamChunk(new Uint8Array([1, 2, 3, 4]))).resolves.toEqual(chunkResult);
+        expect(fetchMock).toHaveBeenCalledTimes(1);
+        expect(fetchMock.mock.calls[0]?.[0]).toBe('http://192.168.0.10/api/audio/stream/chunk');
+        expect(fetchMock.mock.calls[0]?.[1]?.method).toBe('POST');
+        expect(fetchMock.mock.calls[0]?.[1]?.body).toBeInstanceOf(FormData);
+    });
+
+    it('ローカル音声ストリーム終了 API を呼ぶ', async (): Promise<void> => {
+        const endResult: WifiTimerAudioStreamEndResult = {
+            ok: true,
+            elapsedMs: 1200,
+        };
+        const fetchMock = jest.fn<Promise<FetchResponse>, [string, { method?: string; body?: BodyInit; headers?: Record<string, string> } | undefined]>()
+            .mockResolvedValue(okResponse(endResult));
+        const client = createWifiTimerClient(fetchMock, { enabled: false, ipAddress: '192.168.0.10' });
+
+        await expect(client.endAudioStream()).resolves.toEqual(endResult);
+        expect(fetchMock).toHaveBeenCalledWith('http://192.168.0.10/api/audio/stream/end', { method: 'POST' });
+    });
+
+    it('ローカル音声ストリーム中断 API と音量更新 API を呼ぶ', async (): Promise<void> => {
+        const fetchMock = jest.fn<Promise<FetchResponse>, [string, { method?: string; body?: BodyInit; headers?: Record<string, string> } | undefined]>()
+            .mockResolvedValue(okResponse({ ok: true }));
+        const client = createWifiTimerClient(fetchMock, { enabled: false, ipAddress: '192.168.0.10' });
+
+        await expect(client.cancelAudioStream()).resolves.toBeUndefined();
+        await expect(client.updateAudioStreamVolume(65)).resolves.toBeUndefined();
+        expect(fetchMock).toHaveBeenNthCalledWith(1, 'http://192.168.0.10/api/audio/stream/cancel', { method: 'POST' });
+        expect(fetchMock).toHaveBeenNthCalledWith(2, 'http://192.168.0.10/api/audio/stream/volume?volume=65', { method: 'POST' });
     });
 
     it('WiFi プロファイル移動 API を呼ぶ', async (): Promise<void> => {

@@ -100,6 +100,44 @@ export type WifiTimerAudioSettings = {
 };
 
 /**
+ * ローカル音声ストリーム開始入力。
+ */
+export type WifiTimerAudioStreamStartInput = {
+    volume: number;
+    sampleRate: number;
+};
+
+/**
+ * ローカル音声ストリーム開始結果。
+ */
+export type WifiTimerAudioStreamStartResult = {
+    ok: boolean;
+    sampleRate: number;
+    channels: number;
+    bitsPerSample: number;
+    maxBufferedBytes: number;
+};
+
+/**
+ * ローカル音声ストリームチャンク送信結果。
+ */
+export type WifiTimerAudioStreamChunkResult = {
+    bufferedBytes?: number;
+    maxBufferedBytes?: number;
+    bytes?: number;
+    error?: string;
+};
+
+/**
+ * ローカル音声ストリーム終了結果。
+ */
+export type WifiTimerAudioStreamEndResult = Record<string, unknown> & {
+    ok?: boolean;
+    elapsedMs?: number;
+    status?: WifiTimerStatus | string;
+};
+
+/**
  * 音色カタログ取得結果。
  */
 export type WifiTimerAudioTones = {

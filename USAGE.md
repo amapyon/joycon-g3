@@ -100,6 +100,18 @@ WiFi Timer 設定は `PAD` の次のセクションに表示されます。
 - `Apply Audio` で本体へ反映します。
 - `Test Audio` で現在選択中の音色・音量・回数を試聴します。
 
+#### Local Stream
+- `File` でローカル音声ファイルを選択します。
+- 対応入力は `mp3` / `mp4` / `m4a` / `wav` と、それらをブラウザがデコードできる形式です。
+- `Stream & Play` でブラウザ側で音声を PCM16LE モノラルへ変換し、`/api/audio/stream/start` → `/api/audio/stream/chunk` → `/api/audio/stream/end` の順に送信します。
+- 送信処理は、WiFi タイマー本体の標準 WebUI と同系統のリアルタイムストリーム方式に合わせています。
+- 送信中は進捗として `sent / produced / buffer` を表示します。
+- 送信中に `Volume` を変更すると、`/api/audio/stream/volume` で再生音量を更新します。
+- `Cancel Stream` で `/api/audio/stream/cancel` を呼んで中断できます。
+- ストリーム再生は音設定の保存とは別機能です。保存済みの `Tone` 設定を書き換えずにライブ入力だけを再生します。
+- メインウィンドウはバックグラウンド時のスロットリングを無効化しているため、別アプリを前面にしてもストリーム再生を継続できます。
+- 現在の実装は WebUI 互換性を優先して `ScriptProcessorNode` を利用しています。そのため、開発者ツールのコンソールには非推奨警告が出る場合がありますが、現状の動作上は許容しています。
+
 #### Wi-Fi
 - `Refresh Wi-Fi` で保存済み Wi-Fi プロファイル一覧を再取得します。
 - `Move Up` / `Move Down` で保存済みプロファイルの優先順位を変更します。
@@ -119,7 +131,7 @@ WiFi Timer 設定は `PAD` の次のセクションに表示されます。
 - `GET /openapi.json` で OpenAPI 3.1 定義を取得できます。
 - `GET /api/status` には `alertCustomSpeedPercent` が含まれます。
 - `GET /api/audio/tones` の `tones[]` と `limits` を使って、音色一覧と入力上限を動的に反映します。
-- ローカル音声ライブストリーム API (`/api/audio/stream/*`) は最新仕様に含まれますが、このアプリの現行 UI ではまだ直接操作していません。
+- ローカル音声ライブストリーム API (`/api/audio/stream/*`) はメイン画面の `Local Stream` から直接操作できます。
 
 ## 7. サウンド通知
 - `Select` で通知音フォルダーを選択。

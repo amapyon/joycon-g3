@@ -19,6 +19,10 @@ import type { PointerMotionSettings } from '../shared/pointer-motion-settings';
 import type { WifiTimerSettings } from '../shared/wifi-timer-settings';
 import type {
     WifiTimerAudioSettings,
+    WifiTimerAudioStreamChunkResult,
+    WifiTimerAudioStreamEndResult,
+    WifiTimerAudioStreamStartInput,
+    WifiTimerAudioStreamStartResult,
     WifiTimerAudioTones,
     WifiTimerCapabilities,
     WifiTimerDisplaySettings,
@@ -107,6 +111,39 @@ export const electronAPI: ElectronAPI = {
      */
     testWifiTimerAudioSettings: (settings: WifiTimerAudioSettings): Promise<import('../shared/wifi-timer-api-types').WifiTimerStatus> =>
         ipcRenderer.invoke('test-wifi-timer-audio-settings', settings),
+    /**
+     * WiFi タイマーのローカル音声ストリームを開始する。
+     * @param input 開始入力
+     * @returns 開始結果
+     */
+    startWifiTimerAudioStream: (input: WifiTimerAudioStreamStartInput): Promise<WifiTimerAudioStreamStartResult> =>
+        ipcRenderer.invoke('start-wifi-timer-audio-stream', input),
+    /**
+     * WiFi タイマーへ音声チャンクを送信する。
+     * @param chunk PCM16LE モノラルのチャンク
+     * @returns 送信結果
+     */
+    sendWifiTimerAudioStreamChunk: (chunk: Uint8Array): Promise<WifiTimerAudioStreamChunkResult> =>
+        ipcRenderer.invoke('send-wifi-timer-audio-stream-chunk', chunk),
+    /**
+     * WiFi タイマーのローカル音声ストリームを終了する。
+     * @returns 終了結果
+     */
+    endWifiTimerAudioStream: (): Promise<WifiTimerAudioStreamEndResult> =>
+        ipcRenderer.invoke('end-wifi-timer-audio-stream'),
+    /**
+     * WiFi タイマーのローカル音声ストリームを中断する。
+     * @returns なし
+     */
+    cancelWifiTimerAudioStream: (): Promise<void> =>
+        ipcRenderer.invoke('cancel-wifi-timer-audio-stream'),
+    /**
+     * WiFi タイマーのローカル音声ストリーム音量を更新する。
+     * @param volume 音量
+     * @returns なし
+     */
+    updateWifiTimerAudioStreamVolume: (volume: number): Promise<void> =>
+        ipcRenderer.invoke('update-wifi-timer-audio-stream-volume', volume),
     /**
      * WiFi タイマーの WiFi 情報を取得する。
      * @returns WiFi 情報

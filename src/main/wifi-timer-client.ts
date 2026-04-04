@@ -1,6 +1,10 @@
 import type { WifiTimerSettings } from '../shared/wifi-timer-settings';
 import type {
     WifiTimerAudioSettings,
+    WifiTimerAudioStreamChunkResult,
+    WifiTimerAudioStreamEndResult,
+    WifiTimerAudioStreamStartInput,
+    WifiTimerAudioStreamStartResult,
     WifiTimerAudioTones,
     WifiTimerCapabilities,
     WifiTimerDisplaySettings,
@@ -9,7 +13,7 @@ import type {
     WifiTimerWifiProfileInput,
 } from '../shared/wifi-timer-api-types';
 
-type FetchLike = (input: string, init?: { method?: string }) => Promise<{
+type FetchLike = (input: string, init?: { method?: string; body?: BodyInit; headers?: Record<string, string> }) => Promise<{
     ok: boolean;
     status: number;
     text: () => Promise<string>;
@@ -30,6 +34,11 @@ export type WifiTimerClientApi = {
     updateDisplaySettings: (settings: WifiTimerDisplaySettings) => Promise<WifiTimerStatus>;
     updateAudioSettings: (settings: WifiTimerAudioSettings) => Promise<WifiTimerStatus>;
     testAudioSettings: (settings: WifiTimerAudioSettings) => Promise<WifiTimerStatus>;
+    startAudioStream: (input: WifiTimerAudioStreamStartInput) => Promise<WifiTimerAudioStreamStartResult>;
+    sendAudioStreamChunk: (chunk: Uint8Array) => Promise<WifiTimerAudioStreamChunkResult>;
+    endAudioStream: () => Promise<WifiTimerAudioStreamEndResult>;
+    cancelAudioStream: () => Promise<void>;
+    updateAudioStreamVolume: (volume: number) => Promise<void>;
     getWifiInfo: () => Promise<WifiTimerWifiInfo>;
     saveWifiProfile: (profile: WifiTimerWifiProfileInput) => Promise<WifiTimerWifiInfo>;
     deleteWifiProfile: (id: number) => Promise<WifiTimerWifiInfo>;
@@ -184,6 +193,54 @@ class WifiTimerClient implements WifiTimerClientApi {
     }
 
     /**
+     * ローカル音声ストリームを開始する。
+     * @param input 開始入力
+     * @returns 開始結果
+     */
+    public async startAudioStream(input: WifiTimerAudioStreamStartInput): Promise<WifiTimerAudioStreamStartResult> {
+        return this.postJson<WifiTimerAudioStreamStartResult>('api/audio/stream/start', {
+            volume: String(input.volume),
+            sampleRate: String(input.sampleRate),
+        }, false);
+    }
+
+    /**
+     * ローカル音声ストリームのチャンクを送信する。
+     * @param chunk PCM16LE モノラルのチャンク
+     * @returns 送信結果
+     */
+    public async sendAudioStreamChunk(chunk: Uint8Array): Promise<WifiTimerAudioStreamChunkResult> {
+        const byteArray = new Uint8Array(chunk.byteLength);
+        byteArray.set(chunk);
+        const formData = new FormData();
+        formData.append('chunk', new Blob([byteArray], { type: 'application/octet-stream' }), 'chunk.pcm');
+        return this.postBodyJson<WifiTimerAudioStreamChunkResult>('api/audio/stream/chunk', formData, false);
+    }
+
+    /**
+     * ローカル音声ストリームを終了する。
+     * @returns 終了結果
+     */
+    public async endAudioStream(): Promise<WifiTimerAudioStreamEndResult> {
+        return this.postJson<WifiTimerAudioStreamEndResult>('api/audio/stream/end', undefined, false);
+    }
+
+    /**
+     * ローカル音声ストリームを中断する。
+     */
+    public async cancelAudioStream(): Promise<void> {
+        await this.post('api/audio/stream/cancel', undefined, false);
+    }
+
+    /**
+     * ローカル音声ストリームの音量を更新する。
+     * @param volume 音量
+     */
+    public async updateAudioStreamVolume(volume: number): Promise<void> {
+        await this.post('api/audio/stream/volume', { volume: String(volume) }, false);
+    }
+
+    /**
      * WiFi 状態を取得する。
      * @returns WiFi 状態
      */
@@ -258,6 +315,48 @@ class WifiTimerClient implements WifiTimerClientApi {
     }
 
     /**
+     * fetch 失敗を利用者向けメッセージへ整形する。
+     * @param error 元エラー
+     * @returns 整形済み Error
+     */
+    private toRequestError(error: unknown): Error {
+        if (error instanceof Error) {
+            const cause = error as Error & { cause?: { code?: string; message?: string } };
+            const causeCode = cause.cause?.code;
+            const causeMessage = cause.cause?.message;
+            if (causeCode === 'ECONNRESET') {
+                return new Error('WiFi timer connection was reset');
+            }
+            if (causeCode) {
+                return new Error(`WiFi timer network error: ${causeCode}`);
+            }
+            if (causeMessage && causeMessage !== error.message) {
+                return new Error(`WiFi timer network error: ${causeMessage}`);
+            }
+            return error;
+        }
+        return new Error(String(error));
+    }
+
+    /**
+     * fetch を安全に呼び出す。
+     * @param input URL
+     * @param init fetch 初期化引数
+     * @returns レスポンス
+     */
+    private async request(input: string, init: { method?: string; body?: BodyInit; headers?: Record<string, string> }): Promise<{
+        ok: boolean;
+        status: number;
+        text: () => Promise<string>;
+    }> {
+        try {
+            return await this.fetchImpl(input, init);
+        } catch (error: unknown) {
+            throw this.toRequestError(error);
+        }
+    }
+
+    /**
      * POST リクエストを送信する。
      * @param path API パス
      * @param params クエリパラメータ
@@ -276,7 +375,7 @@ class WifiTimerClient implements WifiTimerClientApi {
                 url.searchParams.set(key, value);
             });
         }
-        const response = await this.fetchImpl(url.toString(), { method: 'POST' });
+        const response = await this.request(url.toString(), { method: 'POST' });
         if (response.ok) {
             return;
         }
@@ -295,7 +394,7 @@ class WifiTimerClient implements WifiTimerClientApi {
             throw new Error('WiFi timer IP address is not configured');
         }
         const url = new URL(path, `${baseUrl}/`);
-        const response = await this.fetchImpl(url.toString(), { method: 'GET' });
+        const response = await this.request(url.toString(), { method: 'GET' });
         const raw = await response.text();
         if (!response.ok) {
             throw new Error(raw || `WiFi timer request failed: ${response.status}`);
@@ -325,7 +424,32 @@ class WifiTimerClient implements WifiTimerClientApi {
                 url.searchParams.set(key, value);
             });
         }
-        const response = await this.fetchImpl(url.toString(), { method: 'POST' });
+        const response = await this.request(url.toString(), { method: 'POST' });
+        const raw = await response.text();
+        if (!response.ok) {
+            throw new Error(raw || `WiFi timer request failed: ${response.status}`);
+        }
+        return JSON.parse(raw) as T;
+    }
+
+    /**
+     * 任意ボディを送る JSON POST リクエストを送信する。
+     * @param path API パス
+     * @param body 送信ボディ
+     * @param requireEnabled 連携有効フラグを要求するか
+     * @returns 解析済み JSON
+     */
+    private async postBodyJson<T>(
+        path: string,
+        body: BodyInit,
+        requireEnabled: boolean = true,
+    ): Promise<T> {
+        const baseUrl = this.getBaseUrl(requireEnabled);
+        if (!baseUrl) {
+            throw new Error('WiFi timer IP address is not configured');
+        }
+        const url = new URL(path, `${baseUrl}/`);
+        const response = await this.request(url.toString(), { method: 'POST', body });
         const raw = await response.text();
         if (!response.ok) {
             throw new Error(raw || `WiFi timer request failed: ${response.status}`);

@@ -1,6 +1,14 @@
 import type { IpcMain, IpcMainEvent } from 'electron';
 import { registerMainIpcHandlers } from '../main/main-ipc-registration';
-import type { WifiTimerAudioTones, WifiTimerCapabilities, WifiTimerStatus, WifiTimerWifiInfo } from '../shared/wifi-timer-api-types';
+import type {
+    WifiTimerAudioStreamChunkResult,
+    WifiTimerAudioStreamEndResult,
+    WifiTimerAudioStreamStartResult,
+    WifiTimerAudioTones,
+    WifiTimerCapabilities,
+    WifiTimerStatus,
+    WifiTimerWifiInfo,
+} from '../shared/wifi-timer-api-types';
 
 type Listener = (event: IpcMainEvent, ...args: unknown[]) => void;
 
@@ -28,6 +36,11 @@ type WifiTimerClientApiMock = {
     updateDisplaySettings: jest.Mock<Promise<WifiTimerStatus>, [object]>;
     updateAudioSettings: jest.Mock<Promise<WifiTimerStatus>, [object]>;
     testAudioSettings: jest.Mock<Promise<WifiTimerStatus>, [object]>;
+    startAudioStream: jest.Mock<Promise<WifiTimerAudioStreamStartResult>, [object]>;
+    sendAudioStreamChunk: jest.Mock<Promise<WifiTimerAudioStreamChunkResult>, [Uint8Array]>;
+    endAudioStream: jest.Mock<Promise<WifiTimerAudioStreamEndResult>, []>;
+    cancelAudioStream: jest.Mock<Promise<void>, []>;
+    updateAudioStreamVolume: jest.Mock<Promise<void>, [number]>;
     getWifiInfo: jest.Mock<Promise<WifiTimerWifiInfo>, []>;
     saveWifiProfile: jest.Mock<Promise<WifiTimerWifiInfo>, [object]>;
     deleteWifiProfile: jest.Mock<Promise<WifiTimerWifiInfo>, [number]>;
@@ -133,6 +146,21 @@ function createRegisterOptions(joyConRumbleApi: JoyConRumbleApiMock): {
         updateDisplaySettings: jest.fn().mockResolvedValue(statusFallback),
         updateAudioSettings: jest.fn().mockResolvedValue(statusFallback),
         testAudioSettings: jest.fn().mockResolvedValue(statusFallback),
+        startAudioStream: jest.fn().mockResolvedValue({
+            ok: true,
+            sampleRate: 16000,
+            channels: 1,
+            bitsPerSample: 16,
+            maxBufferedBytes: 98304,
+        }),
+        sendAudioStreamChunk: jest.fn().mockResolvedValue({
+            bufferedBytes: 0,
+            maxBufferedBytes: 98304,
+            bytes: 0,
+        }),
+        endAudioStream: jest.fn().mockResolvedValue({ ok: true }),
+        cancelAudioStream: jest.fn().mockResolvedValue(undefined),
+        updateAudioStreamVolume: jest.fn().mockResolvedValue(undefined),
         getWifiInfo: jest.fn().mockResolvedValue(wifiInfoFallback),
         saveWifiProfile: jest.fn().mockResolvedValue(wifiInfoFallback),
         deleteWifiProfile: jest.fn().mockResolvedValue(wifiInfoFallback),
