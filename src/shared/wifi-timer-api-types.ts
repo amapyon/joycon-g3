@@ -167,6 +167,34 @@ export type WifiTimerAudioTones = {
 };
 
 /**
+ * カスタム音ファイル情報。
+ */
+export type WifiTimerCustomAudioFile = {
+    name: string;
+    bytes?: number;
+    durationMs?: number;
+    active?: boolean;
+};
+
+/**
+ * カスタム音ストレージ情報。
+ */
+export type WifiTimerCustomAudioStorage = {
+    freeBytes?: number;
+    totalBytes?: number;
+    remainingUploadBytes?: number;
+};
+
+/**
+ * カスタム音一覧取得結果。
+ */
+export type WifiTimerCustomAudioList = {
+    files: WifiTimerCustomAudioFile[];
+    activeName: string;
+    storage: WifiTimerCustomAudioStorage;
+};
+
+/**
  * WiFi プロファイル保存入力。
  */
 export type WifiTimerWifiProfileInput = {

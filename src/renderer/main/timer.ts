@@ -17,6 +17,8 @@
     type WifiTimerAudioStreamChunkResult = import('../../shared/wifi-timer-api-types').WifiTimerAudioStreamChunkResult;
     type WifiTimerAudioStreamEndResult = import('../../shared/wifi-timer-api-types').WifiTimerAudioStreamEndResult;
     type WifiTimerAudioStreamStartResult = import('../../shared/wifi-timer-api-types').WifiTimerAudioStreamStartResult;
+    type WifiTimerCustomAudioFile = import('../../shared/wifi-timer-api-types').WifiTimerCustomAudioFile;
+    type WifiTimerCustomAudioList = import('../../shared/wifi-timer-api-types').WifiTimerCustomAudioList;
     type WifiTimerWifiProfileInput = import('../../shared/wifi-timer-api-types').WifiTimerWifiProfileInput;
     type MainTimerApiResolverBootstrapApi = import('../../shared/renderer-api-resolver-types').RendererApiResolverBootstrapApi;
     type TimerUiUtilsApi = {
@@ -110,6 +112,8 @@
     let currentWifiTimerAudioToneLimits: WifiTimerAudioToneLimits = defaultWifiTimerAudioToneLimits;
     let currentWifiTimerAudioSettings: WifiTimerAudioSettings = defaultWifiTimerAudioSettings;
     let currentWifiTimerAudioTones: WifiTimerAudioTones | null = null;
+    let currentWifiTimerCustomAudioFiles: WifiTimerCustomAudioFile[] = [];
+    let currentWifiTimerActiveCustomAudioName = '';
     let wifiTimerDisplayEffectDirty = false;
     let wifiTimerStreamBusy = false;
     let wifiTimerStreamCancelRequested = false;
@@ -339,6 +343,26 @@
     };
 
     /**
+     * 現在選択中のカスタム音表示を更新する。
+     */
+    const updateWifiTimerCurrentCustomToneHint = (): void => {
+        const selectedValue = elements.wifiTimerToneKindSelect.value;
+        if (selectedValue === 'fixed:chime') {
+            elements.wifiTimerCurrentCustomToneHint.textContent = 'custom_alert.pcm (Built-in chime)';
+            return;
+        }
+        if (selectedValue === 'fixed:gong') {
+            elements.wifiTimerCurrentCustomToneHint.textContent = 'custom_gong.pcm (Built-in gong)';
+            return;
+        }
+        if (selectedValue.startsWith('custom:')) {
+            elements.wifiTimerCurrentCustomToneHint.textContent = selectedValue.slice('custom:'.length) || '-';
+            return;
+        }
+        elements.wifiTimerCurrentCustomToneHint.textContent = currentWifiTimerActiveCustomAudioName || '-';
+    };
+
+    /**
      * 色演出プレビュー文言を更新する。
      */
     const updateWifiTimerColorEffectPreview = (): void => {
@@ -468,11 +492,29 @@
                 elements.wifiTimerAlertColorInput.value = status.displayColorEffect.alertColor || '#ff0000';
             }
         }
-        timerUiUtils.setSelectValue(elements.wifiTimerToneKindSelect, String(status.alertToneKind));
+        if (status.alertToneKind === 6) {
+            if (currentWifiTimerActiveCustomAudioName === 'custom_alert.pcm') {
+                timerUiUtils.setSelectValue(elements.wifiTimerToneKindSelect, 'fixed:chime');
+            } else if (
+                currentWifiTimerActiveCustomAudioName
+                && Array.from(elements.wifiTimerToneKindSelect.options).some(
+                    (option: HTMLOptionElement): boolean => option.value === `custom:${currentWifiTimerActiveCustomAudioName}`,
+                )
+            ) {
+                timerUiUtils.setSelectValue(elements.wifiTimerToneKindSelect, `custom:${currentWifiTimerActiveCustomAudioName}`);
+            } else {
+                timerUiUtils.setSelectValue(elements.wifiTimerToneKindSelect, 'fixed:chime');
+            }
+        } else if (status.alertToneKind === 7) {
+            timerUiUtils.setSelectValue(elements.wifiTimerToneKindSelect, 'fixed:gong');
+        } else {
+            timerUiUtils.setSelectValue(elements.wifiTimerToneKindSelect, String(status.alertToneKind));
+        }
         elements.wifiTimerVolumeInput.value = String(status.alertVolume);
         elements.wifiTimerRepeatCountInput.value = String(status.alertRepeatCount);
         elements.wifiTimerCustomSpeedInput.value = String(status.alertCustomSpeedPercent);
         updateWifiTimerColorEffectPreview();
+        updateWifiTimerCurrentCustomToneHint();
         setWifiTimerStreamBusy(wifiTimerStreamBusy);
     };
 
@@ -484,9 +526,9 @@
     const formatWifiTimerToneLabel = (tone: WifiTimerAudioTone): string => {
         const baseLabel = tone.label || tone.name || `Tone ${tone.id}`;
         if (tone.available) {
-            return `${tone.id}: ${baseLabel}`;
+            return baseLabel;
         }
-        return `${tone.id}: ${baseLabel} (Unavailable)`;
+        return `${baseLabel} (not available)`;
     };
 
     /**
@@ -497,7 +539,7 @@
      */
     const applyWifiTimerAudioTones = (
         audioTones: WifiTimerAudioTones,
-        preferredToneKind?: number,
+        preferredToneValue?: string,
         shouldSyncAudioSettings: boolean = true,
     ): void => {
         currentWifiTimerAudioTones = audioTones;
@@ -510,7 +552,21 @@
                 customSpeed: audioTones.current.customSpeed ?? audioTones.defaults.customSpeed,
             };
         }
-        const selectedToneKind = preferredToneKind ?? audioTones.current.toneKind ?? audioTones.defaults.toneKind;
+        let fallbackToneValue = String(audioTones.current.toneKind ?? audioTones.defaults.toneKind);
+        if (audioTones.current.toneKind === 6) {
+            if (currentWifiTimerActiveCustomAudioName === 'custom_alert.pcm') {
+                fallbackToneValue = 'fixed:chime';
+            } else if (
+                currentWifiTimerActiveCustomAudioName
+                && currentWifiTimerCustomAudioFiles.some((file: WifiTimerCustomAudioFile): boolean => file.name === currentWifiTimerActiveCustomAudioName)
+            ) {
+                fallbackToneValue = `custom:${currentWifiTimerActiveCustomAudioName}`;
+            } else {
+                fallbackToneValue = 'fixed:chime';
+            }
+        } else if (audioTones.current.toneKind === 7) {
+            fallbackToneValue = 'fixed:gong';
+        }
         elements.wifiTimerVolumeInput.min = String(audioTones.limits.volumeMin);
         elements.wifiTimerVolumeInput.max = String(audioTones.limits.volumeMax);
         elements.wifiTimerRepeatCountInput.min = String(audioTones.limits.repeatCountMin);
@@ -525,21 +581,101 @@
             elements.wifiTimerToneKindSelect.appendChild(option);
             return;
         }
+        const builtinGroup = document.createElement('optgroup');
+        builtinGroup.label = 'Built-in';
+        const toneMap = new Map<number, WifiTimerAudioTone>();
         audioTones.tones.forEach((tone: WifiTimerAudioTone): void => {
+            toneMap.set(tone.id, tone);
+        });
+        [0, 1, 2, 3, 4, 5].forEach((toneId: number): void => {
+            const tone = toneMap.get(toneId);
+            if (!tone) {
+                return;
+            }
             const option = document.createElement('option');
             option.value = String(tone.id);
             option.text = formatWifiTimerToneLabel(tone);
-            if (!tone.available) {
-                option.dataset.available = '0';
-            }
-            if (tone.id === selectedToneKind) {
-                option.selected = true;
-            }
-            elements.wifiTimerToneKindSelect.appendChild(option);
+            option.disabled = !tone.available;
+            builtinGroup.appendChild(option);
         });
+        const chimeOption = document.createElement('option');
+        chimeOption.value = 'fixed:chime';
+        chimeOption.text = 'chime';
+        builtinGroup.appendChild(chimeOption);
+
+        const gongTone = toneMap.get(7);
+        const gongOption = document.createElement('option');
+        gongOption.value = 'fixed:gong';
+        gongOption.text = gongTone && !gongTone.available ? 'gong (not available)' : 'gong';
+        gongOption.disabled = !!gongTone && !gongTone.available;
+        builtinGroup.appendChild(gongOption);
+        elements.wifiTimerToneKindSelect.appendChild(builtinGroup);
+
+        const customGroup = document.createElement('optgroup');
+        customGroup.label = 'Custom Library';
+        if (currentWifiTimerCustomAudioFiles.length === 0) {
+            const option = document.createElement('option');
+            option.value = '6';
+            option.text = 'Custom (no uploaded files yet)';
+            customGroup.appendChild(option);
+        } else {
+            currentWifiTimerCustomAudioFiles.forEach((file: WifiTimerCustomAudioFile): void => {
+                const option = document.createElement('option');
+                option.value = `custom:${file.name}`;
+                option.text = file.active ? `Custom: ${file.name} [Selected]` : `Custom: ${file.name}`;
+                customGroup.appendChild(option);
+            });
+        }
+        elements.wifiTimerToneKindSelect.appendChild(customGroup);
+
+        const nextToneValue = preferredToneValue
+            && Array.from(elements.wifiTimerToneKindSelect.options).some((option: HTMLOptionElement): boolean => option.value === preferredToneValue)
+            ? preferredToneValue
+            : fallbackToneValue;
+        timerUiUtils.setSelectValue(elements.wifiTimerToneKindSelect, nextToneValue);
         if (!elements.wifiTimerToneKindSelect.value && audioTones.tones[0]) {
             elements.wifiTimerToneKindSelect.value = String(audioTones.tones[0].id);
         }
+        updateWifiTimerCurrentCustomToneHint();
+    };
+
+    /**
+     * バイト数を表示向け文字列へ変換する。
+     * @param bytes バイト数
+     * @returns 表示文字列
+     */
+    const formatWifiTimerBytes = (bytes?: number): string => {
+        if (typeof bytes !== 'number' || Number.isNaN(bytes) || bytes < 0) {
+            return '-';
+        }
+        if (bytes < 1024) {
+            return `${bytes} B`;
+        }
+        if (bytes < 1024 * 1024) {
+            return `${(bytes / 1024).toFixed(1)} KB`;
+        }
+        return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
+    };
+
+    /**
+     * カスタム音名をリネーム用に正規化する。
+     * @param rawName 入力名
+     * @returns 正規化後ファイル名
+     */
+    const sanitizeWifiTimerCustomAudioName = (rawName: string): string => {
+        const source = rawName.toLowerCase().endsWith('.pcm') ? rawName.slice(0, -4) : rawName;
+        let normalized = source.normalize('NFKC').trim();
+        normalized = normalized.replace(/\s+/g, '_');
+        normalized = normalized.replace(/[^0-9A-Za-z_.-]/g, '_');
+        normalized = normalized.replace(/_+/g, '_');
+        normalized = normalized.replace(/^[_.-]+|[_.-]+$/g, '');
+        if (!normalized) {
+            normalized = 'custom';
+        }
+        if (normalized.length > 24) {
+            normalized = normalized.slice(0, 24);
+        }
+        return `${normalized}.pcm`;
     };
 
     /**
@@ -632,8 +768,131 @@
      */
     const refreshWifiTimerAudioTones = async (preferredToneKind?: number): Promise<WifiTimerAudioTones> => {
         const audioTones = await electronAPI.getWifiTimerAudioTones();
-        applyWifiTimerAudioTones(audioTones, preferredToneKind);
+        const preferredToneValue = typeof preferredToneKind === 'number'
+            ? String(preferredToneKind)
+            : undefined;
+        applyWifiTimerAudioTones(audioTones, preferredToneValue);
         return audioTones;
+    };
+
+    /**
+     * カスタム音一覧を描画する。
+     * @param customAudioList カスタム音一覧
+     */
+    const renderWifiTimerCustomAudioList = (customAudioList: WifiTimerCustomAudioList): void => {
+        elements.wifiTimerCustomToneList.innerHTML = '';
+        const normalizedFiles = customAudioList.files.map((file: WifiTimerCustomAudioFile): WifiTimerCustomAudioFile => ({
+            ...file,
+            active: file.active ?? file.name === customAudioList.activeName,
+        }));
+        currentWifiTimerCustomAudioFiles = normalizedFiles;
+        currentWifiTimerActiveCustomAudioName = customAudioList.activeName || '';
+        if (normalizedFiles.length === 0) {
+            const empty = document.createElement('div');
+            empty.className = 'wifi-timer-operation-message';
+            empty.textContent = 'No uploaded custom sounds';
+            elements.wifiTimerCustomToneList.appendChild(empty);
+        } else {
+            normalizedFiles.forEach((file: WifiTimerCustomAudioFile): void => {
+                const item = document.createElement('div');
+                item.className = 'wifi-timer-profile-item';
+
+                const label = document.createElement('span');
+                label.className = 'wifi-timer-profile-label';
+                label.textContent = file.active ? `${file.name} [Selected]` : file.name;
+
+                const meta = document.createElement('span');
+                meta.className = 'wifi-timer-inline-hint';
+                meta.textContent = `${formatWifiTimerBytes(file.bytes)} / ${(((file.durationMs ?? 0) / 1000)).toFixed(1)}s`;
+
+                const actionRow = document.createElement('div');
+                actionRow.className = 'wifi-timer-button-row';
+
+                const hint = document.createElement('span');
+                hint.className = 'wifi-timer-inline-hint';
+                hint.textContent = file.active ? 'Now used by Sound list' : 'Choose from Sound list';
+
+                const testBtn = document.createElement('button');
+                testBtn.className = 'wifi-timer-action-btn secondary';
+                testBtn.textContent = 'Test';
+                testBtn.addEventListener('click', (): void => {
+                    void electronAPI.testWifiTimerCustomAudio(file.name, {
+                        toneKind: 6,
+                        volume: parseNumberUtils.parseIntOrFallback(elements.wifiTimerVolumeInput.value, audioClampFallback('volume')),
+                        repeatCount: 1,
+                        customSpeed: parseNumberUtils.parseIntOrFallback(elements.wifiTimerCustomSpeedInput.value, audioClampFallback('customSpeed')),
+                    })
+                        .then(async (status: WifiTimerStatus): Promise<void> => {
+                            applyWifiTimerStatus(status);
+                            setWifiTimerOperationMessage(`Custom audio test requested: ${file.name}`);
+                            await refreshWifiTimerStatus();
+                        })
+                        .catch((error: unknown): void => {
+                            setWifiTimerOperationMessage(error instanceof Error ? error.message : String(error), true);
+                        });
+                });
+
+                const renameBtn = document.createElement('button');
+                renameBtn.className = 'wifi-timer-action-btn secondary';
+                renameBtn.textContent = 'Rename';
+                renameBtn.addEventListener('click', (): void => {
+                    const currentStem = file.name.toLowerCase().endsWith('.pcm') ? file.name.slice(0, -4) : file.name;
+                    const raw = window.prompt('New file name (.pcm optional)', currentStem);
+                    if (raw === null) {
+                        return;
+                    }
+                    const nextName = sanitizeWifiTimerCustomAudioName(raw);
+                    void electronAPI.renameWifiTimerCustomAudio(file.name, nextName)
+                        .then((): Promise<WifiTimerCustomAudioList> => refreshWifiTimerCustomAudioList())
+                        .then((): Promise<WifiTimerStatus> => refreshWifiTimerStatus())
+                        .then((): void => {
+                            setWifiTimerOperationMessage(`Custom audio renamed: ${file.name} -> ${nextName}`);
+                        })
+                        .catch((error: unknown): void => {
+                            setWifiTimerOperationMessage(error instanceof Error ? error.message : String(error), true);
+                        });
+                });
+
+                const deleteBtn = document.createElement('button');
+                deleteBtn.className = 'wifi-timer-action-btn danger';
+                deleteBtn.textContent = 'Delete';
+                deleteBtn.addEventListener('click', (): void => {
+                    void electronAPI.deleteWifiTimerCustomAudio(file.name)
+                        .then((): Promise<WifiTimerCustomAudioList> => refreshWifiTimerCustomAudioList())
+                        .then((): Promise<WifiTimerStatus> => refreshWifiTimerStatus())
+                        .then((): void => {
+                            setWifiTimerOperationMessage(`Custom audio deleted: ${file.name}`);
+                        })
+                        .catch((error: unknown): void => {
+                            setWifiTimerOperationMessage(error instanceof Error ? error.message : String(error), true);
+                        });
+                });
+
+                actionRow.appendChild(testBtn);
+                actionRow.appendChild(renameBtn);
+                actionRow.appendChild(deleteBtn);
+                item.appendChild(label);
+                item.appendChild(meta);
+                item.appendChild(hint);
+                item.appendChild(actionRow);
+                elements.wifiTimerCustomToneList.appendChild(item);
+            });
+        }
+        elements.wifiTimerCustomStorageInfo.textContent =
+            `Custom storage: free ${formatWifiTimerBytes(customAudioList.storage.freeBytes)} / `
+            + `total ${formatWifiTimerBytes(customAudioList.storage.totalBytes)} `
+            + `(upload remaining ${formatWifiTimerBytes(customAudioList.storage.remainingUploadBytes)})`;
+        updateWifiTimerCurrentCustomToneHint();
+    };
+
+    /**
+     * カスタム音一覧を更新取得する。
+     * @returns カスタム音一覧
+     */
+    const refreshWifiTimerCustomAudioList = async (): Promise<WifiTimerCustomAudioList> => {
+        const customAudioList = await electronAPI.getWifiTimerCustomAudioList();
+        renderWifiTimerCustomAudioList(customAudioList);
+        return customAudioList;
     };
 
     /**
@@ -650,9 +909,18 @@
      * WiFi タイマーパネル全体を更新する。
      */
     const refreshWifiTimerPanel = async (): Promise<void> => {
+        await refreshWifiTimerCustomAudioList();
         const audioTones = await refreshWifiTimerAudioTones();
         const status = await refreshWifiTimerStatus();
-        applyWifiTimerAudioTones(audioTones, status.alertToneKind, false);
+        let preferredToneValue = String(status.alertToneKind);
+        if (status.alertToneKind === 6) {
+            preferredToneValue = currentWifiTimerActiveCustomAudioName === 'custom_alert.pcm'
+                ? 'fixed:chime'
+                : `custom:${currentWifiTimerActiveCustomAudioName}`;
+        } else if (status.alertToneKind === 7) {
+            preferredToneValue = 'fixed:gong';
+        }
+        applyWifiTimerAudioTones(audioTones, preferredToneValue, false);
         await refreshWifiTimerWifiInfo();
     };
 
@@ -730,6 +998,44 @@
             pcm[frameIndex] = clamped < 0 ? Math.round(clamped * 32768) : Math.round(clamped * 32767);
         }
         return new Uint8Array(pcm.buffer);
+    };
+
+    /**
+     * Float32 PCM を Int16 PCM へ変換する。
+     * @param floatSamples 入力サンプル
+     * @returns Int16 PCM
+     */
+    const floatToInt16Pcm = (floatSamples: Float32Array): Int16Array => {
+        const pcm = new Int16Array(floatSamples.length);
+        for (let index = 0; index < floatSamples.length; index += 1) {
+            const clamped = Math.max(-1, Math.min(1, floatSamples[index] ?? 0));
+            pcm[index] = clamped < 0 ? Math.round(clamped * 32768) : Math.round(clamped * 32767);
+        }
+        return pcm;
+    };
+
+    /**
+     * 線形補間でリサンプリングする。
+     * @param input 入力サンプル
+     * @param inRate 入力サンプルレート
+     * @param outRate 出力サンプルレート
+     * @returns リサンプリング後サンプル
+     */
+    const resampleLinear = (input: Float32Array, inRate: number, outRate: number): Float32Array => {
+        if (inRate === outRate) {
+            return input;
+        }
+        const outLength = Math.max(1, Math.round((input.length * outRate) / inRate));
+        const output = new Float32Array(outLength);
+        const ratio = inRate / outRate;
+        for (let index = 0; index < outLength; index += 1) {
+            const srcPos = index * ratio;
+            const left = Math.floor(srcPos);
+            const right = Math.min(input.length - 1, left + 1);
+            const frac = srcPos - left;
+            output[index] = (input[left] ?? 0) * (1 - frac) + (input[right] ?? 0) * frac;
+        }
+        return output;
     };
 
     /**
@@ -1036,9 +1342,13 @@
      * @returns 音設定
      */
     const readWifiTimerAudioSettings = (): WifiTimerAudioSettings => {
+        const selectedToneValue = elements.wifiTimerToneKindSelect.value;
+        const rawToneKind = selectedToneValue.startsWith('custom:')
+            ? 6
+            : parseNumberUtils.parseIntOrFallback(selectedToneValue, currentWifiTimerAudioToneLimits.toneIdMin);
         const toneKind = Math.min(
             Math.max(
-                parseNumberUtils.parseIntOrFallback(elements.wifiTimerToneKindSelect.value, currentWifiTimerAudioToneLimits.toneIdMin),
+                rawToneKind,
                 currentWifiTimerAudioToneLimits.toneIdMin,
             ),
             currentWifiTimerAudioToneLimits.toneIdMax,
@@ -1074,6 +1384,86 @@
             repeatCount,
             customSpeed,
         };
+    };
+
+    /**
+     * 選択中の音色がカスタム音なら先に本体側の選択を切り替える。
+     * @returns 実際に送る toneKind
+     */
+    const resolveWifiTimerSelectedToneKind = async (): Promise<number> => {
+        const selectedValue = elements.wifiTimerToneKindSelect.value;
+        if (selectedValue === 'fixed:chime') {
+            await electronAPI.selectWifiTimerCustomAudio('custom_alert.pcm');
+            currentWifiTimerActiveCustomAudioName = 'custom_alert.pcm';
+            updateWifiTimerCurrentCustomToneHint();
+            return 6;
+        }
+        if (selectedValue === 'fixed:gong') {
+            return 7;
+        }
+        if (!selectedValue.startsWith('custom:')) {
+            return readWifiTimerAudioSettings().toneKind;
+        }
+        const name = selectedValue.slice('custom:'.length);
+        await electronAPI.selectWifiTimerCustomAudio(name);
+        currentWifiTimerActiveCustomAudioName = name;
+        updateWifiTimerCurrentCustomToneHint();
+        return 6;
+    };
+
+    /**
+     * カスタム音アップロードに対応する入力か判定する。
+     * @param file 対象ファイル
+     * @returns 対応形式なら true
+     */
+    const isSupportedWifiTimerCustomAudioFile = (file: File | null): boolean => {
+        if (!file) {
+            return false;
+        }
+        const lowerName = file.name.toLowerCase();
+        return lowerName.endsWith('.mp3') || lowerName.endsWith('.wav');
+    };
+
+    /**
+     * カスタム音用に 16kHz PCM16 モノラルへ変換する。
+     * @param file 入力ファイル
+     * @param maxSeconds 最大秒数
+     * @returns 変換結果
+     */
+    const decodeWifiTimerCustomAudioFile = async (
+        file: File,
+        maxSeconds: number,
+    ): Promise<{ pcmBytes: Uint8Array; truncated: boolean; durationMs: number }> => {
+        const AudioCtx = window.AudioContext
+            ?? (window as Window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+        if (!AudioCtx) {
+            throw new Error('This browser does not support Web Audio API');
+        }
+        const audioCtx = new AudioCtx();
+        try {
+            const arrayBuffer = await file.arrayBuffer();
+            const decoded = await audioCtx.decodeAudioData(arrayBuffer.slice(0));
+            const mono = new Float32Array(decoded.length);
+            for (let index = 0; index < decoded.length; index += 1) {
+                let mixed = 0;
+                for (let channel = 0; channel < decoded.numberOfChannels; channel += 1) {
+                    mixed += decoded.getChannelData(channel)[index] ?? 0;
+                }
+                mono[index] = mixed / decoded.numberOfChannels;
+            }
+            const resampled = resampleLinear(mono, decoded.sampleRate, 16000);
+            const maxFrames = Math.max(1, Math.round(16000 * maxSeconds));
+            const truncated = resampled.length > maxFrames;
+            const clipped = truncated ? resampled.subarray(0, maxFrames) : resampled;
+            const pcm = floatToInt16Pcm(clipped);
+            return {
+                pcmBytes: new Uint8Array(pcm.buffer),
+                truncated,
+                durationMs: Math.round((clipped.length * 1000) / 16000),
+            };
+        } finally {
+            await audioCtx.close();
+        }
     };
 
     /**
@@ -1163,6 +1553,10 @@
             }, 120);
         });
 
+        elements.wifiTimerToneKindSelect.addEventListener('input', (): void => {
+            updateWifiTimerCurrentCustomToneHint();
+        });
+
         [
             elements.wifiTimerStage1SecondsInput,
             elements.wifiTimerStage2SecondsInput,
@@ -1220,7 +1614,14 @@
         });
 
         elements.wifiTimerApplyAudioBtn.addEventListener('click', (): void => {
-            void electronAPI.updateWifiTimerAudioSettings(readWifiTimerAudioSettings())
+            const currentSettings = readWifiTimerAudioSettings();
+            void resolveWifiTimerSelectedToneKind()
+                .then((toneKind: number): Promise<WifiTimerStatus> => {
+                    return electronAPI.updateWifiTimerAudioSettings({
+                        ...currentSettings,
+                        toneKind,
+                    });
+                })
                 .then((status: WifiTimerStatus): void => {
                     applyWifiTimerStatus(status);
                     setWifiTimerOperationMessage('Audio settings updated.');
@@ -1231,10 +1632,58 @@
         });
 
         elements.wifiTimerTestAudioBtn.addEventListener('click', (): void => {
-            void electronAPI.testWifiTimerAudioSettings(readWifiTimerAudioSettings())
+            const currentSettings = readWifiTimerAudioSettings();
+            void resolveWifiTimerSelectedToneKind()
+                .then((toneKind: number): Promise<WifiTimerStatus> => {
+                    return electronAPI.testWifiTimerAudioSettings({
+                        ...currentSettings,
+                        toneKind,
+                    });
+                })
                 .then((status: WifiTimerStatus): void => {
                     applyWifiTimerStatus(status);
                     setWifiTimerOperationMessage('Audio test requested.');
+                })
+                .catch((error: unknown): void => {
+                    setWifiTimerOperationMessage(error instanceof Error ? error.message : String(error), true);
+                });
+        });
+
+        elements.wifiTimerUploadCustomToneBtn.addEventListener('click', (): void => {
+            const file = elements.wifiTimerCustomToneFileInput.files?.[0] ?? null;
+            if (!file) {
+                setWifiTimerOperationMessage('アップロードする mp3/wav ファイルを選択してください。', true);
+                return;
+            }
+            if (!isSupportedWifiTimerCustomAudioFile(file)) {
+                setWifiTimerOperationMessage('Custom upload supports mp3/wav only.', true);
+                return;
+            }
+            void decodeWifiTimerCustomAudioFile(file, 5)
+                .then((decoded: { pcmBytes: Uint8Array; truncated: boolean; durationMs: number }): Promise<Record<string, unknown>> => {
+                    if (decoded.truncated) {
+                        setWifiTimerOperationMessage('5秒を超える音声は先頭5秒のみ保存します。');
+                    }
+                    return electronAPI.uploadWifiTimerCustomAudio(file.name, decoded.pcmBytes);
+                })
+                .then((): Promise<WifiTimerCustomAudioList> => refreshWifiTimerCustomAudioList())
+                .then((): Promise<WifiTimerAudioTones> => refreshWifiTimerAudioTones())
+                .then((): Promise<WifiTimerStatus> => refreshWifiTimerStatus())
+                .then((): void => {
+                    elements.wifiTimerCustomToneFileInput.value = '';
+                    setWifiTimerOperationMessage(`Custom audio uploaded: ${file.name}`);
+                })
+                .catch((error: unknown): void => {
+                    setWifiTimerOperationMessage(error instanceof Error ? error.message : String(error), true);
+                });
+        });
+
+        elements.wifiTimerRefreshCustomToneBtn.addEventListener('click', (): void => {
+            void refreshWifiTimerCustomAudioList()
+                .then((): Promise<WifiTimerAudioTones> => refreshWifiTimerAudioTones())
+                .then((): Promise<WifiTimerStatus> => refreshWifiTimerStatus())
+                .then((): void => {
+                    setWifiTimerOperationMessage('Custom audio list refreshed.');
                 })
                 .catch((error: unknown): void => {
                     setWifiTimerOperationMessage(error instanceof Error ? error.message : String(error), true);

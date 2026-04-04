@@ -3,6 +3,7 @@ import type {
     WifiTimerAudioStreamChunkResult,
     WifiTimerAudioStreamEndResult,
     WifiTimerAudioStreamStartResult,
+    WifiTimerCustomAudioList,
     WifiTimerAudioTones,
     WifiTimerStatus,
     WifiTimerWifiInfo,
@@ -133,6 +134,24 @@ describe('WiFi タイマークライアント', (): void => {
 
         await expect(client.getAudioTones()).resolves.toEqual(audioTones);
         expect(fetchMock).toHaveBeenCalledWith('http://192.168.0.10/api/audio/tones', { method: 'GET' });
+    });
+
+    it('カスタム音一覧取得 API を呼ぶ', async (): Promise<void> => {
+        const customAudioList: WifiTimerCustomAudioList = {
+            files: [{ name: 'notice_a.pcm', bytes: 1024, durationMs: 800, active: true }],
+            activeName: 'notice_a.pcm',
+            storage: {
+                freeBytes: 8192,
+                totalBytes: 16384,
+                remainingUploadBytes: 4096,
+            },
+        };
+        const fetchMock = jest.fn<Promise<FetchResponse>, [string, { method?: string } | undefined]>()
+            .mockResolvedValue(okResponse(customAudioList));
+        const client = createWifiTimerClient(fetchMock, { enabled: false, ipAddress: '192.168.0.10' });
+
+        await expect(client.getCustomAudioList()).resolves.toEqual(customAudioList);
+        expect(fetchMock).toHaveBeenCalledWith('http://192.168.0.10/api/audio/custom/list', { method: 'GET' });
     });
 
     it('表示設定更新は brightness と orientation と color-effect を順に呼ぶ', async (): Promise<void> => {
@@ -267,6 +286,53 @@ describe('WiFi タイマークライアント', (): void => {
 
         await expect(client.updateAudioSettings({ toneKind: 8, volume: 80, repeatCount: 4, customSpeed: 115 })).resolves.toEqual(status);
         expect(fetchMock).toHaveBeenCalledWith('http://192.168.0.10/api/audio?toneKind=8&volume=80&repeatCount=4&customSpeed=115', { method: 'POST' });
+    });
+
+    it('カスタム音管理 API を呼ぶ', async (): Promise<void> => {
+        const fetchMock = jest.fn<Promise<FetchResponse>, [string, { method?: string; body?: BodyInit; headers?: Record<string, string> } | undefined]>()
+            .mockResolvedValue(okResponse({ ok: true }));
+        const client = createWifiTimerClient(fetchMock, { enabled: false, ipAddress: '192.168.0.10' });
+
+        await expect(client.uploadCustomAudio('notice.mp3', new Uint8Array([1, 2, 3]))).resolves.toEqual({ ok: true });
+        await expect(client.selectCustomAudio('notice_a.pcm')).resolves.toEqual({ ok: true });
+        await expect(client.deleteCustomAudio('notice_a.pcm')).resolves.toEqual({ ok: true });
+        await expect(client.renameCustomAudio('notice_a.pcm', 'notice_b.pcm')).resolves.toEqual({ ok: true });
+
+        expect(fetchMock.mock.calls[0]?.[0]).toBe('http://192.168.0.10/api/audio/custom/upload?name=notice.mp3');
+        expect(fetchMock.mock.calls[0]?.[1]?.method).toBe('POST');
+        expect(fetchMock.mock.calls[0]?.[1]?.body).toBeInstanceOf(FormData);
+        expect(fetchMock).toHaveBeenNthCalledWith(2, 'http://192.168.0.10/api/audio/custom/select?name=notice_a.pcm', { method: 'POST' });
+        expect(fetchMock).toHaveBeenNthCalledWith(3, 'http://192.168.0.10/api/audio/custom/delete?name=notice_a.pcm', { method: 'POST' });
+        expect(fetchMock).toHaveBeenNthCalledWith(4, 'http://192.168.0.10/api/audio/custom/rename?oldName=notice_a.pcm&newName=notice_b.pcm', { method: 'POST' });
+    });
+
+    it('カスタム音試聴 API を呼ぶ', async (): Promise<void> => {
+        const status: WifiTimerStatus = {
+            state: 'idle',
+            initialSeconds: 10,
+            remainingSeconds: 10,
+            ip: '192.168.0.10',
+            activeBrightness: 200,
+            idleBrightness: 20,
+            rotate180: false,
+            displayColorEffect: defaultDisplayColorEffect,
+            alertVolume: 80,
+            alertRepeatCount: 1,
+            alertToneKind: 6,
+            alertToneName: 'custom-file',
+            alertCustomSpeedPercent: 115,
+            audioPlaying: true,
+            audioStreamPaused: false,
+        };
+        const fetchMock = jest.fn<Promise<FetchResponse>, [string, { method?: string } | undefined]>()
+            .mockResolvedValue(okResponse(status));
+        const client = createWifiTimerClient(fetchMock, { enabled: false, ipAddress: '192.168.0.10' });
+
+        await expect(client.testCustomAudio('notice_a.pcm', { toneKind: 6, volume: 80, repeatCount: 1, customSpeed: 115 })).resolves.toEqual(status);
+        expect(fetchMock).toHaveBeenCalledWith(
+            'http://192.168.0.10/api/audio/custom/test?name=notice_a.pcm&volume=80&repeatCount=1&customSpeed=115',
+            { method: 'POST' },
+        );
     });
 
     it('ローカル音声ストリーム開始 API を呼ぶ', async (): Promise<void> => {

@@ -6,6 +6,7 @@ import type {
     WifiTimerAudioStreamStartResult,
     WifiTimerAudioTones,
     WifiTimerCapabilities,
+    WifiTimerCustomAudioList,
     WifiTimerStatus,
     WifiTimerWifiInfo,
 } from '../shared/wifi-timer-api-types';
@@ -32,10 +33,16 @@ type WifiTimerClientApiMock = {
     handleTimerResumed: jest.Mock<Promise<void>, []>;
     getCapabilities: jest.Mock<Promise<WifiTimerCapabilities>, []>;
     getAudioTones: jest.Mock<Promise<WifiTimerAudioTones>, []>;
+    getCustomAudioList: jest.Mock<Promise<WifiTimerCustomAudioList>, []>;
     getStatus: jest.Mock<Promise<WifiTimerStatus>, []>;
     updateDisplaySettings: jest.Mock<Promise<WifiTimerStatus>, [object]>;
     updateAudioSettings: jest.Mock<Promise<WifiTimerStatus>, [object]>;
     testAudioSettings: jest.Mock<Promise<WifiTimerStatus>, [object]>;
+    uploadCustomAudio: jest.Mock<Promise<Record<string, unknown>>, [string, Uint8Array]>;
+    selectCustomAudio: jest.Mock<Promise<Record<string, unknown>>, [string]>;
+    testCustomAudio: jest.Mock<Promise<WifiTimerStatus>, [string, object]>;
+    deleteCustomAudio: jest.Mock<Promise<Record<string, unknown>>, [string]>;
+    renameCustomAudio: jest.Mock<Promise<Record<string, unknown>>, [string, string]>;
     startAudioStream: jest.Mock<Promise<WifiTimerAudioStreamStartResult>, [object]>;
     sendAudioStreamChunk: jest.Mock<Promise<WifiTimerAudioStreamChunkResult>, [Uint8Array]>;
     endAudioStream: jest.Mock<Promise<WifiTimerAudioStreamEndResult>, []>;
@@ -156,10 +163,16 @@ function createRegisterOptions(joyConRumbleApi: JoyConRumbleApiMock): {
         handleTimerResumed: jest.fn().mockResolvedValue(undefined),
         getCapabilities: jest.fn().mockResolvedValue(capabilitiesFallback),
         getAudioTones: jest.fn().mockResolvedValue(audioTonesFallback),
+        getCustomAudioList: jest.fn().mockResolvedValue({ files: [], activeName: '', storage: {} }),
         getStatus: jest.fn().mockResolvedValue(statusFallback),
         updateDisplaySettings: jest.fn().mockResolvedValue(statusFallback),
         updateAudioSettings: jest.fn().mockResolvedValue(statusFallback),
         testAudioSettings: jest.fn().mockResolvedValue(statusFallback),
+        uploadCustomAudio: jest.fn().mockResolvedValue({ ok: true }),
+        selectCustomAudio: jest.fn().mockResolvedValue({ ok: true }),
+        testCustomAudio: jest.fn().mockResolvedValue(statusFallback),
+        deleteCustomAudio: jest.fn().mockResolvedValue({ ok: true }),
+        renameCustomAudio: jest.fn().mockResolvedValue({ ok: true }),
         startAudioStream: jest.fn().mockResolvedValue({
             ok: true,
             sampleRate: 16000,

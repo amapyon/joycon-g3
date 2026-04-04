@@ -63,15 +63,20 @@ npm start
 - `IPアドレス` には `192.168.0.10` のような IP アドレス、または `http://192.168.0.10` のような URL を指定できます。
 - 連携設定はメイン画面で変更した時点で保存され、次回起動時に復元されます。
 - `Refresh` で WiFi タイマー本体の状態と Wi-Fi 情報を再読込できます。
-- デバイスが `GET /api/capabilities` と `GET /openapi.json` を提供している前提の最新 WebAPI に合わせています。
+- WiFi タイマーの WebAPI 仕様とサンプルプログラムは `amapyon/led_timer` リポジトリを参照してください: `https://github.com/amapyon/led_timer`
+- 本アプリの実装は、デバイスが `GET /api/capabilities` と `GET /openapi.json` を提供している前提で、上記リポジトリの公開仕様に追従します。
 
 ### 6.1 連携される操作
-| アプリ側の操作 | WiFiタイマー側のAPI |
-| --- | --- |
-| タイマー初期値の変更 | `POST /api/set?seconds=<秒数>` |
-| タイマー開始 | `POST /api/set?seconds=<秒数>` の後に `POST /api/start` |
-| 一時停止 | `POST /api/pause` |
-| 再開 | `POST /api/resume` |
+- タイマー初期値の変更
+- タイマー開始
+- 一時停止
+- 再開
+- 表示設定の更新
+- 音設定の更新と試聴
+- カスタム音ライブラリの管理
+- ローカル音声のライブストリーム再生
+- Wi-Fi プロファイルの管理
+- API 名やリクエスト形式の詳細は `amapyon/led_timer` リポジトリを参照してください。
 
 ### 6.2 現在の仕様
 - `使用する` がオフのときは WiFi タイマーへ通信しません。
@@ -98,24 +103,28 @@ WiFi Timer 設定は `PAD` の次のセクションに表示されます。
 - しきい値は `stage1 >= stage2 >= stage3 >= blink` の条件になるよう、アプリ側でも補正して送信します。
 
 #### Audio
-- `Tone` には `GET /api/audio/tones` で取得した音色一覧が表示されます。
-- 音色の表示名や利用可否はデバイス側のレスポンスに従います。
+- `Tone` にはデバイス側の音色一覧が表示されます。
+- sample WebUI に合わせて、`chime` は `custom_alert.pcm` を選択した `toneKind=6`、`gong` は `toneKind=7` として扱います。
+- カスタム音はアップロード済みライブラリから選択できます。
 - `Volume` で音量を設定します。
 - `Repeat` で鳴らす回数を設定します。
 - `Speed` でカスタム音声の再生速度を設定します。入力範囲は `GET /api/audio/tones` の `limits.customSpeedMin` / `limits.customSpeedMax` に従います。
 - `Apply Audio` で本体へ反映します。
 - `Test Audio` で現在選択中の音色・音量・回数を試聴します。
+- `Add Custom` から `mp3` / `wav` を選ぶと、ブラウザ側で `16kHz / mono / PCM16` に変換してアップロードします。
+- カスタム音は最大 5 秒で、それを超える入力は先頭 5 秒に切り詰めて保存します。
+- カスタム音一覧の `Test` は現在の Sound 選択状態を変更せずに試聴します。
+- カスタム音一覧では `Test` / `Rename` / `Delete` を実行できます。
+- `Rename` は API の制約に合わせて `[0-9A-Za-z_.-]` 以外を `_` へ置換し、必要なら `.pcm` を補完して送信します。
 
 #### Local Stream
 - `File` でローカル音声ファイルを選択します。
 - 対応入力は `mp3` / `mp4` / `m4a` / `wav` と、それらをブラウザがデコードできる形式です。
-- `Stream & Play` でブラウザ側で音声を PCM16LE モノラルへ変換し、`/api/audio/stream/start` → `/api/audio/stream/chunk` → `/api/audio/stream/end` の順に送信します。
+- `Stream & Play` でブラウザ側で音声を PCM16LE モノラルへ変換し、デバイスへリアルタイム送信します。
 - 送信処理は、WiFi タイマー本体の標準 WebUI と同系統のリアルタイムストリーム方式に合わせています。
 - 送信中は進捗として `sent / produced / buffer` を表示します。
-- 送信中に `Volume` を変更すると、`/api/audio/stream/volume` で再生音量を更新します。
-- `Pause Stream` で `/api/audio/stream/pause` を呼び、デバイス側のライブストリーム再生を一時停止します。
-- `Resume Stream` で `/api/audio/stream/resume` を呼び、停止した再生を再開します。
-- `Cancel Stream` で `/api/audio/stream/cancel` を呼んで中断できます。
+- 送信中に `Volume` を変更すると再生音量を更新します。
+- `Pause Stream` / `Resume Stream` / `Cancel Stream` でストリーム再生を操作できます。
 - ストリーム再生は音設定の保存とは別機能です。保存済みの `Tone` 設定を書き換えずにライブ入力だけを再生します。
 - メインウィンドウはバックグラウンド時のスロットリングを無効化しているため、別アプリを前面にしてもストリーム再生を継続できます。
 - 現在の実装は WebUI 互換性を優先して `ScriptProcessorNode` を利用しています。そのため、開発者ツールのコンソールには非推奨警告が出る場合がありますが、現状の動作上は許容しています。
@@ -134,14 +143,11 @@ WiFi Timer 設定は `PAD` の次のセクションに表示されます。
 - ただし、WiFi タイマー本体へアクセスできる `IPアドレス` は設定されている必要があります。
 - Wi-Fi プロファイルの更新は先方 API に専用更新エンドポイントがないため、内部的には `delete -> save` です。
 
-### 6.4 最新 WebAPI の補足
-- `GET /api/capabilities` で `deviceType` / `apiVersion` / `features[]` / `endpoints{}` を取得できます。
-- `GET /openapi.json` で OpenAPI 3.1 定義を取得できます。
-- `GET /api/status` には `alertCustomSpeedPercent` / `audioStreamPaused` / `displayColorEffect` が含まれます。
-- `POST /api/display/color-effect` に対応し、表示色演出をメイン画面から更新できます。
-- `GET /api/audio/tones` の `tones[]` と `limits` を使って、音色一覧と入力上限を動的に反映します。
-- ローカル音声ライブストリーム API (`/api/audio/stream/*`) はメイン画面の `Local Stream` から直接操作できます。
-- `POST /api/audio/stream/pause` / `POST /api/audio/stream/resume` に対応し、メイン画面から再生の一時停止と再開を行えます。
+### 6.4 実装補足
+- 仕様の一次参照先は `amapyon/led_timer` リポジトリです。
+- 本アプリは `capabilities` / `openapi` を含む最新公開仕様を前提に実装しています。
+- 音色一覧や入力上限はデバイスレスポンスから動的に反映します。
+- カスタム音ライブラリ管理、表示色演出、ライブストリーム再生は標準 WebUI に寄せた挙動で実装しています。
 
 ## 7. サウンド通知
 - `Select` で通知音フォルダーを選択。

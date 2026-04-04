@@ -23,6 +23,7 @@ import type {
     WifiTimerAudioStreamEndResult,
     WifiTimerAudioStreamStartInput,
     WifiTimerAudioStreamStartResult,
+    WifiTimerCustomAudioList,
     WifiTimerAudioTones,
     WifiTimerCapabilities,
     WifiTimerDisplaySettings,
@@ -86,6 +87,11 @@ export const electronAPI: ElectronAPI = {
      */
     getWifiTimerAudioTones: (): Promise<WifiTimerAudioTones> => ipcRenderer.invoke('get-wifi-timer-audio-tones'),
     /**
+     * WiFi タイマーのカスタム音一覧を取得する。
+     * @returns カスタム音一覧
+     */
+    getWifiTimerCustomAudioList: (): Promise<WifiTimerCustomAudioList> => ipcRenderer.invoke('get-wifi-timer-custom-audio-list'),
+    /**
      * WiFi タイマー状態を取得する。
      * @returns 状態
      */
@@ -111,6 +117,47 @@ export const electronAPI: ElectronAPI = {
      */
     testWifiTimerAudioSettings: (settings: WifiTimerAudioSettings): Promise<import('../shared/wifi-timer-api-types').WifiTimerStatus> =>
         ipcRenderer.invoke('test-wifi-timer-audio-settings', settings),
+    /**
+     * WiFi タイマーへカスタム音をアップロードする。
+     * @param name 元ファイル名
+     * @param audio PCM16 モノラル音声
+     * @returns API 応答
+     */
+    uploadWifiTimerCustomAudio: (name: string, audio: Uint8Array): Promise<Record<string, unknown>> =>
+        ipcRenderer.invoke('upload-wifi-timer-custom-audio', { name, audio }),
+    /**
+     * WiFi タイマーのカスタム音を選択する。
+     * @param name ファイル名
+     * @returns API 応答
+     */
+    selectWifiTimerCustomAudio: (name: string): Promise<Record<string, unknown>> =>
+        ipcRenderer.invoke('select-wifi-timer-custom-audio', name),
+    /**
+     * WiFi タイマーの指定カスタム音を試聴する。
+     * @param name ファイル名
+     * @param settings 音設定
+     * @returns 更新後の状態
+     */
+    testWifiTimerCustomAudio: (
+        name: string,
+        settings: WifiTimerAudioSettings,
+    ): Promise<import('../shared/wifi-timer-api-types').WifiTimerStatus> =>
+        ipcRenderer.invoke('test-wifi-timer-custom-audio', { name, settings }),
+    /**
+     * WiFi タイマーのカスタム音を削除する。
+     * @param name ファイル名
+     * @returns API 応答
+     */
+    deleteWifiTimerCustomAudio: (name: string): Promise<Record<string, unknown>> =>
+        ipcRenderer.invoke('delete-wifi-timer-custom-audio', name),
+    /**
+     * WiFi タイマーのカスタム音をリネームする。
+     * @param oldName 変更前ファイル名
+     * @param newName 変更後ファイル名
+     * @returns API 応答
+     */
+    renameWifiTimerCustomAudio: (oldName: string, newName: string): Promise<Record<string, unknown>> =>
+        ipcRenderer.invoke('rename-wifi-timer-custom-audio', { oldName, newName }),
     /**
      * WiFi タイマーのローカル音声ストリームを開始する。
      * @param input 開始入力

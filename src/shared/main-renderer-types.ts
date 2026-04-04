@@ -7,6 +7,7 @@ import type {
     WifiTimerAudioStreamEndResult,
     WifiTimerAudioStreamStartInput,
     WifiTimerAudioStreamStartResult,
+    WifiTimerCustomAudioList,
     WifiTimerAudioTones,
     WifiTimerCapabilities,
     WifiTimerDisplaySettings,
@@ -59,10 +60,16 @@ export type ElectronAPI = {
     updateWifiTimerSettings: (settings: WifiTimerSettings) => void;
     getWifiTimerCapabilities: () => Promise<WifiTimerCapabilities>;
     getWifiTimerAudioTones: () => Promise<WifiTimerAudioTones>;
+    getWifiTimerCustomAudioList: () => Promise<WifiTimerCustomAudioList>;
     getWifiTimerStatus: () => Promise<WifiTimerStatus>;
     updateWifiTimerDisplaySettings: (settings: WifiTimerDisplaySettings) => Promise<WifiTimerStatus>;
     updateWifiTimerAudioSettings: (settings: WifiTimerAudioSettings) => Promise<WifiTimerStatus>;
     testWifiTimerAudioSettings: (settings: WifiTimerAudioSettings) => Promise<WifiTimerStatus>;
+    uploadWifiTimerCustomAudio: (name: string, audio: Uint8Array) => Promise<Record<string, unknown>>;
+    selectWifiTimerCustomAudio: (name: string) => Promise<Record<string, unknown>>;
+    testWifiTimerCustomAudio: (name: string, settings: WifiTimerAudioSettings) => Promise<WifiTimerStatus>;
+    deleteWifiTimerCustomAudio: (name: string) => Promise<Record<string, unknown>>;
+    renameWifiTimerCustomAudio: (oldName: string, newName: string) => Promise<Record<string, unknown>>;
     startWifiTimerAudioStream: (input: WifiTimerAudioStreamStartInput) => Promise<WifiTimerAudioStreamStartResult>;
     sendWifiTimerAudioStreamChunk: (chunk: Uint8Array) => Promise<WifiTimerAudioStreamChunkResult>;
     endWifiTimerAudioStream: () => Promise<WifiTimerAudioStreamEndResult>;
@@ -155,11 +162,17 @@ export type MainRendererElements = {
     wifiTimerPresetColorEffectBtn: HTMLButtonElement;
     wifiTimerColorEffectPreview: HTMLElement;
     wifiTimerToneKindSelect: HTMLSelectElement;
+    wifiTimerCurrentCustomToneHint: HTMLElement;
     wifiTimerVolumeInput: HTMLInputElement;
     wifiTimerRepeatCountInput: HTMLInputElement;
     wifiTimerCustomSpeedInput: HTMLInputElement;
     wifiTimerApplyAudioBtn: HTMLButtonElement;
     wifiTimerTestAudioBtn: HTMLButtonElement;
+    wifiTimerCustomToneFileInput: HTMLInputElement;
+    wifiTimerUploadCustomToneBtn: HTMLButtonElement;
+    wifiTimerRefreshCustomToneBtn: HTMLButtonElement;
+    wifiTimerCustomStorageInfo: HTMLElement;
+    wifiTimerCustomToneList: HTMLElement;
     wifiTimerLocalAudioFileInput: HTMLInputElement;
     wifiTimerStreamAudioBtn: HTMLButtonElement;
     wifiTimerPauseStreamBtn: HTMLButtonElement;

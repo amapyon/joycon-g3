@@ -161,6 +161,76 @@ function parseWifiTimerProfileId(value: unknown): number {
 }
 
 /**
+ * カスタム音ファイル名を検証する。
+ * @param value 入力値
+ * @returns ファイル名
+ */
+function parseWifiTimerCustomAudioName(value: unknown): string {
+    if (typeof value !== 'string' || !value.trim()) {
+        throw new Error('invalid WiFi timer custom audio name');
+    }
+    return value.trim();
+}
+
+/**
+ * カスタム音アップロード入力を検証する。
+ * @param value 入力値
+ * @returns 正常化済み入力
+ */
+function parseWifiTimerCustomAudioUploadInput(value: unknown): { name: string; audio: Uint8Array } {
+    if (
+        typeof value !== 'object'
+        || value === null
+        || typeof (value as { name?: unknown }).name !== 'string'
+    ) {
+        throw new Error('invalid WiFi timer custom audio upload input');
+    }
+    return {
+        name: parseWifiTimerCustomAudioName((value as { name: string }).name),
+        audio: parseWifiTimerAudioStreamChunk((value as { audio?: unknown }).audio),
+    };
+}
+
+/**
+ * カスタム音リネーム入力を検証する。
+ * @param value 入力値
+ * @returns 正常化済み入力
+ */
+function parseWifiTimerCustomAudioRenameInput(value: unknown): { oldName: string; newName: string } {
+    if (
+        typeof value !== 'object'
+        || value === null
+        || typeof (value as { oldName?: unknown }).oldName !== 'string'
+        || typeof (value as { newName?: unknown }).newName !== 'string'
+    ) {
+        throw new Error('invalid WiFi timer custom audio rename input');
+    }
+    return {
+        oldName: parseWifiTimerCustomAudioName((value as { oldName: string }).oldName),
+        newName: parseWifiTimerCustomAudioName((value as { newName: string }).newName),
+    };
+}
+
+/**
+ * カスタム音試聴入力を検証する。
+ * @param value 入力値
+ * @returns 正常化済み入力
+ */
+function parseWifiTimerCustomAudioTestInput(value: unknown): { name: string; settings: WifiTimerAudioSettings } {
+    if (
+        typeof value !== 'object'
+        || value === null
+        || typeof (value as { name?: unknown }).name !== 'string'
+    ) {
+        throw new Error('invalid WiFi timer custom audio test input');
+    }
+    return {
+        name: parseWifiTimerCustomAudioName((value as { name: string }).name),
+        settings: parseWifiTimerAudioSettings((value as { settings?: unknown }).settings),
+    };
+}
+
+/**
  * タイマーウィンドウへ安全にメッセージを送る。
  * @param timerWin タイマーウィンドウ
  * @param duration カウントダウン秒数
@@ -391,6 +461,7 @@ function registerWifiTimerHandlers(context: IpcHandlerContext): void {
 
     ipcMain.handle(IPC_HANDLER_INBOUND_CHANNELS.GET_WIFI_TIMER_CAPABILITIES, async () => wifiTimerClient.getCapabilities());
     ipcMain.handle(IPC_HANDLER_INBOUND_CHANNELS.GET_WIFI_TIMER_AUDIO_TONES, async () => wifiTimerClient.getAudioTones());
+    ipcMain.handle(IPC_HANDLER_INBOUND_CHANNELS.GET_WIFI_TIMER_CUSTOM_AUDIO_LIST, async () => wifiTimerClient.getCustomAudioList());
     ipcMain.handle(IPC_HANDLER_INBOUND_CHANNELS.GET_WIFI_TIMER_STATUS, async () => wifiTimerClient.getStatus());
     ipcMain.handle(IPC_HANDLER_INBOUND_CHANNELS.UPDATE_WIFI_TIMER_DISPLAY_SETTINGS, async (_event: IpcMainInvokeEvent, settings: unknown) => {
         return wifiTimerClient.updateDisplaySettings(parseWifiTimerDisplaySettings(settings));
@@ -400,6 +471,24 @@ function registerWifiTimerHandlers(context: IpcHandlerContext): void {
     });
     ipcMain.handle(IPC_HANDLER_INBOUND_CHANNELS.TEST_WIFI_TIMER_AUDIO_SETTINGS, async (_event: IpcMainInvokeEvent, settings: unknown) => {
         return wifiTimerClient.testAudioSettings(parseWifiTimerAudioSettings(settings));
+    });
+    ipcMain.handle(IPC_HANDLER_INBOUND_CHANNELS.UPLOAD_WIFI_TIMER_CUSTOM_AUDIO, async (_event: IpcMainInvokeEvent, input: unknown) => {
+        const parsed = parseWifiTimerCustomAudioUploadInput(input);
+        return wifiTimerClient.uploadCustomAudio(parsed.name, parsed.audio);
+    });
+    ipcMain.handle(IPC_HANDLER_INBOUND_CHANNELS.SELECT_WIFI_TIMER_CUSTOM_AUDIO, async (_event: IpcMainInvokeEvent, name: unknown) => {
+        return wifiTimerClient.selectCustomAudio(parseWifiTimerCustomAudioName(name));
+    });
+    ipcMain.handle(IPC_HANDLER_INBOUND_CHANNELS.TEST_WIFI_TIMER_CUSTOM_AUDIO, async (_event: IpcMainInvokeEvent, input: unknown) => {
+        const parsed = parseWifiTimerCustomAudioTestInput(input);
+        return wifiTimerClient.testCustomAudio(parsed.name, parsed.settings);
+    });
+    ipcMain.handle(IPC_HANDLER_INBOUND_CHANNELS.DELETE_WIFI_TIMER_CUSTOM_AUDIO, async (_event: IpcMainInvokeEvent, name: unknown) => {
+        return wifiTimerClient.deleteCustomAudio(parseWifiTimerCustomAudioName(name));
+    });
+    ipcMain.handle(IPC_HANDLER_INBOUND_CHANNELS.RENAME_WIFI_TIMER_CUSTOM_AUDIO, async (_event: IpcMainInvokeEvent, input: unknown) => {
+        const parsed = parseWifiTimerCustomAudioRenameInput(input);
+        return wifiTimerClient.renameCustomAudio(parsed.oldName, parsed.newName);
     });
     ipcMain.handle(IPC_HANDLER_INBOUND_CHANNELS.START_WIFI_TIMER_AUDIO_STREAM, async (_event: IpcMainInvokeEvent, input: unknown) => {
         return wifiTimerClient.startAudioStream(parseWifiTimerAudioStreamStartInput(input));

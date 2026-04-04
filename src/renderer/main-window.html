@@ -192,6 +192,8 @@
                                     <select id="wifi-timer-tone-kind">
                                         <option value="">-- Loading Tones --</option>
                                     </select>
+                                    <label>Custom</label>
+                                    <span id="wifi-timer-current-custom-tone-hint" class="wifi-timer-inline-hint">-</span>
                                     <label for="wifi-timer-volume">Volume</label>
                                     <input type="number" id="wifi-timer-volume" min="0" max="100" value="50">
                                     <label for="wifi-timer-repeat-count">Repeat</label>
@@ -203,6 +205,20 @@
                                     <button id="wifi-timer-apply-audio-btn" class="wifi-timer-action-btn">Apply Audio</button>
                                     <button id="wifi-timer-test-audio-btn" class="wifi-timer-action-btn secondary">Test Audio</button>
                                 </div>
+                                <div class="wifi-timer-grid" style="margin-top: 8px;">
+                                    <label for="wifi-timer-custom-tone-file">Add Custom</label>
+                                    <input
+                                        type="file"
+                                        id="wifi-timer-custom-tone-file"
+                                        accept=".mp3,.wav,audio/mpeg,audio/wav,audio/x-wav"
+                                    >
+                                </div>
+                                <div class="wifi-timer-button-row">
+                                    <button id="wifi-timer-upload-custom-tone-btn" class="wifi-timer-action-btn">Add Custom</button>
+                                    <button id="wifi-timer-refresh-custom-tone-btn" class="wifi-timer-action-btn secondary">Refresh List</button>
+                                </div>
+                                <div id="wifi-timer-custom-storage-info" class="wifi-timer-operation-message"></div>
+                                <div id="wifi-timer-custom-tone-list" class="wifi-timer-custom-tone-list"></div>
                             </div>
                             <div class="wifi-timer-group">
                                 <div class="wifi-timer-group-title">Local Stream</div>

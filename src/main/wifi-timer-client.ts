@@ -5,6 +5,7 @@ import type {
     WifiTimerAudioStreamEndResult,
     WifiTimerAudioStreamStartInput,
     WifiTimerAudioStreamStartResult,
+    WifiTimerCustomAudioList,
     WifiTimerAudioTones,
     WifiTimerCapabilities,
     WifiTimerDisplaySettings,
@@ -30,10 +31,16 @@ export type WifiTimerClientApi = {
     handleTimerResumed: () => Promise<void>;
     getCapabilities: () => Promise<WifiTimerCapabilities>;
     getAudioTones: () => Promise<WifiTimerAudioTones>;
+    getCustomAudioList: () => Promise<WifiTimerCustomAudioList>;
     getStatus: () => Promise<WifiTimerStatus>;
     updateDisplaySettings: (settings: WifiTimerDisplaySettings) => Promise<WifiTimerStatus>;
     updateAudioSettings: (settings: WifiTimerAudioSettings) => Promise<WifiTimerStatus>;
     testAudioSettings: (settings: WifiTimerAudioSettings) => Promise<WifiTimerStatus>;
+    uploadCustomAudio: (name: string, audio: Uint8Array) => Promise<Record<string, unknown>>;
+    selectCustomAudio: (name: string) => Promise<Record<string, unknown>>;
+    testCustomAudio: (name: string, settings: WifiTimerAudioSettings) => Promise<WifiTimerStatus>;
+    deleteCustomAudio: (name: string) => Promise<Record<string, unknown>>;
+    renameCustomAudio: (oldName: string, newName: string) => Promise<Record<string, unknown>>;
     startAudioStream: (input: WifiTimerAudioStreamStartInput) => Promise<WifiTimerAudioStreamStartResult>;
     sendAudioStreamChunk: (chunk: Uint8Array) => Promise<WifiTimerAudioStreamChunkResult>;
     endAudioStream: () => Promise<WifiTimerAudioStreamEndResult>;
@@ -144,6 +151,14 @@ class WifiTimerClient implements WifiTimerClientApi {
     }
 
     /**
+     * カスタム音一覧を取得する。
+     * @returns カスタム音一覧
+     */
+    public async getCustomAudioList(): Promise<WifiTimerCustomAudioList> {
+        return this.getJson<WifiTimerCustomAudioList>('api/audio/custom/list');
+    }
+
+    /**
      * 状態を取得する。
      * @returns 状態
      */
@@ -203,6 +218,63 @@ class WifiTimerClient implements WifiTimerClientApi {
             repeatCount: String(settings.repeatCount),
             customSpeed: String(settings.customSpeed),
         }, false);
+    }
+
+    /**
+     * カスタム音をアップロードする。
+     * @param name 元ファイル名
+     * @param audio PCM16 モノラル音声
+     * @returns API 応答
+     */
+    public async uploadCustomAudio(name: string, audio: Uint8Array): Promise<Record<string, unknown>> {
+        const byteArray = new Uint8Array(audio.byteLength);
+        byteArray.set(audio);
+        const formData = new FormData();
+        formData.append('audio', new Blob([byteArray], { type: 'application/octet-stream' }), 'custom.pcm');
+        return this.postBodyJson<Record<string, unknown>>('api/audio/custom/upload', formData, false, { name });
+    }
+
+    /**
+     * カスタム音を選択する。
+     * @param name ファイル名
+     * @returns API 応答
+     */
+    public async selectCustomAudio(name: string): Promise<Record<string, unknown>> {
+        return this.postJson<Record<string, unknown>>('api/audio/custom/select', { name }, false);
+    }
+
+    /**
+     * 指定したカスタム音を試聴する。
+     * @param name ファイル名
+     * @param settings 音設定
+     * @returns 更新後の状態
+     */
+    public async testCustomAudio(name: string, settings: WifiTimerAudioSettings): Promise<WifiTimerStatus> {
+        return this.postJson<WifiTimerStatus>('api/audio/custom/test', {
+            name,
+            volume: String(settings.volume),
+            repeatCount: String(settings.repeatCount),
+            customSpeed: String(settings.customSpeed),
+        }, false);
+    }
+
+    /**
+     * カスタム音を削除する。
+     * @param name ファイル名
+     * @returns API 応答
+     */
+    public async deleteCustomAudio(name: string): Promise<Record<string, unknown>> {
+        return this.postJson<Record<string, unknown>>('api/audio/custom/delete', { name }, false);
+    }
+
+    /**
+     * カスタム音をリネームする。
+     * @param oldName 変更前ファイル名
+     * @param newName 変更後ファイル名
+     * @returns API 応答
+     */
+    public async renameCustomAudio(oldName: string, newName: string): Promise<Record<string, unknown>> {
+        return this.postJson<Record<string, unknown>>('api/audio/custom/rename', { oldName, newName }, false);
     }
 
     /**
@@ -472,12 +544,18 @@ class WifiTimerClient implements WifiTimerClientApi {
         path: string,
         body: BodyInit,
         requireEnabled: boolean = true,
+        params?: Record<string, string>,
     ): Promise<T> {
         const baseUrl = this.getBaseUrl(requireEnabled);
         if (!baseUrl) {
             throw new Error('WiFi timer IP address is not configured');
         }
         const url = new URL(path, `${baseUrl}/`);
+        if (params) {
+            Object.entries(params).forEach(([key, value]: [string, string]): void => {
+                url.searchParams.set(key, value);
+            });
+        }
         const response = await this.request(url.toString(), { method: 'POST', body });
         const raw = await response.text();
         if (!response.ok) {
