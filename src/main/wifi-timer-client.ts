@@ -39,6 +39,8 @@ export type WifiTimerClientApi = {
     endAudioStream: () => Promise<WifiTimerAudioStreamEndResult>;
     cancelAudioStream: () => Promise<void>;
     updateAudioStreamVolume: (volume: number) => Promise<void>;
+    pauseAudioStream: () => Promise<WifiTimerStatus>;
+    resumeAudioStream: () => Promise<WifiTimerStatus>;
     getWifiInfo: () => Promise<WifiTimerWifiInfo>;
     saveWifiProfile: (profile: WifiTimerWifiProfileInput) => Promise<WifiTimerWifiInfo>;
     deleteWifiProfile: (id: number) => Promise<WifiTimerWifiInfo>;
@@ -159,8 +161,19 @@ class WifiTimerClient implements WifiTimerClientApi {
             active: String(settings.activeBrightness),
             idle: String(settings.idleBrightness),
         }, false);
-        return this.postJson<WifiTimerStatus>('api/display/orientation', {
+        await this.post('api/display/orientation', {
             rotate180: settings.rotate180 ? '1' : '0',
+        }, false);
+        return this.postJson<WifiTimerStatus>('api/display/color-effect', {
+            stage1Seconds: String(settings.colorEffect.stage1Seconds),
+            stage2Seconds: String(settings.colorEffect.stage2Seconds),
+            stage3Seconds: String(settings.colorEffect.stage3Seconds),
+            blinkSeconds: String(settings.colorEffect.blinkSeconds),
+            blinkIntervalMs: String(settings.colorEffect.blinkIntervalMs),
+            stage1Color: settings.colorEffect.stage1Color,
+            stage2Color: settings.colorEffect.stage2Color,
+            stage3Color: settings.colorEffect.stage3Color,
+            alertColor: settings.colorEffect.alertColor,
         }, false);
     }
 
@@ -238,6 +251,22 @@ class WifiTimerClient implements WifiTimerClientApi {
      */
     public async updateAudioStreamVolume(volume: number): Promise<void> {
         await this.post('api/audio/stream/volume', { volume: String(volume) }, false);
+    }
+
+    /**
+     * ローカル音声ストリーム再生を一時停止する。
+     * @returns 更新後の状態
+     */
+    public async pauseAudioStream(): Promise<WifiTimerStatus> {
+        return this.postJson<WifiTimerStatus>('api/audio/stream/pause', undefined, false);
+    }
+
+    /**
+     * ローカル音声ストリーム再生を再開する。
+     * @returns 更新後の状態
+     */
+    public async resumeAudioStream(): Promise<WifiTimerStatus> {
+        return this.postJson<WifiTimerStatus>('api/audio/stream/resume', undefined, false);
     }
 
     /**

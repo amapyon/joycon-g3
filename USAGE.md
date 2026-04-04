@@ -90,6 +90,12 @@ WiFi Timer 設定は `PAD` の次のセクションに表示されます。
 - `Idle` で待機中の輝度を設定します。
 - `180°` をオンにすると表示を 180 度回転します。
 - `Apply Display` で本体へ反映します。
+- `Stage1 Sec` / `Stage2 Sec` / `Stage3 Sec` / `Blink Sec` で残り秒数に応じた表示色演出のしきい値を設定します。
+- `Stage1 Color` / `Stage2 Color` / `Stage3 Color` / `Alert Color` で各段階の色を設定します。
+- `Blink Ms` で点滅間隔を設定します。
+- `Save Color Effect` で表示色演出を反映します。
+- `Preset: Dramatic` でサンプルWebUI準拠の演出プリセットを読み込みます。
+- しきい値は `stage1 >= stage2 >= stage3 >= blink` の条件になるよう、アプリ側でも補正して送信します。
 
 #### Audio
 - `Tone` には `GET /api/audio/tones` で取得した音色一覧が表示されます。
@@ -107,6 +113,8 @@ WiFi Timer 設定は `PAD` の次のセクションに表示されます。
 - 送信処理は、WiFi タイマー本体の標準 WebUI と同系統のリアルタイムストリーム方式に合わせています。
 - 送信中は進捗として `sent / produced / buffer` を表示します。
 - 送信中に `Volume` を変更すると、`/api/audio/stream/volume` で再生音量を更新します。
+- `Pause Stream` で `/api/audio/stream/pause` を呼び、デバイス側のライブストリーム再生を一時停止します。
+- `Resume Stream` で `/api/audio/stream/resume` を呼び、停止した再生を再開します。
 - `Cancel Stream` で `/api/audio/stream/cancel` を呼んで中断できます。
 - ストリーム再生は音設定の保存とは別機能です。保存済みの `Tone` 設定を書き換えずにライブ入力だけを再生します。
 - メインウィンドウはバックグラウンド時のスロットリングを無効化しているため、別アプリを前面にしてもストリーム再生を継続できます。
@@ -129,9 +137,11 @@ WiFi Timer 設定は `PAD` の次のセクションに表示されます。
 ### 6.4 最新 WebAPI の補足
 - `GET /api/capabilities` で `deviceType` / `apiVersion` / `features[]` / `endpoints{}` を取得できます。
 - `GET /openapi.json` で OpenAPI 3.1 定義を取得できます。
-- `GET /api/status` には `alertCustomSpeedPercent` が含まれます。
+- `GET /api/status` には `alertCustomSpeedPercent` / `audioStreamPaused` / `displayColorEffect` が含まれます。
+- `POST /api/display/color-effect` に対応し、表示色演出をメイン画面から更新できます。
 - `GET /api/audio/tones` の `tones[]` と `limits` を使って、音色一覧と入力上限を動的に反映します。
 - ローカル音声ライブストリーム API (`/api/audio/stream/*`) はメイン画面の `Local Stream` から直接操作できます。
+- `POST /api/audio/stream/pause` / `POST /api/audio/stream/resume` に対応し、メイン画面から再生の一時停止と再開を行えます。
 
 ## 7. サウンド通知
 - `Select` で通知音フォルダーを選択。

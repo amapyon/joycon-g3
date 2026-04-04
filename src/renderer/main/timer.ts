@@ -11,6 +11,7 @@
     type WifiTimerAudioTones = import('../../shared/wifi-timer-api-types').WifiTimerAudioTones;
     type WifiTimerWifiInfo = import('../../shared/wifi-timer-api-types').WifiTimerWifiInfo;
     type WifiTimerWifiProfile = import('../../shared/wifi-timer-api-types').WifiTimerWifiProfile;
+    type WifiTimerDisplayColorEffect = import('../../shared/wifi-timer-api-types').WifiTimerDisplayColorEffect;
     type WifiTimerDisplaySettings = import('../../shared/wifi-timer-api-types').WifiTimerDisplaySettings;
     type WifiTimerAudioSettings = import('../../shared/wifi-timer-api-types').WifiTimerAudioSettings;
     type WifiTimerAudioStreamChunkResult = import('../../shared/wifi-timer-api-types').WifiTimerAudioStreamChunkResult;
@@ -109,9 +110,12 @@
     let currentWifiTimerAudioToneLimits: WifiTimerAudioToneLimits = defaultWifiTimerAudioToneLimits;
     let currentWifiTimerAudioSettings: WifiTimerAudioSettings = defaultWifiTimerAudioSettings;
     let currentWifiTimerAudioTones: WifiTimerAudioTones | null = null;
+    let wifiTimerDisplayEffectDirty = false;
     let wifiTimerStreamBusy = false;
     let wifiTimerStreamCancelRequested = false;
     let wifiTimerStreamVolumeUpdateTimer: number | null = null;
+    let wifiTimerStreamPlaybackPaused = false;
+    let wifiTimerStreamHtmlAudio: HTMLAudioElement | null = null;
     const standalonePadAudioStates: StandalonePadAudioState[] = Array.from({ length: standalonePadCount }, (): StandalonePadAudioState => ({
         audio: null,
         assignedFile: '',
@@ -335,6 +339,35 @@
     };
 
     /**
+     * 色演出プレビュー文言を更新する。
+     */
+    const updateWifiTimerColorEffectPreview = (): void => {
+        const stage1Seconds = parseNumberUtils.parseIntOrFallback(elements.wifiTimerStage1SecondsInput.value, 0);
+        const stage2Seconds = parseNumberUtils.parseIntOrFallback(elements.wifiTimerStage2SecondsInput.value, 0);
+        const stage3Seconds = parseNumberUtils.parseIntOrFallback(elements.wifiTimerStage3SecondsInput.value, 0);
+        const blinkSeconds = parseNumberUtils.parseIntOrFallback(elements.wifiTimerBlinkSecondsInput.value, 0);
+        elements.wifiTimerColorEffectPreview.textContent = `Stage mapping: >${stage1Seconds}s = Stage1, ${stage1Seconds}..${stage2Seconds + 1}s = Stage2, `
+            + `${stage2Seconds}..${stage3Seconds + 1}s = Stage3, ${stage3Seconds}..${blinkSeconds + 1}s = fade, <= ${blinkSeconds}s = blink.`;
+    };
+
+    /**
+     * 色演出入力へプリセットを反映する。
+     */
+    const applyWifiTimerDramaticColorEffectPreset = (): void => {
+        elements.wifiTimerStage1SecondsInput.value = '60';
+        elements.wifiTimerStage2SecondsInput.value = '45';
+        elements.wifiTimerStage3SecondsInput.value = '30';
+        elements.wifiTimerBlinkSecondsInput.value = '10';
+        elements.wifiTimerBlinkIntervalMsInput.value = '400';
+        elements.wifiTimerStage1ColorInput.value = '#2060ff';
+        elements.wifiTimerStage2ColorInput.value = '#ffffff';
+        elements.wifiTimerStage3ColorInput.value = '#ff9d9d';
+        elements.wifiTimerAlertColorInput.value = '#ff0000';
+        wifiTimerDisplayEffectDirty = true;
+        updateWifiTimerColorEffectPreview();
+    };
+
+    /**
      * WiFi タイマーのストリーム操作可否を更新する。
      * @param isBusy ストリーム中なら true
      */
@@ -342,8 +375,11 @@
         wifiTimerStreamBusy = isBusy;
         if (!isBusy) {
             wifiTimerStreamCancelRequested = false;
+            wifiTimerStreamPlaybackPaused = false;
         }
         elements.wifiTimerStreamAudioBtn.disabled = isBusy;
+        elements.wifiTimerPauseStreamBtn.disabled = !isBusy || wifiTimerStreamPlaybackPaused;
+        elements.wifiTimerResumeStreamBtn.disabled = !isBusy || !wifiTimerStreamPlaybackPaused;
         elements.wifiTimerCancelStreamBtn.disabled = !isBusy;
         elements.wifiTimerLocalAudioFileInput.disabled = isBusy;
     };
@@ -404,21 +440,40 @@
      * @param status 状態
      */
     const applyWifiTimerStatus = (status: WifiTimerStatus): void => {
+        const streamStateLabel = status.audioPlaying
+            ? (status.audioStreamPaused ? 'paused' : 'playing')
+            : 'stopped';
+        wifiTimerStreamPlaybackPaused = status.audioStreamPaused;
         currentWifiTimerAudioSettings = {
             toneKind: status.alertToneKind,
             volume: status.alertVolume,
             repeatCount: status.alertRepeatCount,
             customSpeed: status.alertCustomSpeedPercent,
         };
-        elements.wifiTimerStateLabel.textContent = `State: ${status.state}`;
+        elements.wifiTimerStateLabel.textContent = `State: ${status.state} | Stream: ${streamStateLabel}`;
         elements.wifiTimerIpLabel.textContent = `IP: ${status.ip || '--'}`;
         elements.wifiTimerActiveBrightnessInput.value = String(status.activeBrightness);
         elements.wifiTimerIdleBrightnessInput.value = String(status.idleBrightness);
         elements.wifiTimerRotate180Input.checked = status.rotate180;
+        if (status.displayColorEffect) {
+            if (!wifiTimerDisplayEffectDirty) {
+                elements.wifiTimerStage1SecondsInput.value = String(status.displayColorEffect.stage1Seconds);
+                elements.wifiTimerStage2SecondsInput.value = String(status.displayColorEffect.stage2Seconds);
+                elements.wifiTimerStage3SecondsInput.value = String(status.displayColorEffect.stage3Seconds);
+                elements.wifiTimerBlinkSecondsInput.value = String(status.displayColorEffect.blinkSeconds);
+                elements.wifiTimerBlinkIntervalMsInput.value = String(status.displayColorEffect.blinkIntervalMs);
+                elements.wifiTimerStage1ColorInput.value = status.displayColorEffect.stage1Color || '#ffffff';
+                elements.wifiTimerStage2ColorInput.value = status.displayColorEffect.stage2Color || '#ffff00';
+                elements.wifiTimerStage3ColorInput.value = status.displayColorEffect.stage3Color || '#ff0000';
+                elements.wifiTimerAlertColorInput.value = status.displayColorEffect.alertColor || '#ff0000';
+            }
+        }
         timerUiUtils.setSelectValue(elements.wifiTimerToneKindSelect, String(status.alertToneKind));
         elements.wifiTimerVolumeInput.value = String(status.alertVolume);
         elements.wifiTimerRepeatCountInput.value = String(status.alertRepeatCount);
         elements.wifiTimerCustomSpeedInput.value = String(status.alertCustomSpeedPercent);
+        updateWifiTimerColorEffectPreview();
+        setWifiTimerStreamBusy(wifiTimerStreamBusy);
     };
 
     /**
@@ -730,6 +785,12 @@
     ): Promise<WifiTimerAudioStreamChunkResult> => {
         const maxRetryCount = 200;
         for (let retryIndex = 0; retryIndex < maxRetryCount; retryIndex += 1) {
+            while (wifiTimerStreamPlaybackPaused && !wifiTimerStreamCancelRequested) {
+                await sleepMs(30);
+            }
+            if (wifiTimerStreamCancelRequested) {
+                return {};
+            }
             try {
                 const formData = new FormData();
                 const chunkCopy = new Uint8Array(chunkBytes.byteLength);
@@ -754,7 +815,10 @@
                 if (!isRetryable) {
                     throw error;
                 }
-                await sleepMs(20);
+                if (message.includes('409') && wifiTimerStreamCancelRequested) {
+                    return {};
+                }
+                await sleepMs(wifiTimerStreamPlaybackPaused ? 120 : 20);
             }
         }
         throw new Error('stream buffer full または接続断が継続したため中断しました');
@@ -779,6 +843,7 @@
         const audioContext = new AudioContextCtor({ sampleRate: 16000, latencyHint: 'interactive' });
         const htmlAudio = new Audio();
         const objectUrl = URL.createObjectURL(file);
+        wifiTimerStreamHtmlAudio = htmlAudio;
         htmlAudio.src = objectUrl;
         htmlAudio.preload = 'auto';
         htmlAudio.muted = false;
@@ -808,6 +873,10 @@
             senderRunning = true;
             try {
                 while ((!ended || queue.length > 0) && !wifiTimerStreamCancelRequested) {
+                    if (wifiTimerStreamPlaybackPaused) {
+                        await sleepMs(20);
+                        continue;
+                    }
                     const nextChunk = dequeueWifiTimerStreamChunk(queue, targetChunkBytes);
                     if (!nextChunk) {
                         await sleepMs(8);
@@ -824,6 +893,9 @@
                             });
                         }
                     });
+                    if (wifiTimerStreamCancelRequested) {
+                        break;
+                    }
                     sentBytes += nextChunk.byteLength;
                     if (onProgress) {
                         onProgress({
@@ -857,7 +929,7 @@
             }
 
             processorNode.onaudioprocess = (event: AudioProcessingEvent): void => {
-                if (wifiTimerStreamCancelRequested) {
+                if (wifiTimerStreamCancelRequested || wifiTimerStreamPlaybackPaused) {
                     return;
                 }
                 const chunk = floatToInt16PcmMono(event.inputBuffer);
@@ -870,15 +942,22 @@
 
             await audioContext.resume();
             await htmlAudio.play();
-            await new Promise<void>((resolve: () => void, reject: (reason?: unknown) => void): void => {
-                htmlAudio.addEventListener('ended', (): void => resolve(), { once: true });
-                htmlAudio.addEventListener('error', (): void => reject(new Error('audio decode/playback failed in browser')), { once: true });
-            });
-
-            ended = true;
-            if (wifiTimerStreamCancelRequested) {
-                throw new Error('Audio stream canceled');
+            const playbackResult = await Promise.race([
+                new Promise<'ended'>((resolve: (value: 'ended') => void, reject: (reason?: unknown) => void): void => {
+                    htmlAudio.addEventListener('ended', (): void => resolve('ended'), { once: true });
+                    htmlAudio.addEventListener('error', (): void => reject(new Error('audio decode/playback failed in browser')), { once: true });
+                }),
+                (async (): Promise<'canceled'> => {
+                    while (!wifiTimerStreamCancelRequested) {
+                        await sleepMs(20);
+                    }
+                    return 'canceled';
+                })(),
+            ]);
+            if (playbackResult === 'canceled') {
+                htmlAudio.pause();
             }
+            ended = true;
             while (senderRunning || queue.length > 0) {
                 await sleepMs(12);
             }
@@ -887,7 +966,7 @@
                 throw senderError;
             }
 
-            if (wifiTimerStreamCancelRequested) {
+            if (playbackResult === 'canceled') {
                 await requestWifiTimerDirectJson<Record<string, unknown>>('api/audio/stream/cancel', { method: 'POST' });
                 throw new Error('Audio stream canceled');
             }
@@ -903,6 +982,7 @@
                 endResult,
             };
         } finally {
+            wifiTimerStreamHtmlAudio = null;
             processorNode.onaudioprocess = null;
             sourceNode.disconnect();
             processorNode.disconnect();
@@ -921,12 +1001,33 @@
     const readWifiTimerDisplaySettings = (): WifiTimerDisplaySettings => {
         const activeBrightness = Math.min(Math.max(parseNumberUtils.parseIntOrFallback(elements.wifiTimerActiveBrightnessInput.value, 255), 0), 255);
         const idleBrightness = Math.min(Math.max(parseNumberUtils.parseIntOrFallback(elements.wifiTimerIdleBrightnessInput.value, 32), 0), 255);
+        const colorEffect: WifiTimerDisplayColorEffect = {
+            stage1Seconds: Math.min(Math.max(parseNumberUtils.parseIntOrFallback(elements.wifiTimerStage1SecondsInput.value, 30), 0), 3600),
+            stage2Seconds: Math.min(Math.max(parseNumberUtils.parseIntOrFallback(elements.wifiTimerStage2SecondsInput.value, 10), 0), 3600),
+            stage3Seconds: Math.min(Math.max(parseNumberUtils.parseIntOrFallback(elements.wifiTimerStage3SecondsInput.value, 10), 0), 3600),
+            blinkSeconds: Math.min(Math.max(parseNumberUtils.parseIntOrFallback(elements.wifiTimerBlinkSecondsInput.value, 0), 0), 3600),
+            blinkIntervalMs: Math.min(Math.max(parseNumberUtils.parseIntOrFallback(elements.wifiTimerBlinkIntervalMsInput.value, 500), 100), 2000),
+            stage1Color: elements.wifiTimerStage1ColorInput.value || '#ffffff',
+            stage2Color: elements.wifiTimerStage2ColorInput.value || '#ffff00',
+            stage3Color: elements.wifiTimerStage3ColorInput.value || '#ff0000',
+            alertColor: elements.wifiTimerAlertColorInput.value || '#ff0000',
+        };
+        colorEffect.stage2Seconds = Math.min(colorEffect.stage2Seconds, colorEffect.stage1Seconds);
+        colorEffect.stage3Seconds = Math.min(colorEffect.stage3Seconds, colorEffect.stage2Seconds);
+        colorEffect.blinkSeconds = Math.min(colorEffect.blinkSeconds, colorEffect.stage3Seconds);
         elements.wifiTimerActiveBrightnessInput.value = String(activeBrightness);
         elements.wifiTimerIdleBrightnessInput.value = String(idleBrightness);
+        elements.wifiTimerStage1SecondsInput.value = String(colorEffect.stage1Seconds);
+        elements.wifiTimerStage2SecondsInput.value = String(colorEffect.stage2Seconds);
+        elements.wifiTimerStage3SecondsInput.value = String(colorEffect.stage3Seconds);
+        elements.wifiTimerBlinkSecondsInput.value = String(colorEffect.blinkSeconds);
+        elements.wifiTimerBlinkIntervalMsInput.value = String(colorEffect.blinkIntervalMs);
+        updateWifiTimerColorEffectPreview();
         return {
             activeBrightness,
             idleBrightness,
             rotate180: elements.wifiTimerRotate180Input.checked,
+            colorEffect,
         };
     };
 
@@ -1043,6 +1144,7 @@
     const initWifiTimerAdminPanel = (): void => {
         setWifiTimerStreamBusy(false);
         setWifiTimerStreamStatus('');
+        updateWifiTimerColorEffectPreview();
 
         elements.wifiTimerWifiProfileSelect.addEventListener('change', (): void => {
             syncWifiTimerProfileSelection();
@@ -1061,6 +1163,23 @@
             }, 120);
         });
 
+        [
+            elements.wifiTimerStage1SecondsInput,
+            elements.wifiTimerStage2SecondsInput,
+            elements.wifiTimerStage3SecondsInput,
+            elements.wifiTimerBlinkSecondsInput,
+            elements.wifiTimerBlinkIntervalMsInput,
+            elements.wifiTimerStage1ColorInput,
+            elements.wifiTimerStage2ColorInput,
+            elements.wifiTimerStage3ColorInput,
+            elements.wifiTimerAlertColorInput,
+        ].forEach((element: HTMLInputElement): void => {
+            element.addEventListener('input', (): void => {
+                wifiTimerDisplayEffectDirty = true;
+                updateWifiTimerColorEffectPreview();
+            });
+        });
+
         elements.wifiTimerRefreshBtn.addEventListener('click', (): void => {
             void refreshWifiTimerPanel()
                 .then((): void => {
@@ -1074,12 +1193,30 @@
         elements.wifiTimerApplyDisplayBtn.addEventListener('click', (): void => {
             void electronAPI.updateWifiTimerDisplaySettings(readWifiTimerDisplaySettings())
                 .then((status: WifiTimerStatus): void => {
+                    wifiTimerDisplayEffectDirty = false;
                     applyWifiTimerStatus(status);
                     setWifiTimerOperationMessage('Display settings updated.');
                 })
                 .catch((error: unknown): void => {
                     setWifiTimerOperationMessage(error instanceof Error ? error.message : String(error), true);
                 });
+        });
+
+        elements.wifiTimerSaveColorEffectBtn.addEventListener('click', (): void => {
+            void electronAPI.updateWifiTimerDisplaySettings(readWifiTimerDisplaySettings())
+                .then((status: WifiTimerStatus): void => {
+                    wifiTimerDisplayEffectDirty = false;
+                    applyWifiTimerStatus(status);
+                    setWifiTimerOperationMessage('Display color effect updated.');
+                })
+                .catch((error: unknown): void => {
+                    setWifiTimerOperationMessage(error instanceof Error ? error.message : String(error), true);
+                });
+        });
+
+        elements.wifiTimerPresetColorEffectBtn.addEventListener('click', (): void => {
+            applyWifiTimerDramaticColorEffectPreset();
+            setWifiTimerOperationMessage('Dramatic preset loaded. Click Save Color Effect to apply.');
         });
 
         elements.wifiTimerApplyAudioBtn.addEventListener('click', (): void => {
@@ -1154,8 +1291,51 @@
                 });
         });
 
+        elements.wifiTimerPauseStreamBtn.addEventListener('click', (): void => {
+            if (!wifiTimerStreamBusy || wifiTimerStreamPlaybackPaused) {
+                return;
+            }
+            wifiTimerStreamPlaybackPaused = true;
+            setWifiTimerStreamBusy(true);
+            void requestWifiTimerDirectJson<WifiTimerStatus>('api/audio/stream/pause', { method: 'POST' })
+                .then((status: WifiTimerStatus): void => {
+                    wifiTimerStreamHtmlAudio?.pause();
+                    applyWifiTimerStatus(status);
+                    setWifiTimerStreamStatus('Audio stream paused.');
+                    setWifiTimerOperationMessage('Audio stream paused.');
+                })
+                .catch((error: unknown): void => {
+                    wifiTimerStreamPlaybackPaused = false;
+                    setWifiTimerStreamBusy(true);
+                    const message = error instanceof Error ? error.message : String(error);
+                    setWifiTimerStreamStatus(message, true);
+                    setWifiTimerOperationMessage(message, true);
+                });
+        });
+
+        elements.wifiTimerResumeStreamBtn.addEventListener('click', (): void => {
+            if (!wifiTimerStreamBusy || !wifiTimerStreamPlaybackPaused) {
+                return;
+            }
+            void requestWifiTimerDirectJson<WifiTimerStatus>('api/audio/stream/resume', { method: 'POST' })
+                .then(async (status: WifiTimerStatus): Promise<void> => {
+                    if (wifiTimerStreamHtmlAudio) {
+                        await wifiTimerStreamHtmlAudio.play();
+                    }
+                    applyWifiTimerStatus(status);
+                    setWifiTimerStreamStatus('Audio stream resumed.');
+                    setWifiTimerOperationMessage('Audio stream resumed.');
+                })
+                .catch((error: unknown): void => {
+                    const message = error instanceof Error ? error.message : String(error);
+                    setWifiTimerStreamStatus(message, true);
+                    setWifiTimerOperationMessage(message, true);
+                });
+        });
+
         elements.wifiTimerCancelStreamBtn.addEventListener('click', (): void => {
             wifiTimerStreamCancelRequested = true;
+            wifiTimerStreamHtmlAudio?.pause();
             void requestWifiTimerDirectJson<Record<string, unknown>>('api/audio/stream/cancel', { method: 'POST' })
                 .then((): void => {
                     setWifiTimerStreamStatus('Audio stream canceled');

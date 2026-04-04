@@ -41,6 +41,8 @@ type WifiTimerClientApiMock = {
     endAudioStream: jest.Mock<Promise<WifiTimerAudioStreamEndResult>, []>;
     cancelAudioStream: jest.Mock<Promise<void>, []>;
     updateAudioStreamVolume: jest.Mock<Promise<void>, [number]>;
+    pauseAudioStream: jest.Mock<Promise<WifiTimerStatus>, []>;
+    resumeAudioStream: jest.Mock<Promise<WifiTimerStatus>, []>;
     getWifiInfo: jest.Mock<Promise<WifiTimerWifiInfo>, []>;
     saveWifiProfile: jest.Mock<Promise<WifiTimerWifiInfo>, [object]>;
     deleteWifiProfile: jest.Mock<Promise<WifiTimerWifiInfo>, [number]>;
@@ -85,12 +87,24 @@ function createRegisterOptions(joyConRumbleApi: JoyConRumbleApiMock): {
         activeBrightness: 255,
         idleBrightness: 32,
         rotate180: false,
+        displayColorEffect: {
+            stage1Seconds: 30,
+            stage2Seconds: 10,
+            stage3Seconds: 10,
+            blinkSeconds: 0,
+            blinkIntervalMs: 500,
+            stage1Color: '#ffffff',
+            stage2Color: '#ffff00',
+            stage3Color: '#ff0000',
+            alertColor: '#ff0000',
+        },
         alertVolume: 50,
         alertRepeatCount: 1,
         alertToneKind: 0,
         alertToneName: 'beep',
         alertCustomSpeedPercent: 100,
         audioPlaying: false,
+        audioStreamPaused: false,
     };
     const wifiInfoFallback: WifiTimerWifiInfo = {
         ready: true,
@@ -161,6 +175,8 @@ function createRegisterOptions(joyConRumbleApi: JoyConRumbleApiMock): {
         endAudioStream: jest.fn().mockResolvedValue({ ok: true }),
         cancelAudioStream: jest.fn().mockResolvedValue(undefined),
         updateAudioStreamVolume: jest.fn().mockResolvedValue(undefined),
+        pauseAudioStream: jest.fn().mockResolvedValue(statusFallback),
+        resumeAudioStream: jest.fn().mockResolvedValue(statusFallback),
         getWifiInfo: jest.fn().mockResolvedValue(wifiInfoFallback),
         saveWifiProfile: jest.fn().mockResolvedValue(wifiInfoFallback),
         deleteWifiProfile: jest.fn().mockResolvedValue(wifiInfoFallback),

@@ -15,6 +15,18 @@ type FetchResponse = {
 };
 
 describe('WiFi タイマークライアント', (): void => {
+    const defaultDisplayColorEffect = {
+        stage1Seconds: 30,
+        stage2Seconds: 10,
+        stage3Seconds: 10,
+        blinkSeconds: 0,
+        blinkIntervalMs: 500,
+        stage1Color: '#ffffff',
+        stage2Color: '#ffff00',
+        stage3Color: '#ff0000',
+        alertColor: '#ff0000',
+    };
+
     const okResponse = (body: unknown): FetchResponse => ({
         ok: true,
         status: 200,
@@ -68,12 +80,14 @@ describe('WiFi タイマークライアント', (): void => {
             activeBrightness: 200,
             idleBrightness: 20,
             rotate180: false,
+            displayColorEffect: defaultDisplayColorEffect,
             alertVolume: 50,
             alertRepeatCount: 2,
             alertToneKind: 1,
             alertToneName: 'chirp',
             alertCustomSpeedPercent: 100,
             audioPlaying: false,
+            audioStreamPaused: false,
         };
         const fetchMock = jest.fn<Promise<FetchResponse>, [string, { method?: string } | undefined]>()
             .mockResolvedValue(okResponse(status));
@@ -121,7 +135,7 @@ describe('WiFi タイマークライアント', (): void => {
         expect(fetchMock).toHaveBeenCalledWith('http://192.168.0.10/api/audio/tones', { method: 'GET' });
     });
 
-    it('表示設定更新は brightness と orientation を順に呼ぶ', async (): Promise<void> => {
+    it('表示設定更新は brightness と orientation と color-effect を順に呼ぶ', async (): Promise<void> => {
         const status: WifiTimerStatus = {
             state: 'idle',
             initialSeconds: 10,
@@ -130,21 +144,50 @@ describe('WiFi タイマークライアント', (): void => {
             activeBrightness: 180,
             idleBrightness: 12,
             rotate180: true,
+            displayColorEffect: {
+                stage1Seconds: 60,
+                stage2Seconds: 45,
+                stage3Seconds: 30,
+                blinkSeconds: 10,
+                blinkIntervalMs: 400,
+                stage1Color: '#2060ff',
+                stage2Color: '#ffffff',
+                stage3Color: '#ff9d9d',
+                alertColor: '#ff0000',
+            },
             alertVolume: 20,
             alertRepeatCount: 3,
             alertToneKind: 0,
             alertToneName: 'beep',
             alertCustomSpeedPercent: 100,
             audioPlaying: false,
+            audioStreamPaused: false,
         };
         const fetchMock = jest.fn<Promise<FetchResponse>, [string, { method?: string } | undefined]>()
+            .mockResolvedValueOnce(okResponse(status))
             .mockResolvedValueOnce(okResponse(status))
             .mockResolvedValueOnce(okResponse(status));
         const client = createWifiTimerClient(fetchMock, { enabled: false, ipAddress: '192.168.0.10' });
 
-        await expect(client.updateDisplaySettings({ activeBrightness: 180, idleBrightness: 12, rotate180: true })).resolves.toEqual(status);
+        await expect(client.updateDisplaySettings({
+            activeBrightness: 180,
+            idleBrightness: 12,
+            rotate180: true,
+            colorEffect: {
+                stage1Seconds: 60,
+                stage2Seconds: 45,
+                stage3Seconds: 30,
+                blinkSeconds: 10,
+                blinkIntervalMs: 400,
+                stage1Color: '#2060ff',
+                stage2Color: '#ffffff',
+                stage3Color: '#ff9d9d',
+                alertColor: '#ff0000',
+            },
+        })).resolves.toEqual(status);
         expect(fetchMock).toHaveBeenNthCalledWith(1, 'http://192.168.0.10/api/brightness?active=180&idle=12', { method: 'POST' });
         expect(fetchMock).toHaveBeenNthCalledWith(2, 'http://192.168.0.10/api/display/orientation?rotate180=1', { method: 'POST' });
+        expect(fetchMock).toHaveBeenNthCalledWith(3, 'http://192.168.0.10/api/display/color-effect?stage1Seconds=60&stage2Seconds=45&stage3Seconds=30&blinkSeconds=10&blinkIntervalMs=400&stage1Color=%232060ff&stage2Color=%23ffffff&stage3Color=%23ff9d9d&alertColor=%23ff0000', { method: 'POST' });
     });
 
     it('WiFi プロファイル保存 API を呼ぶ', async (): Promise<void> => {
@@ -183,12 +226,14 @@ describe('WiFi タイマークライアント', (): void => {
             activeBrightness: 200,
             idleBrightness: 20,
             rotate180: false,
+            displayColorEffect: defaultDisplayColorEffect,
             alertVolume: 70,
             alertRepeatCount: 2,
             alertToneKind: 3,
             alertToneName: 'arpeggio',
             alertCustomSpeedPercent: 100,
             audioPlaying: true,
+            audioStreamPaused: false,
         };
         const fetchMock = jest.fn<Promise<FetchResponse>, [string, { method?: string } | undefined]>()
             .mockResolvedValue(okResponse(status));
@@ -207,12 +252,14 @@ describe('WiFi タイマークライアント', (): void => {
             activeBrightness: 100,
             idleBrightness: 10,
             rotate180: false,
+            displayColorEffect: defaultDisplayColorEffect,
             alertVolume: 80,
             alertRepeatCount: 4,
             alertToneKind: 8,
             alertToneName: 'custom-stream',
             alertCustomSpeedPercent: 115,
             audioPlaying: false,
+            audioStreamPaused: false,
         };
         const fetchMock = jest.fn<Promise<FetchResponse>, [string, { method?: string } | undefined]>()
             .mockResolvedValue(okResponse(status));
@@ -277,6 +324,39 @@ describe('WiFi タイマークライアント', (): void => {
         await expect(client.updateAudioStreamVolume(65)).resolves.toBeUndefined();
         expect(fetchMock).toHaveBeenNthCalledWith(1, 'http://192.168.0.10/api/audio/stream/cancel', { method: 'POST' });
         expect(fetchMock).toHaveBeenNthCalledWith(2, 'http://192.168.0.10/api/audio/stream/volume?volume=65', { method: 'POST' });
+    });
+
+    it('ローカル音声ストリーム一時停止 API と再開 API を呼ぶ', async (): Promise<void> => {
+        const pausedStatus: WifiTimerStatus = {
+            state: 'idle',
+            initialSeconds: 20,
+            remainingSeconds: 20,
+            ip: '192.168.0.10',
+            activeBrightness: 100,
+            idleBrightness: 10,
+            rotate180: false,
+            displayColorEffect: defaultDisplayColorEffect,
+            alertVolume: 80,
+            alertRepeatCount: 4,
+            alertToneKind: 8,
+            alertToneName: 'custom-stream',
+            alertCustomSpeedPercent: 115,
+            audioPlaying: true,
+            audioStreamPaused: true,
+        };
+        const resumedStatus: WifiTimerStatus = {
+            ...pausedStatus,
+            audioStreamPaused: false,
+        };
+        const fetchMock = jest.fn<Promise<FetchResponse>, [string, { method?: string; body?: BodyInit; headers?: Record<string, string> } | undefined]>()
+            .mockResolvedValueOnce(okResponse(pausedStatus))
+            .mockResolvedValueOnce(okResponse(resumedStatus));
+        const client = createWifiTimerClient(fetchMock, { enabled: false, ipAddress: '192.168.0.10' });
+
+        await expect(client.pauseAudioStream()).resolves.toEqual(pausedStatus);
+        await expect(client.resumeAudioStream()).resolves.toEqual(resumedStatus);
+        expect(fetchMock).toHaveBeenNthCalledWith(1, 'http://192.168.0.10/api/audio/stream/pause', { method: 'POST' });
+        expect(fetchMock).toHaveBeenNthCalledWith(2, 'http://192.168.0.10/api/audio/stream/resume', { method: 'POST' });
     });
 
     it('WiFi プロファイル移動 API を呼ぶ', async (): Promise<void> => {

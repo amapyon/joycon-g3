@@ -159,6 +159,31 @@
                                     </label>
                                 </div>
                                 <button id="wifi-timer-apply-display-btn" class="wifi-timer-action-btn">Apply Display</button>
+                                <div class="wifi-timer-grid" style="margin-top: 8px;">
+                                    <label for="wifi-timer-stage1-seconds">Stage1 Sec</label>
+                                    <input type="number" id="wifi-timer-stage1-seconds" min="0" max="3600" value="30">
+                                    <label for="wifi-timer-stage1-color">Stage1 Color</label>
+                                    <input type="color" id="wifi-timer-stage1-color" value="#ffffff">
+                                    <label for="wifi-timer-stage2-seconds">Stage2 Sec</label>
+                                    <input type="number" id="wifi-timer-stage2-seconds" min="0" max="3600" value="10">
+                                    <label for="wifi-timer-stage2-color">Stage2 Color</label>
+                                    <input type="color" id="wifi-timer-stage2-color" value="#ffff00">
+                                    <label for="wifi-timer-stage3-seconds">Stage3 Sec</label>
+                                    <input type="number" id="wifi-timer-stage3-seconds" min="0" max="3600" value="10">
+                                    <label for="wifi-timer-stage3-color">Stage3 Color</label>
+                                    <input type="color" id="wifi-timer-stage3-color" value="#ff0000">
+                                    <label for="wifi-timer-blink-seconds">Blink Sec</label>
+                                    <input type="number" id="wifi-timer-blink-seconds" min="0" max="3600" value="0">
+                                    <label for="wifi-timer-alert-color">Alert Color</label>
+                                    <input type="color" id="wifi-timer-alert-color" value="#ff0000">
+                                    <label for="wifi-timer-blink-interval-ms">Blink Ms</label>
+                                    <input type="number" id="wifi-timer-blink-interval-ms" min="100" max="2000" step="10" value="500">
+                                </div>
+                                <div class="wifi-timer-button-row">
+                                    <button id="wifi-timer-save-color-effect-btn" class="wifi-timer-action-btn">Save Color Effect</button>
+                                    <button id="wifi-timer-preset-color-effect-btn" class="wifi-timer-action-btn secondary">Preset: Dramatic</button>
+                                </div>
+                                <div id="wifi-timer-color-effect-preview" class="wifi-timer-operation-message"></div>
                             </div>
                             <div class="wifi-timer-group">
                                 <div class="wifi-timer-group-title">Audio</div>
@@ -191,6 +216,8 @@
                                 </div>
                                 <div class="wifi-timer-button-row">
                                     <button id="wifi-timer-stream-audio-btn" class="wifi-timer-action-btn">Stream &amp; Play</button>
+                                    <button id="wifi-timer-pause-stream-btn" class="wifi-timer-action-btn secondary" disabled>Pause Stream</button>
+                                    <button id="wifi-timer-resume-stream-btn" class="wifi-timer-action-btn secondary" disabled>Resume Stream</button>
                                     <button id="wifi-timer-cancel-stream-btn" class="wifi-timer-action-btn secondary" disabled>Cancel Stream</button>
                                 </div>
                                 <div id="wifi-timer-stream-status" class="wifi-timer-stream-status"></div>

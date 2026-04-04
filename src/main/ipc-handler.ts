@@ -40,6 +40,17 @@ function parseWifiTimerDisplaySettings(value: unknown): WifiTimerDisplaySettings
         || typeof (value as { activeBrightness?: unknown }).activeBrightness !== 'number'
         || typeof (value as { idleBrightness?: unknown }).idleBrightness !== 'number'
         || typeof (value as { rotate180?: unknown }).rotate180 !== 'boolean'
+        || typeof (value as { colorEffect?: unknown }).colorEffect !== 'object'
+        || (value as { colorEffect?: unknown }).colorEffect === null
+        || typeof (value as { colorEffect: { stage1Seconds?: unknown } }).colorEffect.stage1Seconds !== 'number'
+        || typeof (value as { colorEffect: { stage2Seconds?: unknown } }).colorEffect.stage2Seconds !== 'number'
+        || typeof (value as { colorEffect: { stage3Seconds?: unknown } }).colorEffect.stage3Seconds !== 'number'
+        || typeof (value as { colorEffect: { blinkSeconds?: unknown } }).colorEffect.blinkSeconds !== 'number'
+        || typeof (value as { colorEffect: { blinkIntervalMs?: unknown } }).colorEffect.blinkIntervalMs !== 'number'
+        || typeof (value as { colorEffect: { stage1Color?: unknown } }).colorEffect.stage1Color !== 'string'
+        || typeof (value as { colorEffect: { stage2Color?: unknown } }).colorEffect.stage2Color !== 'string'
+        || typeof (value as { colorEffect: { stage3Color?: unknown } }).colorEffect.stage3Color !== 'string'
+        || typeof (value as { colorEffect: { alertColor?: unknown } }).colorEffect.alertColor !== 'string'
     ) {
         throw new Error('invalid WiFi timer display settings');
     }
@@ -47,6 +58,17 @@ function parseWifiTimerDisplaySettings(value: unknown): WifiTimerDisplaySettings
         activeBrightness: (value as { activeBrightness: number }).activeBrightness,
         idleBrightness: (value as { idleBrightness: number }).idleBrightness,
         rotate180: (value as { rotate180: boolean }).rotate180,
+        colorEffect: {
+            stage1Seconds: (value as { colorEffect: { stage1Seconds: number } }).colorEffect.stage1Seconds,
+            stage2Seconds: (value as { colorEffect: { stage2Seconds: number } }).colorEffect.stage2Seconds,
+            stage3Seconds: (value as { colorEffect: { stage3Seconds: number } }).colorEffect.stage3Seconds,
+            blinkSeconds: (value as { colorEffect: { blinkSeconds: number } }).colorEffect.blinkSeconds,
+            blinkIntervalMs: (value as { colorEffect: { blinkIntervalMs: number } }).colorEffect.blinkIntervalMs,
+            stage1Color: (value as { colorEffect: { stage1Color: string } }).colorEffect.stage1Color,
+            stage2Color: (value as { colorEffect: { stage2Color: string } }).colorEffect.stage2Color,
+            stage3Color: (value as { colorEffect: { stage3Color: string } }).colorEffect.stage3Color,
+            alertColor: (value as { colorEffect: { alertColor: string } }).colorEffect.alertColor,
+        },
     };
 }
 

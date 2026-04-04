@@ -1,4 +1,19 @@
 /**
+ * 表示色演出設定。
+ */
+export type WifiTimerDisplayColorEffect = {
+    stage1Seconds: number;
+    stage2Seconds: number;
+    stage3Seconds: number;
+    blinkSeconds: number;
+    blinkIntervalMs: number;
+    stage1Color: string;
+    stage2Color: string;
+    stage3Color: string;
+    alertColor: string;
+};
+
+/**
  * WiFi タイマーの状態。
  */
 export type WifiTimerStatus = {
@@ -9,12 +24,14 @@ export type WifiTimerStatus = {
     activeBrightness: number;
     idleBrightness: number;
     rotate180: boolean;
+    displayColorEffect?: WifiTimerDisplayColorEffect;
     alertVolume: number;
     alertRepeatCount: number;
     alertToneKind: number;
     alertToneName: string;
     alertCustomSpeedPercent: number;
     audioPlaying: boolean;
+    audioStreamPaused: boolean;
 };
 
 /**
@@ -87,6 +104,7 @@ export type WifiTimerDisplaySettings = {
     activeBrightness: number;
     idleBrightness: number;
     rotate180: boolean;
+    colorEffect: WifiTimerDisplayColorEffect;
 };
 
 /**

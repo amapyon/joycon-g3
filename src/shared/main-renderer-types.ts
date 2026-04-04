@@ -141,7 +141,19 @@ export type MainRendererElements = {
     wifiTimerActiveBrightnessInput: HTMLInputElement;
     wifiTimerIdleBrightnessInput: HTMLInputElement;
     wifiTimerRotate180Input: HTMLInputElement;
+    wifiTimerStage1SecondsInput: HTMLInputElement;
+    wifiTimerStage2SecondsInput: HTMLInputElement;
+    wifiTimerStage3SecondsInput: HTMLInputElement;
+    wifiTimerBlinkSecondsInput: HTMLInputElement;
+    wifiTimerBlinkIntervalMsInput: HTMLInputElement;
+    wifiTimerStage1ColorInput: HTMLInputElement;
+    wifiTimerStage2ColorInput: HTMLInputElement;
+    wifiTimerStage3ColorInput: HTMLInputElement;
+    wifiTimerAlertColorInput: HTMLInputElement;
     wifiTimerApplyDisplayBtn: HTMLButtonElement;
+    wifiTimerSaveColorEffectBtn: HTMLButtonElement;
+    wifiTimerPresetColorEffectBtn: HTMLButtonElement;
+    wifiTimerColorEffectPreview: HTMLElement;
     wifiTimerToneKindSelect: HTMLSelectElement;
     wifiTimerVolumeInput: HTMLInputElement;
     wifiTimerRepeatCountInput: HTMLInputElement;
@@ -150,6 +162,8 @@ export type MainRendererElements = {
     wifiTimerTestAudioBtn: HTMLButtonElement;
     wifiTimerLocalAudioFileInput: HTMLInputElement;
     wifiTimerStreamAudioBtn: HTMLButtonElement;
+    wifiTimerPauseStreamBtn: HTMLButtonElement;
+    wifiTimerResumeStreamBtn: HTMLButtonElement;
     wifiTimerCancelStreamBtn: HTMLButtonElement;
     wifiTimerStreamStatus: HTMLElement;
     wifiTimerWifiRefreshBtn: HTMLButtonElement;
