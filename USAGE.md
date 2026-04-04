@@ -64,7 +64,7 @@ npm start
 - 連携設定はメイン画面で変更した時点で保存され、次回起動時に復元されます。
 - `Refresh` で WiFi タイマー本体の状態と Wi-Fi 情報を再読込できます。
 - WiFi タイマーの WebAPI 仕様とサンプルプログラムは `amapyon/led_timer` リポジトリを参照してください: `https://github.com/amapyon/led_timer`
-- 本アプリの実装は、デバイスが `GET /api/capabilities` と `GET /openapi.json` を提供している前提で、上記リポジトリの公開仕様に追従します。
+- 本アプリの実装は、上記リポジトリで公開されている最新仕様に追従します。
 
 ### 6.1 連携される操作
 - タイマー初期値の変更
@@ -99,16 +99,16 @@ WiFi Timer 設定は `PAD` の次のセクションに表示されます。
 - `Stage1 Color` / `Stage2 Color` / `Stage3 Color` / `Alert Color` で各段階の色を設定します。
 - `Blink Ms` で点滅間隔を設定します。
 - `Save Color Effect` で表示色演出を反映します。
-- `Preset: Dramatic` でサンプルWebUI準拠の演出プリセットを読み込みます。
+- `Preset: Dramatic` で参照先サンプルに合わせた演出プリセットを読み込みます。
 - しきい値は `stage1 >= stage2 >= stage3 >= blink` の条件になるよう、アプリ側でも補正して送信します。
 
 #### Audio
 - `Tone` にはデバイス側の音色一覧が表示されます。
-- sample WebUI に合わせて、`chime` は `custom_alert.pcm` を選択した `toneKind=6`、`gong` は `toneKind=7` として扱います。
+- 参照先サンプルに合わせて、`chime` は `custom_alert.pcm` を使う組み込み音、`gong` は別系統の組み込み音として扱います。
 - カスタム音はアップロード済みライブラリから選択できます。
 - `Volume` で音量を設定します。
 - `Repeat` で鳴らす回数を設定します。
-- `Speed` でカスタム音声の再生速度を設定します。入力範囲は `GET /api/audio/tones` の `limits.customSpeedMin` / `limits.customSpeedMax` に従います。
+- `Speed` でカスタム音声の再生速度を設定します。入力範囲はデバイス側の制約に従います。
 - `Apply Audio` で本体へ反映します。
 - `Test Audio` で現在選択中の音色・音量・回数を試聴します。
 - `Add Custom` から `mp3` / `wav` を選ぶと、ブラウザ側で `16kHz / mono / PCM16` に変換してアップロードします。
@@ -145,7 +145,7 @@ WiFi Timer 設定は `PAD` の次のセクションに表示されます。
 
 ### 6.4 実装補足
 - 仕様の一次参照先は `amapyon/led_timer` リポジトリです。
-- 本アプリは `capabilities` / `openapi` を含む最新公開仕様を前提に実装しています。
+- 本アプリは参照先リポジトリの最新公開仕様を前提に実装しています。
 - 音色一覧や入力上限はデバイスレスポンスから動的に反映します。
 - カスタム音ライブラリ管理、表示色演出、ライブストリーム再生は標準 WebUI に寄せた挙動で実装しています。
 
