@@ -31,6 +31,22 @@ jest.mock('../main/powerpoint-control', () => ({
         setTarget: (): void => {
             return;
         },
+        clearTarget: (): void => {
+            return;
+        },
+        getOpenPresentations: (): unknown[] => [],
+    },
+}));
+
+jest.mock('../main/google-slides-control', () => ({
+    __esModule: true,
+    default: {
+        setTarget: (): void => {
+            return;
+        },
+        clearTarget: (): void => {
+            return;
+        },
         getOpenPresentations: (): unknown[] => [],
     },
 }));

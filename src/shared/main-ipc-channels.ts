@@ -12,6 +12,8 @@ export const MAIN_IPC_INBOUND_CHANNELS = {
     UPDATE_WIFI_TIMER_SETTINGS: 'update-wifi-timer-settings',
     HIDE_TIMER_WINDOW: 'hide-timer-window',
     TOGGLE_TIMER_WINDOW: 'toggle-timer-window',
+    SHOW_CLOCK_TIMER_WINDOW: 'show-clock-timer-window',
+    TIMER_DISPLAY_MODE_UPDATE: 'timer-display-mode-update',
     TIMER_COUNTDOWN_UPDATE: 'timer-countdown-update',
     TIMER_NOTIFICATION_TRIGGER: 'timer-notification-trigger',
 } as const;

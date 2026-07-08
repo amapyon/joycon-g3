@@ -4,6 +4,7 @@ import {
     getTimerWindowMode,
     setTimerCounting,
     setTimerPaused,
+    setTimerWindowMode,
     type TimerWindowStatus,
 } from '../main/timer-state';
 
@@ -12,6 +13,7 @@ describe('タイマー状態', (): void => {
         const state = createTimerState();
         expect(state.isCounting).toBe(false);
         expect(state.isPaused).toBe(false);
+        expect(state.windowMode).toBe('setup');
     });
 
     it('カウントしていない場合は setup を返す', (): void => {
@@ -59,5 +61,17 @@ describe('タイマー状態', (): void => {
         const state = setTimerCounting(createTimerState(), true);
         const status: TimerWindowStatus = { hasWindow: true, isVisible: false };
         expect(decideToggleTimerWindow(state, status)).toEqual({ action: 'show', mode: 'timer' });
+    });
+    it('時計表示中に停止通知を受けても clock モードを保持する', (): void => {
+        const clockState = setTimerWindowMode(createTimerState(), 'clock');
+        const stopped = setTimerCounting(clockState, false);
+
+        expect(getTimerWindowMode(stopped)).toBe('clock');
+    });
+
+    it('時計表示中の再表示は clock モードを返す', (): void => {
+        const state = setTimerWindowMode(createTimerState(), 'clock');
+        const status: TimerWindowStatus = { hasWindow: true, isVisible: false };
+        expect(decideToggleTimerWindow(state, status)).toEqual({ action: 'show', mode: 'clock' });
     });
 });

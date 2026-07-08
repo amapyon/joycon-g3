@@ -8,6 +8,7 @@ let mainWindow: BrowserWindow | null = null;
 let cursorWindow: BrowserWindow | null = null;
 let timerWindow: BrowserWindow | null = null;
 let messageWindow: BrowserWindow | null = null;
+let messageAlwaysOnTop = true;
 
 /**
  * メインウィンドウを生成する。
@@ -225,7 +226,7 @@ export function createMessageWindow(targetDisplay?: Display): BrowserWindow | nu
         height: initialBounds.height,
         frame: false,
         transparent: true,
-        alwaysOnTop: true,
+        alwaysOnTop: messageAlwaysOnTop,
         skipTaskbar: true,
         hasShadow: false,
         resizable: true,
@@ -264,6 +265,16 @@ export function getMessageWindow(): BrowserWindow | null {
     return null;
 }
 
+/**
+ * メッセージウィンドウの最前面固定を設定する。
+ * @param alwaysOnTop 最前面に固定するか
+ */
+export function setMessageAlwaysOnTop(alwaysOnTop: boolean): void {
+    messageAlwaysOnTop = alwaysOnTop;
+    if (isUsableWindow(messageWindow)) {
+        messageWindow.setAlwaysOnTop(alwaysOnTop);
+    }
+}
 /**
  * タイマーウィンドウを取得する。
  * @returns タイマーウィンドウ
@@ -370,4 +381,5 @@ export default {
     setTargetDisplay,
     createMessageWindow,
     getMessageWindow,
+    setMessageAlwaysOnTop,
 };

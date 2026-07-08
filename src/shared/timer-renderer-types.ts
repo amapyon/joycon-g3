@@ -7,7 +7,8 @@ import type { WheelAction } from './wheel-action-types';
  */
 export type TimerMenuItem =
     | { type: 'preset'; time: number; label: string }
-    | { type: 'add-minute'; label: string };
+    | { type: 'add-minute'; label: string }
+    | { type: 'clock'; label: string };
 
 /**
  * タイマー表示状態の計算API。

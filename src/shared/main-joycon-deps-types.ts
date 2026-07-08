@@ -6,11 +6,13 @@ export type JoyConManagerLike = {
 };
 
 export type PowerPointControlLike = {
+    hasTarget: () => boolean;
     next: () => boolean;
     previous: () => boolean;
 };
 
 export type GoogleSlidesControlLike = {
+    hasTarget: () => boolean;
     next: () => boolean;
     previous: () => boolean;
 };

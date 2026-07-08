@@ -254,6 +254,9 @@
         elements.addMinuteMainBtn.addEventListener('click', (): void => {
             electronAPI.addMinuteTimer();
         });
+        elements.showClockTimerBtn.addEventListener('click', (): void => {
+            electronAPI.showClockTimerWindow();
+        });
     };
 
     /**

@@ -12,6 +12,7 @@ type TimerRendererElectronAPI = {
     onUpdateTimerPresets: (callback: (presets: number[]) => void) => void;
     onSetTimerMode: (callback: (mode: TimerMode) => void) => void;
     onStartCountdown: (callback: (duration: number) => void) => void;
+    sendTimerDisplayMode: (mode: TimerMode) => void;
     onJoyConButtonSrPressed: (callback: () => void) => void;
     onTimerMenuNavigate: (callback: (direction: number) => void) => void;
     onTimerMenuSelect: (callback: () => void) => void;
@@ -69,6 +70,7 @@ type MenuControllerOptions = {
     onShowTimer: () => void;
     onStopCountdown: () => void;
     onPresetFocus: (seconds: number) => void;
+    onSelectClock: () => void;
 };
 
 type MenuControllerInstance = {
@@ -162,6 +164,10 @@ const menuController = new MenuController({
             return;
         }
         countdownTimerElement.style.visibility = 'visible';
+        if (currentDisplayMode === 'clock') {
+            updateClockDisplay();
+            return;
+        }
         if (!countdownInterval) {
             countdownTimerElement.style.color = '#ffffff';
         }
@@ -172,9 +178,14 @@ const menuController = new MenuController({
     onPresetFocus: (seconds: number): void => {
         countdownEngine.setInitialValue(seconds);
     },
+    onSelectClock: (): void => {
+        startClock();
+    },
 });
 
 let countdownInterval: ReturnType<typeof setInterval> | null = null;
+let clockInterval: ReturnType<typeof setInterval> | null = null;
+let currentDisplayMode: 'timer' | 'clock' = 'timer';
 let currentFontSize = timerStorage.loadTimerFontSize(100); // 保存値を反映
 let currentPresetValues: number[] = timerStorage.loadTimerPresets([10, 60, 120, 180, 300]);
 let currentOpacity = timerStorage.loadTimerOpacity(0.9); // 背景の初期透明度
@@ -194,6 +205,38 @@ const updateTimerFontSize = (delta: number): void => {
 };
 
 /**
+ * 現在時刻の表示文字列を生成する。
+ * @param date 表示対象の日時
+ * @returns HH:MM:SS形式の時刻
+ */
+const formatClockTime = (date: Date): string => {
+    const hours = String(date.getHours()).padStart(2, '0');
+    const minutes = String(date.getMinutes()).padStart(2, '0');
+    const seconds = String(date.getSeconds()).padStart(2, '0');
+    return `${hours}:${minutes}:${seconds}`;
+};
+
+/**
+ * 現在時刻の表示を更新する。
+ */
+const updateClockDisplay = (): void => {
+    if (!countdownTimerElement) {
+        return;
+    }
+    countdownTimerElement.textContent = formatClockTime(new Date());
+};
+
+/**
+ * 現在時刻表示の更新を停止する。
+ */
+const stopClock = (): void => {
+    if (clockInterval) {
+        clearInterval(clockInterval);
+        clockInterval = null;
+    }
+};
+
+/**
  * カウントダウンを停止する。
  */
 const stopCountdown = (): void => {
@@ -207,6 +250,28 @@ const stopCountdown = (): void => {
         electronAPI.sendTimerStatus(false);
     }
     electronAPI.sendTimerPauseStatus(false);
+};
+
+/**
+ * 現在時刻表示を開始する。
+ */
+const startClock = (): void => {
+    if (!countdownTimerElement) {
+        return;
+    }
+    stopCountdown();
+    stopClock();
+    currentDisplayMode = 'clock';
+    electronAPI.sendTimerDisplayMode('clock');
+    countdownTimerElement.style.visibility = 'visible';
+    countdownTimerElement.style.color = '#ffffff';
+    updateClockDisplay();
+    clockInterval = setInterval((): void => {
+        updateClockDisplay();
+    }, 1000);
+    if (menuController.getIsVisible()) {
+        menuController.setVisible(false);
+    }
 };
 
 /**
@@ -350,6 +415,9 @@ const startCountdownInterval = (): void => {
 const startCountdown = (duration: number): void => {
     if (!countdownTimerElement) return;
 
+    stopClock();
+    currentDisplayMode = 'timer';
+    electronAPI.sendTimerDisplayMode('timer');
     stopCountdown();
     electronAPI.sendTimerPauseStatus(false);
     const startValue = countdownEngine.start(duration);
@@ -403,7 +471,7 @@ const handleChangeFontSize = (delta: number): void => {
 const handleUpdateCountdownInitialValue = (value: number): void => {
     const nextInitialValue = countdownEngine.setInitialValue(value);
     timerStorage.saveCountdownInitialValue(nextInitialValue);
-    if (countdownTimerElement && !countdownEngine.isActive()) {
+    if (countdownTimerElement && !countdownEngine.isActive() && currentDisplayMode === 'timer') {
         countdownTimerElement.textContent = formatTime(nextInitialValue);
     }
     if (menuController.getIsVisible()) {
@@ -431,6 +499,10 @@ const handleUpdateTimerPresets = (presets: number[]): void => {
  */
 const handleSetTimerMode = (mode: TimerMode): void => {
     // console.log(`[TimerRenderer] Setting mode to: ${mode}`);
+    if (mode === 'clock') {
+        startClock();
+        return;
+    }
     if (timerRendererLogic.shouldShowSetupMenu(mode)) {
         menuController.setVisible(true);
     } else {

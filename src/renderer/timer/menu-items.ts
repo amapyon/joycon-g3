@@ -35,6 +35,7 @@ export function buildMenuItems(presets: number[]): TimerMenuItem[] {
     }));
 
     items.push({ type: 'add-minute', label: '+1分' });
+    items.push({ type: 'clock', label: 'Clock' });
     return items;
 }
 

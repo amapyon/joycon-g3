@@ -1,8 +1,9 @@
-export type TimerWindowMode = 'setup' | 'timer';
+export type TimerWindowMode = 'setup' | 'timer' | 'clock';
 
 export type TimerState = {
     isCounting: boolean;
     isPaused: boolean;
+    windowMode: TimerWindowMode;
 };
 
 export type TimerWindowStatus = {
@@ -20,7 +21,7 @@ export type ToggleDecision = {
  * @returns 初期状態
  */
 export function createTimerState(): TimerState {
-    return { isCounting: false, isPaused: false };
+    return { isCounting: false, isPaused: false, windowMode: 'setup' };
 }
 
 /**
@@ -31,9 +32,14 @@ export function createTimerState(): TimerState {
  */
 export function setTimerCounting(state: TimerState, isCounting: boolean): TimerState {
     if (!isCounting) {
-        return { ...state, isCounting: false, isPaused: false };
+        return {
+            ...state,
+            isCounting: false,
+            isPaused: false,
+            windowMode: state.windowMode === 'timer' ? 'setup' : state.windowMode,
+        };
     }
-    return { ...state, isCounting: true, isPaused: false };
+    return { ...state, isCounting: true, isPaused: false, windowMode: 'timer' };
 }
 
 /**
@@ -55,7 +61,17 @@ export function setTimerPaused(state: TimerState, isPaused: boolean): TimerState
  * @returns モード
  */
 export function getTimerWindowMode(state: TimerState): TimerWindowMode {
-    return (state.isCounting || state.isPaused) ? 'timer' : 'setup';
+    return state.windowMode;
+}
+
+/**
+ * タイマーウィンドウの表示モードを更新する。
+ * @param state 現在の状態
+ * @param mode 表示モード
+ * @returns 更新後の状態
+ */
+export function setTimerWindowMode(state: TimerState, mode: TimerWindowMode): TimerState {
+    return { ...state, windowMode: mode };
 }
 
 /**

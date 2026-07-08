@@ -355,6 +355,11 @@ body {
     border-color: #fff;
 }
 
+.menu-clock-btn {
+    flex-basis: 100%;
+    margin-top: 2px;
+}
+
 .menu-item-btn.focused {
     background: rgba(255, 255, 255, 0.3);
     border-color: #fff;

@@ -81,10 +81,12 @@ function createTestContext(overrides: TestContextOverrides = {}): TestContextBun
             getPointerMotionSettings: () => ({ moveSpeed: 0.05, gyroDeadzone: 120 }),
             getCursorVisibility: overrides.getCursorVisibility ?? (() : boolean => true),
             powerpointControl: {
+                hasTarget: () => false,
                 next: () => false,
                 previous: () => false,
             },
             googleSlidesControl: {
+                hasTarget: () => false,
                 next: () => false,
                 previous: () => false,
             },

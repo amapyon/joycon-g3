@@ -6,6 +6,7 @@ export const IPC_HANDLER_INBOUND_CHANNELS = {
     CLOSE_CURSOR_WINDOW: 'close-cursor-window',
     SET_TARGET_PRESENTATION: 'set-target-presentation',
     GET_OPEN_POWERPOINT_PRESENTATIONS: 'get-open-powerpoint-presentations',
+    GET_OPEN_PRESENTATION_TARGETS: 'get-open-presentation-targets',
     START_CALIBRATION: 'start-calibration',
     REQUEST_JOYCON_STATUS: 'request-joycon-status',
     RECENTER_IMU: 'recenter-imu',
@@ -45,6 +46,7 @@ export const IPC_HANDLER_INBOUND_CHANNELS = {
     MOVE_DOWN_WIFI_TIMER_WIFI_PROFILE: 'move-down-wifi-timer-wifi-profile',
     REBOOT_WIFI_TIMER: 'reboot-wifi-timer',
     SEND_MESSAGE_TEXT: 'send-message-text',
+    SET_MESSAGE_ALWAYS_ON_TOP: 'set-message-always-on-top',
     TOGGLE_MESSAGE_WINDOW: 'toggle-message-window',
 } as const;
 

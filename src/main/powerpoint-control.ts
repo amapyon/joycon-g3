@@ -183,8 +183,8 @@ class PowerPointControl {
      * 開いているプレゼンテーション一覧を取得する。
      * @returns プレゼンテーション一覧
      */
-    getOpenPresentations(): Array<{ id: string; name: string; isRunning: boolean }> {
-        const presentations: Array<{ id: string; name: string; isRunning: boolean }> = [];
+    getOpenPresentations(): Array<{ id: string; name: string; isRunning: boolean; type: 'powerpoint' }> {
+        const presentations: Array<{ id: string; name: string; isRunning: boolean; type: 'powerpoint' }> = [];
         if (!this.connect()) return presentations;
         const ppApp = this.ppApp;
         if (!ppApp) return presentations;
@@ -207,6 +207,7 @@ class PowerPointControl {
                     id: id,
                     name: presentation.Name || id,
                     isRunning: fullName ? runningSlideShowPaths.has(fullName) : false,
+                    type: 'powerpoint',
                 });
             });
         } catch (e: unknown) {
@@ -223,6 +224,21 @@ class PowerPointControl {
     setTarget(identifier: string): void {
         this.targetPresentationIdentifier = identifier;
         this.activateTarget();
+    }
+
+    /**
+     * 操作対象の PowerPoint が設定されているかを返す。
+     * @returns 設定済みの場合は true
+     */
+    hasTarget(): boolean {
+        return !!this.targetPresentationIdentifier;
+    }
+
+    /**
+     * 操作対象の PowerPoint 設定を解除する。
+     */
+    clearTarget(): void {
+        this.targetPresentationIdentifier = undefined;
     }
 
     /**

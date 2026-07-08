@@ -9,6 +9,7 @@ type MessageLogicApi = {
         shiftKey: boolean
     ) => { kind: 'fontSize' | 'opacity'; delta: number };
     isWheelTargetInZone: (target: Node | null, wheelZone: HTMLElement | null) => boolean;
+    renderClockNotation: (html: string, date: Date) => string;
 };
 type ParseNumberUtilsApi = import('../shared/parse-number-utils-types').ParseNumberUtilsApi;
 type LocalStorageStoreApi = import('../shared/local-storage-store-types').LocalStorageStoreApi;
@@ -39,6 +40,43 @@ const storedOpacity = localStorageStore.getString('messageWindowOpacity', '');
 
 let currentFontSize = messageLogic.normalizeNumber(parseNumberUtils.parseIntOrFallback(storedFontSize, 64), 64, 10, 1000);
 let currentOpacity = messageLogic.normalizeNumber(parseNumberUtils.parseFloatOrFallback(storedOpacity, 0.8), 0.8, 0.1, 1.0);
+let currentMessageHtml = '';
+let clockUpdateTimer: ReturnType<typeof setInterval> | null = null;
+
+/**
+ * メッセージ内に時計記法が含まれているか判定する。
+ * @param html メッセージHTML
+ * @returns 時計記法があれば true
+ */
+function hasClockNotation(html: string): boolean {
+    return /\{\{clock(?:\s+[^{}]*)?\}\}/i.test(html);
+}
+
+/**
+ * メッセージ本文を描画する。
+ */
+function renderMessageContent(): void {
+    if (!messageContent) {
+        return;
+    }
+    messageContent.innerHTML = messageLogic.renderClockNotation(currentMessageHtml, new Date());
+}
+
+/**
+ * 時計記法の更新タイマーを現在の本文に合わせて更新する。
+ */
+function updateClockTimerState(): void {
+    if (clockUpdateTimer) {
+        clearInterval(clockUpdateTimer);
+        clockUpdateTimer = null;
+    }
+    if (!hasClockNotation(currentMessageHtml)) {
+        return;
+    }
+    clockUpdateTimer = setInterval((): void => {
+        renderMessageContent();
+    }, 1000);
+}
 
 /**
  * メッセージのフォントサイズを更新する。
@@ -88,9 +126,9 @@ window.addEventListener('wheel', (e: WheelEvent): void => {
 
 electronAPI.onUpdateMessageText((text: string): void => {
     // console.log(`[MessageRenderer] Received text: ${text}`);
-    if (messageContent) {
-        messageContent.innerHTML = text || '';
-    }
+    currentMessageHtml = text || '';
+    renderMessageContent();
+    updateClockTimerState();
 });
 
 // console.log('[MessageRenderer] Initialized.');

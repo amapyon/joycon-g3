@@ -29,10 +29,18 @@ export type DisplayInfo = {
     scaleFactor?: number;
 };
 
-export type PresentationInfo = { id: string; name: string; isRunning: boolean };
+export type PresentationTargetType = 'powerpoint' | 'google-slides';
+
+export type PresentationInfo = {
+    id: string;
+    name: string;
+    isRunning: boolean;
+    type: PresentationTargetType;
+};
 
 export type ElectronAPI = {
     getOpenPowerPointPresentations: () => Promise<PresentationInfo[]>;
+    getOpenPresentationTargets: () => Promise<PresentationInfo[]>;
     setTargetPresentation: (identifier: string) => void;
     onAvailablePresentations: (callback: (presentations: PresentationInfo[]) => void) => void;
     onAvailableDisplays: (callback: (displays: DisplayInfo[]) => void) => void;
@@ -88,11 +96,13 @@ export type ElectronAPI = {
     onUpdateTimerNotifications: (callback: (configs: TimerNotificationConfig[]) => void) => void;
     onUpdateSoundPlayDelay: (callback: (delayMs: number) => void) => void;
     toggleTimerWindow: () => void;
+    showClockTimerWindow: () => void;
     toggleTimerPause: () => void;
     addMinuteTimer: () => void;
     onMainTimerUpdate: (callback: (remainingTime: number) => void) => void;
     requestJoyConStatus: () => void;
     sendMessageText: (text: string) => void;
+    setMessageAlwaysOnTop: (alwaysOnTop: boolean) => void;
     toggleMessageWindow: () => void;
 };
 
@@ -107,6 +117,7 @@ export type MainRendererElements = {
     mainBatteryStatusLeft: HTMLElement;
     mainBatteryStatusRight: HTMLElement;
     pptSelect: HTMLSelectElement;
+    pptRefreshBtn: HTMLButtonElement;
     calibrateButton: HTMLButtonElement;
     calibrationStatus: HTMLElement;
     countdownInitialValueInput: HTMLInputElement;
@@ -135,6 +146,7 @@ export type MainRendererElements = {
     sound1RumbleToggle: HTMLInputElement;
     sound2RumbleToggle: HTMLInputElement;
     toggleTimerWindowBtn: HTMLButtonElement;
+    showClockTimerBtn: HTMLButtonElement;
     toggleTimerPauseBtn: HTMLButtonElement;
     addMinuteMainBtn: HTMLButtonElement;
     wifiTimerEnabledInput: HTMLInputElement;
@@ -193,6 +205,7 @@ export type MainRendererElements = {
     wifiTimerOperationMessage: HTMLElement;
     mainCountdownDisplay: HTMLElement;
     messageInput: HTMLDivElement;
+    messageAlwaysOnTopInput: HTMLInputElement;
     toggleMessageButton: HTMLButtonElement;
     colorContextMenu: HTMLDivElement;
 };

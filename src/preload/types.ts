@@ -88,6 +88,7 @@ export interface ElectronAPI extends MainRendererElectronAPI {
     onTimerMenuNavigate: (callback: (direction: number) => void) => void;
     onTimerMenuSelect: (callback: () => void) => void;
     sendTimerStatus: (isCounting: boolean) => void;
+    sendTimerDisplayMode: (mode: TimerMode) => void;
     onSetTimerMode: (callback: (mode: TimerMode) => void) => void;
     hideTimerWindow: () => void;
     sendTimerCountdownUpdate: (remainingTime: number) => void;

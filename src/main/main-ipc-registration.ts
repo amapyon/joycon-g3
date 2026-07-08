@@ -2,7 +2,7 @@ import { BrowserWindow, IpcMain, IpcMainEvent } from 'electron';
 import { createStrongTripleRumblePattern, RumbleStep } from './rumble-pattern';
 import { registerTimerIpcHandlers } from './timer-ipc';
 import { CursorId, CursorMapConfig } from './imu-pointer';
-import { setTimerCounting, setTimerPaused, TimerState } from './timer-state';
+import { setTimerCounting, setTimerPaused, setTimerWindowMode, TimerState, TimerWindowMode } from './timer-state';
 import { isCursorId, isRecord, parseNumberArrayPayload, parseNumberPayload } from './payload-parse-utils';
 import { MAIN_IPC_INBOUND_CHANNELS, MAIN_IPC_OUTBOUND_CHANNELS } from '../shared/main-ipc-channels';
 import { normalizePointerMotionSettings, PointerMotionSettings } from '../shared/pointer-motion-settings';
@@ -40,10 +40,41 @@ type RegisterMainIpcHandlersOptions = {
     wifiTimerClient: WifiTimerClientApi;
     state: MainIpcStateAccessors;
     toggleTimerWindowVisibility: () => void;
+    ensureTimerWindow?: () => BrowserWindow | null;
 };
 
 type RegisterOnChannel = (channel: string, handler: (event: IpcMainEvent, ...args: unknown[]) => void) => void;
 type CursorVisibilityPayload = { id: CursorId; isVisible: boolean };
+
+/**
+ * タイマーウィンドウの表示モードを検証する。
+ * @param value 入力値
+ * @returns 表示モード。無効な場合は null
+ */
+function parseTimerWindowMode(value: unknown): TimerWindowMode | null {
+    if (value === 'setup' || value === 'timer' || value === 'clock') {
+        return value;
+    }
+    return null;
+}
+
+/**
+ * タイマーウィンドウへ表示モードを送信する。
+ * @param timerWindow タイマーウィンドウ
+ * @param mode 表示モード
+ */
+function sendTimerWindowMode(timerWindow: BrowserWindow, mode: TimerWindowMode): void {
+    const sendMode = (): void => {
+        if (!timerWindow.isDestroyed()) {
+            timerWindow.webContents.send('set-timer-mode', mode);
+        }
+    };
+    if (timerWindow.webContents.isLoading()) {
+        timerWindow.webContents.once('did-finish-load', sendMode);
+        return;
+    }
+    sendMode();
+}
 
 /**
  * WiFi タイマー設定を解析する。
@@ -273,7 +304,7 @@ function registerStateSyncHandlers(registerOnChannel: RegisterOnChannel, options
  * @param options 登録オプション
  */
 function registerTimerHandlers(registerOnChannel: RegisterOnChannel, options: RegisterMainIpcHandlersOptions): void {
-    const { ipcMain, state, windowManager, toggleTimerWindowVisibility, joyConRumbleApi, wifiTimerClient } = options;
+    const { ipcMain, state, windowManager, toggleTimerWindowVisibility, ensureTimerWindow, joyConRumbleApi, wifiTimerClient } = options;
 
     registerOnChannel(MAIN_IPC_INBOUND_CHANNELS.UPDATE_SOUND_PLAY_DELAY, (_event: IpcMainEvent, delayMs: unknown): void => {
         const parsedDelay = parseNumberPayload(delayMs);
@@ -321,6 +352,24 @@ function registerTimerHandlers(registerOnChannel: RegisterOnChannel, options: Re
     registerOnChannel(MAIN_IPC_INBOUND_CHANNELS.TOGGLE_TIMER_WINDOW, (): void => {
         // console.log('[Main] Received toggle-timer-window IPC from renderer.');
         toggleTimerWindowVisibility();
+    });
+
+    registerOnChannel(MAIN_IPC_INBOUND_CHANNELS.SHOW_CLOCK_TIMER_WINDOW, (): void => {
+        state.setTimerState(setTimerWindowMode(state.getTimerState(), 'clock'));
+        const timerWindow = ensureTimerWindow ? ensureTimerWindow() : windowManager.getTimerWindow();
+        if (!timerWindow || timerWindow.isDestroyed()) {
+            return;
+        }
+        timerWindow.show();
+        sendTimerWindowMode(timerWindow, 'clock');
+    });
+
+    registerOnChannel(MAIN_IPC_INBOUND_CHANNELS.TIMER_DISPLAY_MODE_UPDATE, (_event: IpcMainEvent, mode: unknown): void => {
+        const parsedMode = parseTimerWindowMode(mode);
+        if (!parsedMode) {
+            return;
+        }
+        state.setTimerState(setTimerWindowMode(state.getTimerState(), parsedMode));
     });
 
     registerOnChannel(MAIN_IPC_INBOUND_CHANNELS.TIMER_COUNTDOWN_UPDATE, (_event: IpcMainEvent, remainingTime: unknown): void => {

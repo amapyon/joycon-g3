@@ -1,6 +1,7 @@
 ((): void => {
     type MainRendererAccessApi = import('../../shared/main-renderer-types').MainRendererAccessApi;
     type MainWindowApiAccessorApi = import('../../shared/main-window-api-types').MainWindowApiAccessorApi;
+    type LocalStorageStoreApi = import('../../shared/local-storage-store-types').LocalStorageStoreApi;
 
     const mainWindowApiAccessor = (globalThis as typeof globalThis & {
         mainWindowApiAccessor?: MainWindowApiAccessorApi;
@@ -9,8 +10,10 @@
         throw new Error('mainWindowApiAccessor is not available');
     }
     const mainRendererAccess = mainWindowApiAccessor.getApi<MainRendererAccessApi>('mainRendererAccess');
+    const localStorageStore = mainWindowApiAccessor.getApi<LocalStorageStoreApi>('localStorageStore');
     const mainRenderer = mainRendererAccess.getMainRenderer();
     const { electronAPI, elements } = mainRenderer;
+    const messageStorageKey = 'messageHtml';
 
     /**
      * contenteditable の末尾に付与される改行タグを除去する。
@@ -44,13 +47,27 @@
      * @returns なし
      */
     const initMessageSection = (): void => {
+        const isAlwaysOnTop = localStorageStore.getString('messageAlwaysOnTop', '1') !== '0';
+        const storedMessageHtml = localStorageStore.getString(messageStorageKey, '');
+        elements.messageInput.innerHTML = storedMessageHtml;
+        elements.messageAlwaysOnTopInput.checked = isAlwaysOnTop;
+        electronAPI.setMessageAlwaysOnTop(isAlwaysOnTop);
+        electronAPI.sendMessageText(storedMessageHtml);
+
         elements.messageInput.addEventListener('input', (): void => {
             const text = normalizeMessageHtml(elements.messageInput.innerHTML);
+            localStorageStore.setString(messageStorageKey, text);
             electronAPI.sendMessageText(text);
         });
 
         elements.toggleMessageButton.addEventListener('click', (): void => {
             electronAPI.toggleMessageWindow();
+        });
+
+        elements.messageAlwaysOnTopInput.addEventListener('change', (): void => {
+            const alwaysOnTop = elements.messageAlwaysOnTopInput.checked;
+            localStorageStore.setString('messageAlwaysOnTop', alwaysOnTop ? '1' : '0');
+            electronAPI.setMessageAlwaysOnTop(alwaysOnTop);
         });
 
         elements.messageInput.addEventListener('contextmenu', (e: MouseEvent): void => {

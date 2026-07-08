@@ -41,6 +41,11 @@ export const electronAPI: ElectronAPI = {
      */
     getOpenPowerPointPresentations: (): Promise<PresentationInfo[]> => ipcRenderer.invoke('get-open-powerpoint-presentations'),
     /**
+     * 開いているプレゼン操作対象の一覧を取得する。
+     * @returns プレゼン操作対象の一覧
+     */
+    getOpenPresentationTargets: (): Promise<PresentationInfo[]> => ipcRenderer.invoke('get-open-presentation-targets'),
+    /**
      * Joy-Con を接続する。
      * @param isLeft 左 Joy-Con かどうか
      */
@@ -451,6 +456,10 @@ export const electronAPI: ElectronAPI = {
      */
     toggleTimerWindow: (): void => ipcRenderer.send('toggle-timer-window'),
     /**
+     * タイマーウィンドウを時計表示で開く。
+     */
+    showClockTimerWindow: (): void => ipcRenderer.send('show-clock-timer-window'),
+    /**
      * カウントダウンを開始する。
      * @param duration 秒数
      */
@@ -496,6 +505,11 @@ export const electronAPI: ElectronAPI = {
      * @param isCounting 計測中かどうか
      */
     sendTimerStatus: (isCounting: boolean): void => ipcRenderer.send('timer-status-update', isCounting),
+    /**
+     * タイマーウィンドウの表示モードを通知する。
+     * @param mode 表示モード
+     */
+    sendTimerDisplayMode: (mode: TimerMode): void => ipcRenderer.send('timer-display-mode-update', mode),
     /**
      * タイマーモード設定を購読する。
      * @param callback コールバック
@@ -581,6 +595,12 @@ export const electronAPI: ElectronAPI = {
      * @param text メッセージ本文
      */
     sendMessageText: (text: string): void => ipcRenderer.send('send-message-text', text),
+    /**
+     * メッセージウィンドウの最前面固定を切り替える。
+     * @param alwaysOnTop 最前面に固定するか
+     */
+    setMessageAlwaysOnTop: (alwaysOnTop: boolean): void =>
+        ipcRenderer.send('set-message-always-on-top', alwaysOnTop),
     /**
      * メッセージ本文の更新を購読する。
      * @param callback コールバック

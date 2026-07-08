@@ -21,6 +21,7 @@ type MenuControllerOptions = {
     onShowTimer: () => void;
     onStopCountdown: () => void;
     onPresetFocus: (seconds: number) => void;
+    onSelectClock: () => void;
 };
 
 type MenuControllerPresetLabelApi = {
@@ -60,6 +61,7 @@ class MenuController {
     private readonly onShowTimer: () => void;
     private readonly onStopCountdown: () => void;
     private readonly onPresetFocus: (seconds: number) => void;
+    private readonly onSelectClock: () => void;
     private isVisible: boolean;
     private selectedPresetIndex: number;
     private menuItems: TimerMenuItem[];
@@ -80,6 +82,7 @@ class MenuController {
         this.onShowTimer = options.onShowTimer;
         this.onStopCountdown = options.onStopCountdown;
         this.onPresetFocus = options.onPresetFocus;
+        this.onSelectClock = options.onSelectClock;
         this.isVisible = false;
         this.selectedPresetIndex = -1;
         this.menuItems = [];
@@ -159,7 +162,7 @@ class MenuController {
         this.timerPresetsContainer.innerHTML = '';
         this.menuItems.forEach((item: TimerMenuItem, index: number): void => {
             const btn = document.createElement(item.type === 'preset' ? 'div' : 'button');
-            btn.className = item.type === 'preset' ? 'menu-preset-btn menu-item-btn' : 'menu-action-btn menu-item-btn';
+            btn.className = MenuController.getMenuItemClassName(item);
             if (index === this.selectedPresetIndex) {
                 btn.classList.add('focused');
             }
@@ -169,9 +172,13 @@ class MenuController {
                 btn.addEventListener('click', (): void => {
                     this.onSelectPreset(item.time);
                 });
-            } else {
+            } else if (item.type === 'add-minute') {
                 btn.addEventListener('click', (): void => {
                     this.onAddMinute();
+                });
+            } else {
+                btn.addEventListener('click', (): void => {
+                    this.onSelectClock();
                 });
             }
             this.timerPresetsContainer?.appendChild(btn);
@@ -217,7 +224,11 @@ class MenuController {
             this.onSelectPreset(item.time);
             return;
         }
-        this.onAddMinute();
+        if (item.type === 'add-minute') {
+            this.onAddMinute();
+            return;
+        }
+        this.onSelectClock();
     }
 
     /**
@@ -255,7 +266,23 @@ class MenuController {
         }));
 
         items.push({ type: 'add-minute', label: '+1分' });
+        items.push({ type: 'clock', label: 'Clock' });
         return items;
+    }
+
+    /**
+     * メニュー項目に対応するCSSクラスを取得する。
+     * @param item メニュー項目
+     * @returns CSSクラス名
+     */
+    private static getMenuItemClassName(item: TimerMenuItem): string {
+        if (item.type === 'preset') {
+            return 'menu-preset-btn menu-item-btn';
+        }
+        if (item.type === 'clock') {
+            return 'menu-action-btn menu-clock-btn menu-item-btn';
+        }
+        return 'menu-action-btn menu-item-btn';
     }
 
     /**

@@ -4,6 +4,7 @@ const messageLogic = require('../renderer/message-logic') as {
     normalizeNumber: (value: number, fallback: number, min: number, max: number) => number;
     resolveWheelAction: (deltaY: number, shiftKey: boolean) => { kind: 'fontSize' | 'opacity'; delta: number };
     isWheelTargetInZone: (target: Node | null, wheelZone: HTMLElement | null) => boolean;
+    renderClockNotation: (html: string, date: Date) => string;
 };
 
 describe('メッセージロジック', (): void => {
@@ -34,5 +35,24 @@ describe('メッセージロジック', (): void => {
         expect(messageLogic.isWheelTargetInZone(nodeOutZone, zone)).toBe(false);
         expect(messageLogic.isWheelTargetInZone(null, zone)).toBe(false);
         expect(messageLogic.isWheelTargetInZone(nodeInZone, null)).toBe(false);
+    });
+    it('時計記法を指定した表示へ変換する', (): void => {
+        const html = 'Now {{clock format="HH:mm:ss" color="#ffff00" size="72px"}}';
+        const rendered = messageLogic.renderClockNotation(html, new Date(2026, 6, 8, 9, 5, 3));
+
+        expect(rendered).toContain('Now ');
+        expect(rendered).toContain('class="message-clock"');
+        expect(rendered).toContain('color: #ffff00');
+        expect(rendered).toContain('font-size: 72px');
+        expect(rendered).toContain('09:05:03');
+    });
+
+    it('時計記法の危険なstyle値は反映しない', (): void => {
+        const html = '{{clock format="HH:mm" color="red;background:url(x)" size="10px;color:red"}}';
+        const rendered = messageLogic.renderClockNotation(html, new Date(2026, 6, 8, 9, 5, 3));
+
+        expect(rendered).toContain('09:05');
+        expect(rendered).not.toContain('background');
+        expect(rendered).not.toContain('10px;color');
     });
 });

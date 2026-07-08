@@ -1,4 +1,4 @@
 /**
  * タイマーウィンドウの表示モード。
  */
-export type TimerMode = 'timer' | 'setup';
+export type TimerMode = 'timer' | 'setup' | 'clock';

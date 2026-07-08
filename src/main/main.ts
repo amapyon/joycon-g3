@@ -85,6 +85,7 @@ app.whenReady().then(() => {
             },
         },
         toggleTimerWindowVisibility,
+        ensureTimerWindow,
     });
 
     registerMainJoyConEvents({

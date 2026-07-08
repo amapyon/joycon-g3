@@ -10,6 +10,7 @@ import type {
     WifiTimerStatus,
     WifiTimerWifiInfo,
 } from '../shared/wifi-timer-api-types';
+import type { TimerState } from '../main/timer-state';
 
 type Listener = (event: IpcMainEvent, ...args: unknown[]) => void;
 
@@ -213,7 +214,7 @@ function createRegisterOptions(joyConRumbleApi: JoyConRumbleApiMock): {
             setCursorVisibility: (): void => {},
             setCountdownInitialValue: (): void => {},
             getCountdownInitialValue: (): number => 10,
-            getTimerState: () => ({ isCounting: false, isPaused: false }),
+            getTimerState: () => ({ isCounting: false, isPaused: false, windowMode: 'setup' as const }),
             setTimerState: (): void => {},
             setSoundPlayDelayMs: (): void => {},
         },
@@ -406,9 +407,9 @@ describe('main IPC の振動トリガー', (): void => {
             playRumblePattern: jest.fn(),
         };
         const { options, listeners, wifiTimerClient } = createRegisterOptions(joyConRumbleApi);
-        let timerState = { isCounting: false, isPaused: false };
-        options.state.getTimerState = (): typeof timerState => timerState;
-        options.state.setTimerState = (nextState: typeof timerState): void => {
+        let timerState: TimerState = { isCounting: false, isPaused: false, windowMode: 'setup' };
+        options.state.getTimerState = (): TimerState => timerState;
+        options.state.setTimerState = (nextState: TimerState): void => {
             timerState = nextState;
         };
         options.state.getCountdownInitialValue = (): number => 180;
@@ -424,9 +425,9 @@ describe('main IPC の振動トリガー', (): void => {
             playRumblePattern: jest.fn(),
         };
         const { options, listeners, wifiTimerClient } = createRegisterOptions(joyConRumbleApi);
-        let timerState = { isCounting: true, isPaused: false };
-        options.state.getTimerState = (): typeof timerState => timerState;
-        options.state.setTimerState = (nextState: typeof timerState): void => {
+        let timerState: TimerState = { isCounting: true, isPaused: false, windowMode: 'timer' };
+        options.state.getTimerState = (): TimerState => timerState;
+        options.state.setTimerState = (nextState: TimerState): void => {
             timerState = nextState;
         };
 
@@ -441,9 +442,9 @@ describe('main IPC の振動トリガー', (): void => {
             playRumblePattern: jest.fn(),
         };
         const { options, listeners, wifiTimerClient } = createRegisterOptions(joyConRumbleApi);
-        let timerState = { isCounting: true, isPaused: true };
-        options.state.getTimerState = (): typeof timerState => timerState;
-        options.state.setTimerState = (nextState: typeof timerState): void => {
+        let timerState: TimerState = { isCounting: true, isPaused: true, windowMode: 'timer' };
+        options.state.getTimerState = (): TimerState => timerState;
+        options.state.setTimerState = (nextState: TimerState): void => {
             timerState = nextState;
         };
 
@@ -451,5 +452,35 @@ describe('main IPC の振動トリガー', (): void => {
         listeners['timer-pause-update']?.({} as IpcMainEvent, false);
 
         expect(wifiTimerClient.handleTimerResumed).toHaveBeenCalledTimes(1);
+    });
+    it('時計表示要求で Timer Window を表示して clock モードを送信する', (): void => {
+        const joyConRumbleApi: JoyConRumbleApiMock = {
+            playRumblePattern: jest.fn(),
+        };
+        const { options, listeners } = createRegisterOptions(joyConRumbleApi);
+        const send = jest.fn();
+        const show = jest.fn();
+        const timerWindow = {
+            isDestroyed: (): boolean => false,
+            show,
+            webContents: {
+                isLoading: (): boolean => false,
+                once: jest.fn(),
+                send,
+            },
+        } as unknown as Electron.BrowserWindow;
+        let timerState: TimerState = { isCounting: false, isPaused: false, windowMode: 'setup' };
+        options.state.getTimerState = (): TimerState => timerState;
+        options.state.setTimerState = (nextState: TimerState): void => {
+            timerState = nextState;
+        };
+        options.ensureTimerWindow = (): Electron.BrowserWindow => timerWindow;
+
+        registerMainIpcHandlers(options);
+        listeners['show-clock-timer-window']?.({} as IpcMainEvent);
+
+        expect(show).toHaveBeenCalledTimes(1);
+        expect(send).toHaveBeenCalledWith('set-timer-mode', 'clock');
+        expect(timerState.windowMode).toBe('clock');
     });
 });

@@ -14,6 +14,7 @@ const { MenuController } = require('../renderer/timer/menu-controller') as {
             onShowTimer: () => void;
             onStopCountdown: () => void;
             onPresetFocus: (seconds: number) => void;
+            onSelectClock: () => void;
         }): {
             getIsVisible: () => boolean;
             setPresets: (presets: number[]) => void;
@@ -109,6 +110,9 @@ describe('メニューコントローラ', (): void => {
             onPresetFocus: (): void => {
                 return;
             },
+            onSelectClock: (): void => {
+                return;
+            },
         });
 
         controller.setVisible(true);
@@ -167,12 +171,16 @@ describe('メニューコントローラ', (): void => {
             onPresetFocus: (seconds: number): void => {
                 presetFocusCalls.push(seconds);
             },
+            onSelectClock: (): void => {
+                return;
+            },
         });
 
         controller.setPresets([10]);
-        menuItemCount = 2;
+        menuItemCount = 3;
         controller.setVisible(true);
 
+        controller.navigate(1);
         controller.navigate(1);
         controller.navigate(1);
         controller.navigate(1);
@@ -180,10 +188,11 @@ describe('メニューコントローラ', (): void => {
         expect(presetFocusCalls).toEqual([10, 10]);
     });
 
-    it('選択でプリセットと+1分が発火する', (): void => {
+    it('選択でプリセットと+1分と Clock が発火する', (): void => {
         let menuItemCount = 0;
         const selectedPresets: number[] = [];
         let addMinuteCount = 0;
+        let clockCount = 0;
         const presetContainer: FakePresetContainer = {
             innerHTML: '',
             appendChild: (): void => {
@@ -227,12 +236,17 @@ describe('メニューコントローラ', (): void => {
             onPresetFocus: (): void => {
                 return;
             },
+            onSelectClock: (): void => {
+                clockCount += 1;
+            },
         });
 
         controller.setPresets([15]);
-        menuItemCount = 2;
+        menuItemCount = 3;
         controller.setVisible(true);
 
+        controller.navigate(1);
+        controller.selectCurrent();
         controller.navigate(1);
         controller.selectCurrent();
         controller.navigate(1);
@@ -240,5 +254,6 @@ describe('メニューコントローラ', (): void => {
 
         expect(selectedPresets).toEqual([15]);
         expect(addMinuteCount).toBe(1);
+        expect(clockCount).toBe(1);
     });
 });

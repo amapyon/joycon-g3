@@ -40,7 +40,7 @@
             <select id="ppt-select" disabled>
                 <option value="">-- Loading Presentations --</option>
             </select>
-            <div style="width: 40px; flex-shrink: 0;"></div> <!-- Alignment Spacer -->
+            <button id="ppt-refresh-btn" style="background: #6c757d; color: white;">Refresh</button>
         </div>
 
         <div class="sub-section" style="align-items: center; margin-top: 8px; flex-wrap: wrap; gap: 8px;">
@@ -63,6 +63,7 @@
             </div>
             <button id="toggle-preset-edit-btn" style="background: #6c757d; color: white;">⚙ Edit Presets</button>
             <button id="toggle-timer-window-btn" style="background: #007bff; color: white;">Show Timer</button>
+            <button id="show-clock-timer-btn" style="background: #17a2b8; color: white;">Clock</button>
             <button id="toggle-timer-pause-btn" style="background: #f0ad4e; color: white;">一時停止／再開</button>
             <button id="add-minute-main-btn" style="background: #5cb85c; color: white;">+1分</button>
         </div>
@@ -274,6 +275,10 @@
         <label>Message:</label>
         <div id="message-input" contenteditable="true" 
              style="flex: 1; min-height: 24px; max-height: 100px; padding: 6px; border: 1px solid #ccc; border-radius: 4px; background: white; font-family: inherit; font-size: 13px; overflow-y: auto; white-space: pre-wrap; resize: vertical;"></div>
+        <label for="message-always-on-top" style="display: flex; align-items: center; gap: 4px; white-space: nowrap; font-size: 0.9em;">
+            <input type="checkbox" id="message-always-on-top" checked>
+            Always on Top
+        </label>
         <button id="toggle-message-button" style="background-color: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; white-space: nowrap; height: 36px; padding: 0 12px; font-size: 0.9em;">Show/Hide</button>
         
         <div id="color-context-menu" style="display: none; position: fixed; background: white; border: 1px solid #ccc; box-shadow: 2px 2px 5px rgba(0,0,0,0.2); z-index: 1000; padding: 5px; border-radius: 4px; min-width: 120px;">

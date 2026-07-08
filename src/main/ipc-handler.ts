@@ -2,6 +2,7 @@
 import { ipcMain, screen, IpcMainEvent, IpcMainInvokeEvent, BrowserWindow } from 'electron';
 import WindowManager from './window-manager';
 import powerpointControl from './powerpoint-control';
+import googleSlidesControl from './google-slides-control';
 import imuProcessor from './imu-processor';
 import JoyConManager from './joycon';
 import { setScreenSize } from './screen-state';
@@ -305,7 +306,16 @@ function registerPresentationHandlers(context: IpcHandlerContext): void {
 
     ipcMain.on(IPC_HANDLER_INBOUND_CHANNELS.SET_TARGET_PRESENTATION, (_event: IpcMainEvent, identifier: string) => {
         // console.log(`[IPC Handler] Received 'set-target-presentation': ${identifier}`);
-        powerpointControl.setTarget(identifier);
+        const separatorIndex = identifier.indexOf('|');
+        const targetType = separatorIndex >= 0 ? identifier.slice(0, separatorIndex) : 'powerpoint';
+        const targetId = separatorIndex >= 0 ? identifier.slice(separatorIndex + 1) : identifier;
+        if (targetType === 'google-slides') {
+            powerpointControl.clearTarget();
+            googleSlidesControl.setTarget(targetId);
+            return;
+        }
+        googleSlidesControl.clearTarget();
+        powerpointControl.setTarget(targetId);
     });
 
     ipcMain.handle(IPC_HANDLER_INBOUND_CHANNELS.GET_OPEN_POWERPOINT_PRESENTATIONS, async () => {
@@ -315,6 +325,19 @@ function registerPresentationHandlers(context: IpcHandlerContext): void {
         } catch (e: unknown) {
             const message = e instanceof Error ? e.message : String(e);
             // console.error('[IPC Handler] Error getting open PowerPoint presentations:', message);
+            windowManagerInstance.sendLaunchErrorToMain(`Presentation Error: ${message}`);
+            return [];
+        }
+    });
+
+    ipcMain.handle(IPC_HANDLER_INBOUND_CHANNELS.GET_OPEN_PRESENTATION_TARGETS, async () => {
+        try {
+            return [
+                ...powerpointControl.getOpenPresentations(),
+                ...googleSlidesControl.getOpenPresentations(),
+            ];
+        } catch (e: unknown) {
+            const message = e instanceof Error ? e.message : String(e);
             windowManagerInstance.sendLaunchErrorToMain(`Presentation Error: ${message}`);
             return [];
         }
@@ -537,6 +560,10 @@ function registerMessageHandlers(context: IpcHandlerContext): void {
         if (isUsableWindow(msgWin)) {
             msgWin.webContents.send(IPC_HANDLER_OUTBOUND_CHANNELS.UPDATE_MESSAGE_TEXT, text);
         }
+    });
+
+    ipcMain.on(IPC_HANDLER_INBOUND_CHANNELS.SET_MESSAGE_ALWAYS_ON_TOP, (_event: IpcMainEvent, alwaysOnTop: boolean) => {
+        windowManagerInstance.setMessageAlwaysOnTop(alwaysOnTop);
     });
 
     ipcMain.on(IPC_HANDLER_INBOUND_CHANNELS.TOGGLE_MESSAGE_WINDOW, () => {
