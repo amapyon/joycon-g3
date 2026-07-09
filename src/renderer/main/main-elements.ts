@@ -1,4 +1,4 @@
-{
+﻿{
     type MainRendererContext = import('../../shared/main-renderer-types').MainRendererContext;
 
     type MainRendererElementsFactoryApi = {
@@ -48,6 +48,8 @@
         standaloneSoundPadGrid: document.getElementById('standalone-sound-pad-grid') as HTMLElement,
         sound1RumbleToggle: document.getElementById('sound1-rumble') as HTMLInputElement,
         sound2RumbleToggle: document.getElementById('sound2-rumble') as HTMLInputElement,
+        timeAlarmEnabledInput: document.getElementById('time-alarm-enabled') as HTMLInputElement,
+        timeAlarmTargetTimeInput: document.getElementById('time-alarm-target-time') as HTMLInputElement,
         toggleTimerWindowBtn: document.getElementById('toggle-timer-window-btn') as HTMLButtonElement,
         showClockTimerBtn: document.getElementById('show-clock-timer-btn') as HTMLButtonElement,
         toggleTimerPauseBtn: document.getElementById('toggle-timer-pause-btn') as HTMLButtonElement,

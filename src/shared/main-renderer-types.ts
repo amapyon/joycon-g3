@@ -95,6 +95,7 @@ export type ElectronAPI = {
     updateTimerNotifications: (configs: TimerNotificationConfig[]) => void;
     onUpdateTimerNotifications: (callback: (configs: TimerNotificationConfig[]) => void) => void;
     onUpdateSoundPlayDelay: (callback: (delayMs: number) => void) => void;
+    sendTimerNotificationTrigger: (seconds: number, shouldRumble: boolean) => void;
     toggleTimerWindow: () => void;
     showClockTimerWindow: () => void;
     toggleTimerPause: () => void;
@@ -145,6 +146,8 @@ export type MainRendererElements = {
     standaloneSoundPadGrid: HTMLElement;
     sound1RumbleToggle: HTMLInputElement;
     sound2RumbleToggle: HTMLInputElement;
+    timeAlarmEnabledInput: HTMLInputElement;
+    timeAlarmTargetTimeInput: HTMLInputElement;
     toggleTimerWindowBtn: HTMLButtonElement;
     showClockTimerBtn: HTMLButtonElement;
     toggleTimerPauseBtn: HTMLButtonElement;

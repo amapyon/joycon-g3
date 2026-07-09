@@ -95,7 +95,7 @@ class NotificationPlayer {
             if (currentSeconds !== config.time) {
                 return;
             }
-            if (this.playNotificationSound(config)) {
+            if (this.playNotification(config)) {
                 this.playedIndices.add(index);
             }
         });
@@ -106,7 +106,7 @@ class NotificationPlayer {
      * @param config 通知設定
      * @returns 再生した場合は true
      */
-    private playNotificationSound(config: TimerNotificationConfig): boolean {
+    public playNotification(config: TimerNotificationConfig): boolean {
         if (!config.absolutePath) {
             if (config.rumble) {
                 this.sendRumble(config.time, true);

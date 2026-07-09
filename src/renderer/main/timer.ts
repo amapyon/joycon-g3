@@ -1,4 +1,4 @@
-{
+﻿{
     type TimerMainLogicApi = import('../../shared/timer-main-logic-types').TimerMainLogicApi;
     type MainRendererContext = import('../../shared/main-renderer-types').MainRendererContext;
     type TimerNotificationConfig = import('../../shared/timer-notification-config').TimerNotificationConfig;
@@ -88,6 +88,43 @@
             wifiTimerPanelVisibilityStorageKey: string;
         }) => WifiTimerSettingsControllerApi;
     };
+    type TimeAlarmLogicApi = {
+        resolveTimeAlarmSchedules: (
+            now: Date,
+            rawTargetTime: string,
+            notifications: TimerNotificationConfig[]
+        ) => Array<{ fireAt: Date; notification: TimerNotificationConfig }>;
+    };
+    type NotificationPlayerOptions = {
+        sendRumble: (seconds: number, shouldRumble: boolean) => void;
+        createAudio: (audioUrl: string) => HTMLAudioElement;
+        now: () => number;
+        initialDelayMs?: number;
+    };
+    type NotificationPlayerInstance = {
+        playNotification: (config: TimerNotificationConfig) => boolean;
+        setDelayMs: (delayMs: number) => number;
+    };
+    type NotificationPlayerClass = {
+        new (options: NotificationPlayerOptions): NotificationPlayerInstance;
+    };
+    type TimeAlarmControllerApi = {
+        init: () => void;
+        rescheduleIfEnabled: () => void;
+    };
+    type TimeAlarmControllerFactoryApi = {
+        createTimeAlarmController: (deps: {
+            elements: MainRendererContext['elements'];
+            localStorageStore: LocalStorageStoreApi;
+            storageKey: string;
+            timeAlarmLogic: TimeAlarmLogicApi;
+            notificationPlayer: NotificationPlayerInstance;
+            getNotifications: () => TimerNotificationConfig[];
+            now: () => Date;
+            setTimer: (callback: () => void, delayMs: number) => number;
+            clearTimer: (timerId: number) => void;
+        }) => TimeAlarmControllerApi;
+    };
     type StandalonePadAudioState = {
         audio: HTMLAudioElement | null;
         assignedFile: string;
@@ -124,6 +161,11 @@
     const timerPresetControllerFactory = rendererApiResolverUtils.resolveGlobal<TimerPresetControllerFactoryApi>('mainTimerPresetController');
     const wifiTimerSettingsControllerFactory = rendererApiResolverUtils
         .resolveGlobal<WifiTimerSettingsControllerFactoryApi>('mainWifiTimerSettingsController');
+    const timeAlarmLogic = rendererApiResolverUtils.resolveGlobal<TimeAlarmLogicApi>('timeAlarmLogic');
+    const timeAlarmControllerFactory = rendererApiResolverUtils.resolveGlobal<TimeAlarmControllerFactoryApi>('mainTimeAlarmController');
+    const NotificationPlayer = rendererApiResolverUtils
+        .resolveApi<{ NotificationPlayer: NotificationPlayerClass }>('notificationPlayer', '../timer/notification-player')
+        .NotificationPlayer;
     const localStorageStore = rendererApiResolverUtils.resolveGlobal<LocalStorageStoreApi>('localStorageStore');
     const { electronAPI, elements, state } = mainRenderer;
     const defaultWifiTimerAudioToneLimits: WifiTimerAudioToneLimits = {
@@ -158,6 +200,8 @@
     let wifiTimerStreamVolumeUpdateTimer: number | null = null;
     let wifiTimerStreamPlaybackPaused = false;
     let wifiTimerStreamHtmlAudio: HTMLAudioElement | null = null;
+    let currentTimerNotificationConfigs: TimerNotificationConfig[] =
+        localStorageStore.getJsonValue<TimerNotificationConfig[]>(storageKeys.timerNotifications, []);
     const standalonePadAudioStates: StandalonePadAudioState[] = Array.from({ length: standalonePadCount }, (): StandalonePadAudioState => ({
         audio: null,
         assignedFile: '',
@@ -207,6 +251,28 @@
     });
     const initWifiTimerSettings = wifiTimerSettingsController.initWifiTimerSettings;
     const applyWifiTimerPanelVisibility = wifiTimerSettingsController.applyWifiTimerPanelVisibility;
+    const timeAlarmNotificationPlayer = new NotificationPlayer({
+        sendRumble: (seconds: number, shouldRumble: boolean): void => {
+            electronAPI.sendTimerNotificationTrigger(seconds, shouldRumble);
+        },
+        createAudio: (audioUrl: string): HTMLAudioElement => new Audio(audioUrl),
+        now: (): number => Date.now(),
+        initialDelayMs: parseNumberUtils.parseIntOrFallback(localStorageStore.getString(storageKeys.soundPlayDelayMs, ''), 200),
+    });
+    const timeAlarmController = timeAlarmControllerFactory.createTimeAlarmController({
+        elements,
+        localStorageStore,
+        storageKey: storageKeys.timeAlarmTargetTime,
+        timeAlarmLogic,
+        notificationPlayer: timeAlarmNotificationPlayer,
+        getNotifications: (): TimerNotificationConfig[] => currentTimerNotificationConfigs,
+        now: (): Date => new Date(),
+        setTimer: (callback: () => void, delayMs: number): number => window.setTimeout(callback, delayMs),
+        clearTimer: (timerId: number): void => {
+            window.clearTimeout(timerId);
+        },
+    });
+
     /**
      * 通知音の振動設定を初期化する。
      * @returns なし
@@ -1863,6 +1929,7 @@
      */
     const restoreNotificationSettings = (): void => {
         const configs = localStorageStore.getJsonValue<TimerNotificationConfig[]>(storageKeys.timerNotifications, []);
+        currentTimerNotificationConfigs = configs;
         if (configs.length > 0) {
             if (configs[0]) {
                 elements.sound1TimeInput.value = String(configs[0].time);
@@ -2209,8 +2276,10 @@
                 rumble: elements.sound2RumbleToggle.checked,
             },
         ];
+        currentTimerNotificationConfigs = configs;
         localStorageStore.setJsonValue(storageKeys.timerNotifications, configs);
         electronAPI.updateTimerNotifications(configs);
+        timeAlarmController.rescheduleIfEnabled();
     };
 
     /**
@@ -2250,6 +2319,7 @@
         const normalizedDelay = timerMainLogic.normalizeSoundPlayDelay(initialDelay, defaultDelay, 0, 5000);
         elements.soundPlayDelayInput.value = String(normalizedDelay);
         electronAPI.updateSoundPlayDelay(normalizedDelay);
+        timeAlarmNotificationPlayer.setDelayMs(normalizedDelay);
 
         elements.soundPlayDelayInput.addEventListener('change', (): void => {
             const nextValue = parseNumberUtils.parseIntOrFallback(elements.soundPlayDelayInput.value, defaultDelay);
@@ -2257,6 +2327,7 @@
             elements.soundPlayDelayInput.value = String(clamped);
             localStorageStore.setString(storageKeys.soundPlayDelayMs, String(clamped));
             electronAPI.updateSoundPlayDelay(clamped);
+            timeAlarmNotificationPlayer.setDelayMs(clamped);
         });
     };
 
@@ -2310,6 +2381,7 @@
         initWifiTimerAdminPanel();
         initNotificationRumbleToggle();
         initSoundPlayDelay();
+        timeAlarmController.init();
         renderPresetConfig();
         registerTimerSyncHandlers();
         timerSoundHandlers.registerSoundHandlers({

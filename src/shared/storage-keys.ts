@@ -14,6 +14,7 @@ export const storageKeys = {
     timerNotifications: 'timerNotifications',
     timerWindowOpacity: 'timerWindowOpacity',
     timerPresets: 'timerPresets',
+    timeAlarmTargetTime: 'timeAlarmTargetTime',
     wifiTimerPanelVisible: 'wifiTimerPanelVisible',
     wifiTimerSettings: 'wifiTimerSettings',
 } as const;
