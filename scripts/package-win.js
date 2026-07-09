@@ -125,6 +125,7 @@ function replaceOutputDirectory(packagedAppDir) {
         throw new Error(`作成済み exe が見つかりません: ${resolvedPackagedAppDir}`);
     }
 
+    removeDirectoryIfExists(outputDir);
     fs.mkdirSync(outputDir, { recursive: true });
     fs.cpSync(resolveInsideRoot(nextOutputDir), resolveInsideRoot(outputDir), {
         recursive: true,
