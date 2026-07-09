@@ -168,3 +168,9 @@ npm run package-win
 ```
 
 出力先: `dist_packager/JoyCon Clicker-win32-x64/`
+
+### パッケージ作成時の注意
+- `npm run package-win` は先に `npm run build` を実行してから、Windows パッケージを作成します。
+- パッケージ版は `dist/` のビルド済みファイルを取り込むため、`dist/` が古いと exe も古い内容になります。
+- 修正内容をパッケージ版で確認する場合は、`dist_packager/JoyCon Clicker-win32-x64/JoyCon Clicker.exe` を起動してください。
+- パッケージ版に修正が反映されていない場合は、`dist_packager/JoyCon Clicker-win32-x64/resources/app/dist/` の中身が最新か確認してください。

@@ -1,9 +1,7 @@
 ((): void => {
 type MessageRendererElectronAPI = {
     onUpdateMessageText: (callback: (text: string) => void) => void;
-    setMessageWindowBounds: (bounds: MessageWindowBounds) => void;
 };
-type MessageWindowBounds = import('../shared/main-renderer-types').MessageWindowBounds;
 type MessageLogicApi = {
     normalizeNumber: (value: number, fallback: number, min: number, max: number) => number;
     resolveWheelAction: (
@@ -39,74 +37,11 @@ const messageContent = document.getElementById('messageContent') as HTMLElement 
 const wheelZone = document.getElementById('wheel-zone') as HTMLElement | null;
 const storedFontSize = localStorageStore.getString('messageFontSize', '');
 const storedOpacity = localStorageStore.getString('messageWindowOpacity', '');
-const messageWindowBoundsKey = 'messageWindowBounds';
 
 let currentFontSize = messageLogic.normalizeNumber(parseNumberUtils.parseIntOrFallback(storedFontSize, 64), 64, 10, 1000);
 let currentOpacity = messageLogic.normalizeNumber(parseNumberUtils.parseFloatOrFallback(storedOpacity, 0.8), 0.8, 0.1, 1.0);
 let currentMessageHtml = '';
 let clockUpdateTimer: ReturnType<typeof setInterval> | null = null;
-let lastSavedBoundsText = '';
-
-/**
- * メッセージウィンドウの位置とサイズとして使える値か判定する。
- * @param value 判定対象
- * @returns 利用可能な場合は true
- */
-function isMessageWindowBounds(value: unknown): value is MessageWindowBounds {
-    if (typeof value !== 'object' || value === null) {
-        return false;
-    }
-    const bounds = value as MessageWindowBounds;
-    return Number.isFinite(bounds.x)
-        && Number.isFinite(bounds.y)
-        && Number.isFinite(bounds.width)
-        && Number.isFinite(bounds.height)
-        && bounds.width >= 100
-        && bounds.height >= 50;
-}
-
-/**
- * 現在のメッセージウィンドウ位置とサイズを取得する。
- * @returns 現在の位置とサイズ
- */
-function getCurrentMessageWindowBounds(): MessageWindowBounds {
-    return {
-        x: Math.round(window.screenX),
-        y: Math.round(window.screenY),
-        width: Math.round(window.outerWidth),
-        height: Math.round(window.outerHeight),
-    };
-}
-
-/**
- * 保存済みのメッセージウィンドウ位置とサイズを復元する。
- */
-function restoreMessageWindowBounds(): void {
-    const storedBounds = localStorageStore.getJsonValue<unknown>(messageWindowBoundsKey, null);
-    if (!isMessageWindowBounds(storedBounds)) {
-        return;
-    }
-    lastSavedBoundsText = JSON.stringify(storedBounds);
-    electronAPI.setMessageWindowBounds(storedBounds);
-}
-
-/**
- * メッセージウィンドウの現在位置とサイズを保存する。
- */
-function saveMessageWindowBounds(): void {
-    const bounds = getCurrentMessageWindowBounds();
-    if (!isMessageWindowBounds(bounds)) {
-        return;
-    }
-
-    const boundsText = JSON.stringify(bounds);
-    if (boundsText === lastSavedBoundsText) {
-        return;
-    }
-
-    lastSavedBoundsText = boundsText;
-    localStorageStore.setJsonValue(messageWindowBoundsKey, bounds);
-}
 
 /**
  * メッセージ内に時計記法が含まれているか判定する。
@@ -176,11 +111,6 @@ if (messageContent) {
 
 // 初期の背景透明度を反映
 document.body.style.backgroundColor = `rgba(70, 70, 70, ${currentOpacity})`;
-
-restoreMessageWindowBounds();
-setInterval(saveMessageWindowBounds, 500);
-window.addEventListener('resize', saveMessageWindowBounds);
-window.addEventListener('beforeunload', saveMessageWindowBounds);
 
 window.addEventListener('wheel', (e: WheelEvent): void => {
     if (messageLogic.isWheelTargetInZone(e.target as Node | null, wheelZone)) {

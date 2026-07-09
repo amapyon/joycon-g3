@@ -190,12 +190,19 @@ function parseMessageWindowBounds(value: unknown): MessageWindowBounds {
         throw new Error('invalid message window bounds');
     }
 
-    return {
+    const parsedBounds: MessageWindowBounds = {
         x: Math.round(bounds.x),
         y: Math.round(bounds.y),
         width: Math.round(bounds.width),
         height: Math.round(bounds.height),
     };
+    if (bounds.source === 'main-bounds') {
+        parsedBounds.source = 'main-bounds';
+    }
+    if (bounds.version === 2) {
+        parsedBounds.version = 2;
+    }
+    return parsedBounds;
 }
 
 /**

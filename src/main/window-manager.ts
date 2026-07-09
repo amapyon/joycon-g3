@@ -1,5 +1,6 @@
 // window-manager.ts
 import { app, BrowserWindow, screen, Display } from 'electron';
+import fs from 'fs';
 import path from 'path';
 import { resolveInitialWindowBounds } from './window-bounds-logic';
 import { isUsableWindow } from './browser-window-utils';
@@ -207,6 +208,207 @@ export function createTimerWindow(targetDisplay?: Display): BrowserWindow | null
 }
 
 let storedMessageBounds: MessageWindowBounds | null = null;
+let messageBoundsSaveTimer: ReturnType<typeof setTimeout> | null = null;
+let messageBoundsUnlockTimer: ReturnType<typeof setTimeout> | null = null;
+let isMessageBoundsPersistEnabled = false;
+const minMessageWindowWidth = 100;
+const minMessageWindowHeight = 50;
+const minLegacyMessageWindowWidth = 360;
+const minLegacyMessageWindowHeight = 150;
+const messageWindowBoundsFileName = 'message-window-bounds.json';
+
+/**
+ * 指定値を範囲内に収める。
+ * @param value 対象値
+ * @param min 最小値
+ * @param max 最大値
+ * @returns 範囲内に収めた値
+ */
+function clamp(value: number, min: number, max: number): number {
+    return Math.min(Math.max(value, min), max);
+}
+
+/**
+ * メッセージウィンドウの位置とサイズとして使える値か判定する。
+ * @param value 判定対象
+ * @returns 利用可能な場合は true
+ */
+function isMessageWindowBoundsValue(value: unknown): value is MessageWindowBounds {
+    if (typeof value !== 'object' || value === null) {
+        return false;
+    }
+    const bounds = value as MessageWindowBounds;
+    return Number.isFinite(bounds.x)
+        && Number.isFinite(bounds.y)
+        && Number.isFinite(bounds.width)
+        && Number.isFinite(bounds.height)
+        && bounds.width >= minMessageWindowWidth
+        && bounds.height >= minMessageWindowHeight;
+}
+
+/**
+ * メッセージウィンドウの位置とサイズ保存ファイルパスを取得する。
+ * @returns 保存ファイルパス
+ */
+function getMessageWindowBoundsFilePath(): string {
+    return path.join(app.getPath('userData'), messageWindowBoundsFileName);
+}
+
+/**
+ * Mainプロセス基準のメッセージウィンドウ位置とサイズを読み込む。
+ * @returns 保存済みの位置とサイズ
+ */
+function loadMessageWindowBounds(): MessageWindowBounds | null {
+    try {
+        const filePath = getMessageWindowBoundsFilePath();
+        if (!fs.existsSync(filePath)) {
+            return null;
+        }
+        const parsed = JSON.parse(fs.readFileSync(filePath, 'utf8')) as unknown;
+        if (!isMessageWindowBoundsValue(parsed)) {
+            return null;
+        }
+        return parsed;
+    } catch {
+        return null;
+    }
+}
+
+/**
+ * Mainプロセス基準のメッセージウィンドウ位置とサイズを保存する。
+ * @param bounds 保存する位置とサイズ
+ */
+function saveMessageWindowBounds(bounds: MessageWindowBounds): void {
+    const nextBounds: MessageWindowBounds = {
+        ...bounds,
+        source: 'main-bounds',
+        version: 2,
+    };
+    storedMessageBounds = nextBounds;
+    try {
+        const filePath = getMessageWindowBoundsFilePath();
+        fs.mkdirSync(path.dirname(filePath), { recursive: true });
+        fs.writeFileSync(filePath, JSON.stringify(nextBounds), 'utf8');
+    } catch {
+        // 保存に失敗してもウィンドウ操作自体は継続する。
+    }
+}
+
+/**
+ * 接続中ディスプレイ内に収まるメッセージウィンドウ境界へ補正する。
+ * @param bounds 復元候補の位置とサイズ
+ * @returns 接続中ディスプレイ内へ補正した位置とサイズ
+ */
+function resolveConnectedMessageWindowBounds(bounds: MessageWindowBounds): MessageWindowBounds {
+    const display = screen.getDisplayMatching(bounds);
+    const displayBounds = display.workArea;
+    const width = Math.min(Math.max(Math.round(bounds.width), minMessageWindowWidth), displayBounds.width);
+    const height = Math.min(Math.max(Math.round(bounds.height), minMessageWindowHeight), displayBounds.height);
+    const maxX = displayBounds.x + displayBounds.width - width;
+    const maxY = displayBounds.y + displayBounds.height - height;
+
+    return {
+        x: clamp(Math.round(bounds.x), displayBounds.x, Math.max(displayBounds.x, maxX)),
+        y: clamp(Math.round(bounds.y), displayBounds.y, Math.max(displayBounds.y, maxY)),
+        width,
+        height,
+    };
+}
+
+/**
+ * Renderer座標で保存されていた古いメッセージウィンドウ境界をMain座標へ移行する。
+ * @param bounds 移行前の位置とサイズ
+ * @returns 移行後の位置とサイズ
+ */
+function migrateLegacyMessageWindowBounds(bounds: MessageWindowBounds): MessageWindowBounds {
+    if (bounds.source === 'main-bounds' && bounds.version === 2) {
+        return bounds;
+    }
+
+    const display = screen.getDisplayMatching(bounds);
+    const scaleFactor = Math.max(display.scaleFactor || 1, 1);
+    let width = Math.round(bounds.width * scaleFactor);
+    let height = Math.round(bounds.height * scaleFactor);
+
+    if (scaleFactor > 1) {
+        while (
+            (width < minLegacyMessageWindowWidth || height < minLegacyMessageWindowHeight)
+            && width * scaleFactor <= display.workArea.width
+            && height * scaleFactor <= display.workArea.height
+        ) {
+            width = Math.round(width * scaleFactor);
+            height = Math.round(height * scaleFactor);
+        }
+    }
+
+    width = Math.max(width, Math.min(minLegacyMessageWindowWidth, display.workArea.width));
+    height = Math.max(height, Math.min(minLegacyMessageWindowHeight, display.workArea.height));
+
+    return {
+        x: Math.round(bounds.x + (bounds.width - width) / 2),
+        y: Math.round(bounds.y + (bounds.height - height) / 2),
+        width,
+        height,
+        source: 'main-bounds',
+        version: 2,
+    };
+}
+
+/**
+ * メッセージウィンドウの現在位置とサイズを取得する。
+ * @returns 現在の位置とサイズ
+ */
+function getCurrentMessageWindowBounds(): MessageWindowBounds | null {
+    if (!isUsableWindow(messageWindow)) {
+        return null;
+    }
+    const bounds = messageWindow.getBounds();
+    return {
+        ...bounds,
+        source: 'main-bounds',
+        version: 2,
+    };
+}
+
+/**
+ * メッセージウィンドウの現在位置とサイズを保存する。
+ */
+function saveCurrentMessageWindowBounds(): void {
+    const bounds = getCurrentMessageWindowBounds();
+    if (!bounds) {
+        return;
+    }
+    saveMessageWindowBounds(bounds);
+}
+
+/**
+ * メッセージウィンドウの位置とサイズ保存を予約する。
+ */
+function scheduleMessageWindowBoundsSave(): void {
+    if (!isMessageBoundsPersistEnabled) {
+        return;
+    }
+    if (messageBoundsSaveTimer) {
+        clearTimeout(messageBoundsSaveTimer);
+    }
+    messageBoundsSaveTimer = setTimeout((): void => {
+        messageBoundsSaveTimer = null;
+        saveCurrentMessageWindowBounds();
+    }, 200);
+}
+
+/**
+ * メッセージウィンドウの起動直後サイズロックを解除する。
+ */
+function unlockInitialMessageWindowSize(): void {
+    messageBoundsUnlockTimer = null;
+    if (!isUsableWindow(messageWindow)) {
+        return;
+    }
+    messageWindow.setMinimumSize(minMessageWindowWidth, minMessageWindowHeight);
+    isMessageBoundsPersistEnabled = true;
+    saveCurrentMessageWindowBounds();
+}
 
 /**
  * メッセージウィンドウを生成する。
@@ -215,22 +417,41 @@ let storedMessageBounds: MessageWindowBounds | null = null;
  */
 export function createMessageWindow(targetDisplay?: Display): BrowserWindow | null {
     if (isUsableWindow(messageWindow)) return messageWindow;
-    
+
+    isMessageBoundsPersistEnabled = false;
+    if (messageBoundsSaveTimer) {
+        clearTimeout(messageBoundsSaveTimer);
+        messageBoundsSaveTimer = null;
+    }
+    if (messageBoundsUnlockTimer) {
+        clearTimeout(messageBoundsUnlockTimer);
+        messageBoundsUnlockTimer = null;
+    }
+
     const displayToUse = targetDisplay || storedTargetDisplay || screen.getPrimaryDisplay();
     
-    const initialBounds = resolveInitialWindowBounds(storedMessageBounds, displayToUse.bounds, 600, 150);
+    if (!storedMessageBounds) {
+        storedMessageBounds = loadMessageWindowBounds();
+    }
+    const restoredBounds = storedMessageBounds
+        ? resolveConnectedMessageWindowBounds(migrateLegacyMessageWindowBounds(storedMessageBounds))
+        : null;
+    const initialBounds = resolveInitialWindowBounds(restoredBounds, displayToUse.bounds, 600, 150);
 
     messageWindow = new BrowserWindow({
         x: initialBounds.x,
         y: initialBounds.y,
         width: initialBounds.width,
         height: initialBounds.height,
+        minWidth: initialBounds.width,
+        minHeight: initialBounds.height,
         frame: false,
         transparent: true,
         alwaysOnTop: messageAlwaysOnTop,
         skipTaskbar: true,
         hasShadow: false,
         resizable: true,
+        show: false,
         webPreferences: {
             preload: path.join(__dirname, '..', 'preload', 'preload.js'),
             contextIsolation: true,
@@ -240,17 +461,35 @@ export function createMessageWindow(targetDisplay?: Display): BrowserWindow | nu
     });
 
     messageWindow.loadFile(path.join(__dirname, '..', 'renderer', 'message-window.html'));
-    messageWindow.show();
 
-    const updateBounds = (): void => {
-        if (isUsableWindow(messageWindow)) {
-            storedMessageBounds = messageWindow.getBounds();
+    let hasShownMessageWindow = false;
+    const showMessageWindow = (): void => {
+        if (!isUsableWindow(messageWindow) || hasShownMessageWindow) {
+            return;
         }
+        hasShownMessageWindow = true;
+        messageWindow.setBounds(initialBounds);
+        messageWindow.setMinimumSize(initialBounds.width, initialBounds.height);
+        messageWindow.show();
+        messageBoundsUnlockTimer = setTimeout(unlockInitialMessageWindowSize, 1500);
     };
-    messageWindow.on('move', updateBounds);
-    messageWindow.on('resize', updateBounds);
+
+    messageWindow.on('move', scheduleMessageWindowBoundsSave);
+    messageWindow.on('resize', scheduleMessageWindowBoundsSave);
+    messageWindow.on('close', saveCurrentMessageWindowBounds);
+    messageWindow.once('ready-to-show', showMessageWindow);
+    messageWindow.webContents.once('did-finish-load', showMessageWindow);
 
     messageWindow.on('closed', () => {
+        if (messageBoundsSaveTimer) {
+            clearTimeout(messageBoundsSaveTimer);
+            messageBoundsSaveTimer = null;
+        }
+        if (messageBoundsUnlockTimer) {
+            clearTimeout(messageBoundsUnlockTimer);
+            messageBoundsUnlockTimer = null;
+        }
+        isMessageBoundsPersistEnabled = false;
         messageWindow = null;
     });
 
@@ -282,9 +521,15 @@ export function setMessageAlwaysOnTop(alwaysOnTop: boolean): void {
  * @param bounds 復元する位置とサイズ
  */
 export function setMessageWindowBounds(bounds: MessageWindowBounds): void {
-    storedMessageBounds = bounds;
+    const resolvedBounds = resolveConnectedMessageWindowBounds(migrateLegacyMessageWindowBounds(bounds));
+    saveMessageWindowBounds({
+        ...resolvedBounds,
+        source: 'main-bounds',
+        version: 2,
+    });
     if (isUsableWindow(messageWindow)) {
-        messageWindow.setBounds(bounds);
+        messageWindow.setBounds(resolvedBounds);
+        saveCurrentMessageWindowBounds();
     }
 }
 /**

@@ -43,6 +43,8 @@ export type MessageWindowBounds = {
     y: number;
     width: number;
     height: number;
+    source?: 'main-bounds';
+    version?: 2;
 };
 
 export type ElectronAPI = {

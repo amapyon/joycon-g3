@@ -19,7 +19,7 @@
     "test:coverage": "jest --coverage",
     "test:watch": "jest --watch",
     "rebuild": "electron-rebuild -f -w node-hid,winax",
-    "package-win": "node scripts/package-win.js"
+    "package-win": "npm run build && node scripts/package-win.js"
   },
   "keywords": [
     "electron",
