@@ -23,7 +23,7 @@ export type TimerMode = import('../shared/timer-mode').TimerMode;
  * カーソル座標変換設定。
  */
 export type CursorMapConfig = import('../shared/cursor-types').CursorMapConfig;
-export type { DisplayInfo, MessageWindowBounds, PresentationInfo } from '../shared/main-renderer-types';
+export type { DisplayInfo, PresentationInfo } from '../shared/main-renderer-types';
 
 /**
  * Joy-Con の接続状態。

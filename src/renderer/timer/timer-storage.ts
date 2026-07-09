@@ -3,13 +3,13 @@
     type TimerStorageApi = import('../../shared/timer-renderer-types').TimerStorageApi;
     type ParseNumberUtilsApi = import('../../shared/parse-number-utils-types').ParseNumberUtilsApi;
     type LocalStorageStoreApi = import('../../shared/local-storage-store-types').LocalStorageStoreApi;
+    type StorageKeys = typeof import('../../shared/storage-keys').storageKeys;
 
-    const KEY_COUNTDOWN_INITIAL_VALUE = 'countdownInitialValue';
-    const KEY_TIMER_FONT_SIZE = 'timerFontSize';
-    const KEY_TIMER_PRESETS = 'timerPresets';
-    const KEY_TIMER_WINDOW_OPACITY = 'timerWindowOpacity';
-    const KEY_TIMER_NOTIFICATIONS = 'timerNotifications';
-    const KEY_SOUND_PLAY_DELAY_MS = 'soundPlayDelayMs';
+    const storageKeys = (globalThis as typeof globalThis & { storageKeys?: StorageKeys }).storageKeys;
+    if (!storageKeys) {
+        throw new Error('storageKeys is not available');
+    }
+
     const parseNumberUtils = ((): ParseNumberUtilsApi => {
         const root = globalThis as typeof globalThis & { parseNumberUtils?: ParseNumberUtilsApi };
         if (root.parseNumberUtils) {
@@ -66,22 +66,22 @@
     };
 
     const api: TimerStorageApi = {
-        loadCountdownInitialValue: (fallback: number): number => parseIntValue(localStorageStore.getString(KEY_COUNTDOWN_INITIAL_VALUE, ''), fallback),
-        saveCountdownInitialValue: (value: number): void => { localStorageStore.setString(KEY_COUNTDOWN_INITIAL_VALUE, String(value)); },
-        loadTimerFontSize: (fallback: number): number => parseIntValue(localStorageStore.getString(KEY_TIMER_FONT_SIZE, ''), fallback),
-        saveTimerFontSize: (value: number): void => { localStorageStore.setString(KEY_TIMER_FONT_SIZE, String(value)); },
-        loadTimerPresets: (fallback: number[]): number[] => parseArrayJson<number>(localStorageStore.getString(KEY_TIMER_PRESETS, ''), fallback),
-        saveTimerPresets: (presets: number[]): void => { localStorageStore.setJsonValue(KEY_TIMER_PRESETS, presets); },
-        loadTimerOpacity: (fallback: number): number => parseFloatValue(localStorageStore.getString(KEY_TIMER_WINDOW_OPACITY, ''), fallback),
-        saveTimerOpacity: (opacity: number): void => { localStorageStore.setString(KEY_TIMER_WINDOW_OPACITY, String(opacity)); },
+        loadCountdownInitialValue: (fallback: number): number => parseIntValue(localStorageStore.getString(storageKeys.countdownInitialValue, ''), fallback),
+        saveCountdownInitialValue: (value: number): void => { localStorageStore.setString(storageKeys.countdownInitialValue, String(value)); },
+        loadTimerFontSize: (fallback: number): number => parseIntValue(localStorageStore.getString(storageKeys.timerFontSize, ''), fallback),
+        saveTimerFontSize: (value: number): void => { localStorageStore.setString(storageKeys.timerFontSize, String(value)); },
+        loadTimerPresets: (fallback: number[]): number[] => parseArrayJson<number>(localStorageStore.getString(storageKeys.timerPresets, ''), fallback),
+        saveTimerPresets: (presets: number[]): void => { localStorageStore.setJsonValue(storageKeys.timerPresets, presets); },
+        loadTimerOpacity: (fallback: number): number => parseFloatValue(localStorageStore.getString(storageKeys.timerWindowOpacity, ''), fallback),
+        saveTimerOpacity: (opacity: number): void => { localStorageStore.setString(storageKeys.timerWindowOpacity, String(opacity)); },
         loadNotifications: (fallback: TimerNotificationConfig[]): TimerNotificationConfig[] => {
-            return parseArrayJson<TimerNotificationConfig>(localStorageStore.getString(KEY_TIMER_NOTIFICATIONS, ''), fallback);
+            return parseArrayJson<TimerNotificationConfig>(localStorageStore.getString(storageKeys.timerNotifications, ''), fallback);
         },
-        saveNotifications: (configs: TimerNotificationConfig[]): void => { localStorageStore.setJsonValue(KEY_TIMER_NOTIFICATIONS, configs); },
+        saveNotifications: (configs: TimerNotificationConfig[]): void => { localStorageStore.setJsonValue(storageKeys.timerNotifications, configs); },
         loadSoundPlayDelay: (): number | null => {
-            return parseNumberUtils.parseIntOrNull(localStorageStore.getString(KEY_SOUND_PLAY_DELAY_MS, ''));
+            return parseNumberUtils.parseIntOrNull(localStorageStore.getString(storageKeys.soundPlayDelayMs, ''));
         },
-        saveSoundPlayDelay: (delayMs: number): void => { localStorageStore.setString(KEY_SOUND_PLAY_DELAY_MS, String(delayMs)); },
+        saveSoundPlayDelay: (delayMs: number): void => { localStorageStore.setString(storageKeys.soundPlayDelayMs, String(delayMs)); },
     };
 
     const root = globalThis as typeof globalThis & { timerStorage?: TimerStorageApi };

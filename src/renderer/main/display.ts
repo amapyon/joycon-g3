@@ -3,6 +3,11 @@
     type DisplayInfo = import('../../shared/main-renderer-types').DisplayInfo;
     type LocalStorageStoreApi = import('../../shared/local-storage-store-types').LocalStorageStoreApi;
     type MainWindowApiAccessorApi = import('../../shared/main-window-api-types').MainWindowApiAccessorApi;
+    type StorageKeys = typeof import('../../shared/storage-keys').storageKeys;
+    const storageKeys = (globalThis as typeof globalThis & { storageKeys?: StorageKeys }).storageKeys;
+    if (!storageKeys) {
+        throw new Error('storageKeys is not available');
+    }
 
     const mainWindowApiAccessor = (globalThis as typeof globalThis & {
         mainWindowApiAccessor?: MainWindowApiAccessorApi;
@@ -24,7 +29,7 @@
         const { displaySelect, cursorToggleBtn } = elements;
         displaySelect.innerHTML = '';
         if (displays && displays.length > 0) {
-            const storedDisplayIdRaw = localStorageStore.getString('lastDisplayId', '');
+            const storedDisplayIdRaw = localStorageStore.getString(storageKeys.lastDisplayId, '');
             const storedDisplayId = storedDisplayIdRaw ? parseInt(storedDisplayIdRaw, 10) : null;
             const displayIds = displays.map((display: DisplayInfo): number => display.id);
             const fallbackDisplayId = displayIds.reduce(
@@ -70,7 +75,7 @@
             const selectedDisplayId = parseInt(elements.displaySelect.value, 10);
             if (!Number.isNaN(selectedDisplayId)) {
                 electronAPI.setTargetDisplay(selectedDisplayId);
-                localStorageStore.setString('lastDisplayId', String(selectedDisplayId));
+                localStorageStore.setString(storageKeys.lastDisplayId, String(selectedDisplayId));
             }
         });
 

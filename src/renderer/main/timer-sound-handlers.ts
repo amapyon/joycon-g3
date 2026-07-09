@@ -1,6 +1,11 @@
 {
     type TimerNotificationConfig = import('../../shared/timer-notification-config').TimerNotificationConfig;
     type LocalStorageStoreApi = import('../../shared/local-storage-store-types').LocalStorageStoreApi;
+    type StorageKeys = typeof import('../../shared/storage-keys').storageKeys;
+    const storageKeys = (globalThis as typeof globalThis & { storageKeys?: StorageKeys }).storageKeys;
+    if (!storageKeys) {
+        throw new Error('storageKeys is not available');
+    }
     type TimerSoundHandlersApi = {
         registerSoundHandlers: (deps: TimerSoundHandlersDeps) => void;
     };
@@ -37,7 +42,6 @@
         loadMediaFiles: () => Promise<void>;
         broadcastNotificationUpdate: () => Promise<void>;
     };
-
     /**
      * サウンド関連イベントを登録する。
      * @param deps 登録に必要な依存
@@ -86,13 +90,13 @@
             await electronAPI.selectMediaFolder();
             const basePath = await electronAPI.getMediaBasePath();
             if (basePath) {
-                localStorageStore.setString('soundMediaDir', basePath);
+                localStorageStore.setString(storageKeys.soundMediaDir, basePath);
             }
             void loadMediaFiles();
         });
 
         electronAPI.onUpdateTimerNotifications((configs: TimerNotificationConfig[]): void => {
-            localStorageStore.setJsonValue('timerNotifications', configs);
+            localStorageStore.setJsonValue(storageKeys.timerNotifications, configs);
         });
     };
 

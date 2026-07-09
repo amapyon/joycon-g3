@@ -2,6 +2,11 @@
     type MainRendererAccessApi = import('../../shared/main-renderer-types').MainRendererAccessApi;
     type MainWindowApiAccessorApi = import('../../shared/main-window-api-types').MainWindowApiAccessorApi;
     type LocalStorageStoreApi = import('../../shared/local-storage-store-types').LocalStorageStoreApi;
+    type StorageKeys = typeof import('../../shared/storage-keys').storageKeys;
+    const storageKeys = (globalThis as typeof globalThis & { storageKeys?: StorageKeys }).storageKeys;
+    if (!storageKeys) {
+        throw new Error('storageKeys is not available');
+    }
 
     const mainWindowApiAccessor = (globalThis as typeof globalThis & {
         mainWindowApiAccessor?: MainWindowApiAccessorApi;
@@ -13,8 +18,6 @@
     const localStorageStore = mainWindowApiAccessor.getApi<LocalStorageStoreApi>('localStorageStore');
     const mainRenderer = mainRendererAccess.getMainRenderer();
     const { electronAPI, elements } = mainRenderer;
-    const messageStorageKey = 'messageHtml';
-
     /**
      * contenteditable の末尾に付与される改行タグを除去する。
      * @param html 入力HTML
@@ -47,8 +50,8 @@
      * @returns なし
      */
     const initMessageSection = (): void => {
-        const isAlwaysOnTop = localStorageStore.getString('messageAlwaysOnTop', '1') !== '0';
-        const storedMessageHtml = localStorageStore.getString(messageStorageKey, '');
+        const isAlwaysOnTop = localStorageStore.getString(storageKeys.messageAlwaysOnTop, '1') !== '0';
+        const storedMessageHtml = localStorageStore.getString(storageKeys.messageHtml, '');
         elements.messageInput.innerHTML = storedMessageHtml;
         elements.messageAlwaysOnTopInput.checked = isAlwaysOnTop;
         electronAPI.setMessageAlwaysOnTop(isAlwaysOnTop);
@@ -56,7 +59,7 @@
 
         elements.messageInput.addEventListener('input', (): void => {
             const text = normalizeMessageHtml(elements.messageInput.innerHTML);
-            localStorageStore.setString(messageStorageKey, text);
+            localStorageStore.setString(storageKeys.messageHtml, text);
             electronAPI.sendMessageText(text);
         });
 
@@ -66,7 +69,7 @@
 
         elements.messageAlwaysOnTopInput.addEventListener('change', (): void => {
             const alwaysOnTop = elements.messageAlwaysOnTopInput.checked;
-            localStorageStore.setString('messageAlwaysOnTop', alwaysOnTop ? '1' : '0');
+            localStorageStore.setString(storageKeys.messageAlwaysOnTop, alwaysOnTop ? '1' : '0');
             electronAPI.setMessageAlwaysOnTop(alwaysOnTop);
         });
 

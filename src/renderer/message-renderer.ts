@@ -14,6 +14,21 @@ type MessageLogicApi = {
 type ParseNumberUtilsApi = import('../shared/parse-number-utils-types').ParseNumberUtilsApi;
 type LocalStorageStoreApi = import('../shared/local-storage-store-types').LocalStorageStoreApi;
 type MessageRendererApiResolverBootstrapApi = import('../shared/renderer-api-resolver-types').RendererApiResolverBootstrapApi;
+type StorageKeys = typeof import('../shared/storage-keys').storageKeys;
+
+/**
+ * 保存キー定義を取得する。
+ * @returns 保存キー定義
+ */
+function resolveStorageKeys(): StorageKeys {
+    const storageKeys = (globalThis as typeof globalThis & { storageKeys?: StorageKeys }).storageKeys;
+    if (!storageKeys) {
+        throw new Error('storageKeys is not available');
+    }
+    return storageKeys;
+}
+
+const storageKeys = resolveStorageKeys();
 
 const rendererApiResolverUtils = ((): import('../shared/renderer-api-resolver-types').RendererApiResolverUtilsApi => {
     const root = globalThis as typeof globalThis & {
@@ -35,8 +50,8 @@ const parseNumberUtils = rendererApiResolverUtils.resolveApi<ParseNumberUtilsApi
 const localStorageStore = rendererApiResolverUtils.resolveGlobal<LocalStorageStoreApi>('localStorageStore');
 const messageContent = document.getElementById('messageContent') as HTMLElement | null;
 const wheelZone = document.getElementById('wheel-zone') as HTMLElement | null;
-const storedFontSize = localStorageStore.getString('messageFontSize', '');
-const storedOpacity = localStorageStore.getString('messageWindowOpacity', '');
+const storedFontSize = localStorageStore.getString(storageKeys.messageFontSize, '');
+const storedOpacity = localStorageStore.getString(storageKeys.messageWindowOpacity, '');
 
 let currentFontSize = messageLogic.normalizeNumber(parseNumberUtils.parseIntOrFallback(storedFontSize, 64), 64, 10, 1000);
 let currentOpacity = messageLogic.normalizeNumber(parseNumberUtils.parseFloatOrFallback(storedOpacity, 0.8), 0.8, 0.1, 1.0);
@@ -90,7 +105,7 @@ function updateFontSize(delta: number): void {
     if (messageContent) {
         messageContent.style.fontSize = `${currentFontSize}px`;
     }
-    localStorageStore.setString('messageFontSize', String(currentFontSize));
+    localStorageStore.setString(storageKeys.messageFontSize, String(currentFontSize));
 }
 
 /**
@@ -101,7 +116,7 @@ function updateTransparency(delta: number): void {
     currentOpacity = messageLogic.normalizeNumber(currentOpacity + delta, 0.8, 0.1, 1.0);
 
     document.body.style.backgroundColor = `rgba(70, 70, 70, ${currentOpacity})`;
-    localStorageStore.setString('messageWindowOpacity', String(currentOpacity));
+    localStorageStore.setString(storageKeys.messageWindowOpacity, String(currentOpacity));
 }
 
 // 初期フォントサイズを反映

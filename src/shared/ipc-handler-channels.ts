@@ -47,7 +47,6 @@ export const IPC_HANDLER_INBOUND_CHANNELS = {
     REBOOT_WIFI_TIMER: 'reboot-wifi-timer',
     SEND_MESSAGE_TEXT: 'send-message-text',
     SET_MESSAGE_ALWAYS_ON_TOP: 'set-message-always-on-top',
-    SET_MESSAGE_WINDOW_BOUNDS: 'set-message-window-bounds',
     TOGGLE_MESSAGE_WINDOW: 'toggle-message-window',
 } as const;
 

@@ -38,15 +38,6 @@ export type PresentationInfo = {
     type: PresentationTargetType;
 };
 
-export type MessageWindowBounds = {
-    x: number;
-    y: number;
-    width: number;
-    height: number;
-    source?: 'main-bounds';
-    version?: 2;
-};
-
 export type ElectronAPI = {
     getOpenPowerPointPresentations: () => Promise<PresentationInfo[]>;
     getOpenPresentationTargets: () => Promise<PresentationInfo[]>;
@@ -112,7 +103,6 @@ export type ElectronAPI = {
     requestJoyConStatus: () => void;
     sendMessageText: (text: string) => void;
     setMessageAlwaysOnTop: (alwaysOnTop: boolean) => void;
-    setMessageWindowBounds: (bounds: MessageWindowBounds) => void;
     toggleMessageWindow: () => void;
 };
 

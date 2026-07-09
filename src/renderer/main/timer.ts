@@ -4,7 +4,6 @@
     type TimerNotificationConfig = import('../../shared/timer-notification-config').TimerNotificationConfig;
     type ParseNumberUtilsApi = import('../../shared/parse-number-utils-types').ParseNumberUtilsApi;
     type LocalStorageStoreApi = import('../../shared/local-storage-store-types').LocalStorageStoreApi;
-    type WifiTimerSettings = import('../../shared/wifi-timer-settings').WifiTimerSettings;
     type WifiTimerStatus = import('../../shared/wifi-timer-api-types').WifiTimerStatus;
     type WifiTimerAudioTone = import('../../shared/wifi-timer-api-types').WifiTimerAudioTone;
     type WifiTimerAudioToneLimits = import('../../shared/wifi-timer-api-types').WifiTimerAudioToneLimits;
@@ -21,6 +20,11 @@
     type WifiTimerCustomAudioList = import('../../shared/wifi-timer-api-types').WifiTimerCustomAudioList;
     type WifiTimerWifiProfileInput = import('../../shared/wifi-timer-api-types').WifiTimerWifiProfileInput;
     type MainTimerApiResolverBootstrapApi = import('../../shared/renderer-api-resolver-types').RendererApiResolverBootstrapApi;
+    type StorageKeys = typeof import('../../shared/storage-keys').storageKeys;
+    const storageKeys = (globalThis as typeof globalThis & { storageKeys?: StorageKeys }).storageKeys;
+    if (!storageKeys) {
+        throw new Error('storageKeys is not available');
+    }
     type TimerUiUtilsApi = {
         setSelectValue: (select: HTMLSelectElement, value: string) => void;
         resolveStoredCountdownInitialValue: (
@@ -51,6 +55,38 @@
             loadMediaFiles: () => Promise<void>;
             broadcastNotificationUpdate: () => Promise<void>;
         }) => void;
+    };
+    type TimerPresetControllerApi = {
+        renderPresets: () => void;
+        renderPresetConfig: () => void;
+        registerPresetEditHandlers: () => void;
+    };
+    type TimerPresetControllerFactoryApi = {
+        createTimerPresetController: (deps: {
+            elements: MainRendererContext['elements'];
+            state: MainRendererContext['state'];
+            electronAPI: MainRendererContext['electronAPI'];
+            timerMainLogic: TimerMainLogicApi;
+            parseNumberUtils: ParseNumberUtilsApi;
+            localStorageStore: LocalStorageStoreApi;
+            timerPresetsStorageKey: string;
+            applyCountdownInitialValue: (value: number, shouldNotify: boolean, shouldStart: boolean) => void;
+        }) => TimerPresetControllerApi;
+    };
+    type WifiTimerSettingsControllerApi = {
+        initWifiTimerSettings: () => void;
+        applyWifiTimerPanelVisibility: (isVisible: boolean) => void;
+    };
+    type WifiTimerSettingsControllerFactoryApi = {
+        createWifiTimerSettingsController: (deps: {
+            elements: MainRendererContext['elements'];
+            state: MainRendererContext['state'];
+            electronAPI: MainRendererContext['electronAPI'];
+            localStorageStore: LocalStorageStoreApi;
+            timerMainLogic: TimerMainLogicApi;
+            wifiTimerSettingsStorageKey: string;
+            wifiTimerPanelVisibilityStorageKey: string;
+        }) => WifiTimerSettingsControllerApi;
     };
     type StandalonePadAudioState = {
         audio: HTMLAudioElement | null;
@@ -85,9 +121,11 @@
     const parseNumberUtils = rendererApiResolverUtils.resolveApi<ParseNumberUtilsApi>('parseNumberUtils', '../parse-number-utils');
     const timerUiUtils = rendererApiResolverUtils.resolveApi<TimerUiUtilsApi>('timerUiUtils', './timer-ui-utils');
     const timerSoundHandlers = rendererApiResolverUtils.resolveApi<TimerSoundHandlersApi>('timerSoundHandlers', './timer-sound-handlers');
+    const timerPresetControllerFactory = rendererApiResolverUtils.resolveGlobal<TimerPresetControllerFactoryApi>('mainTimerPresetController');
+    const wifiTimerSettingsControllerFactory = rendererApiResolverUtils
+        .resolveGlobal<WifiTimerSettingsControllerFactoryApi>('mainWifiTimerSettingsController');
     const localStorageStore = rendererApiResolverUtils.resolveGlobal<LocalStorageStoreApi>('localStorageStore');
     const { electronAPI, elements, state } = mainRenderer;
-    const defaultWifiTimerSettings: WifiTimerSettings = { enabled: false, ipAddress: '' };
     const defaultWifiTimerAudioToneLimits: WifiTimerAudioToneLimits = {
         toneIdMin: 0,
         toneIdMax: 8,
@@ -105,9 +143,9 @@
         customSpeed: 100,
     };
     const standalonePadCount = 10;
-    const standalonePadAssignmentsKey = 'standalonePadAssignments';
-    const standalonePadVisibilityKey = 'standalonePadVisible';
-    const wifiTimerPanelVisibilityKey = 'wifiTimerPanelVisible';
+    const standalonePadAssignmentsKey = storageKeys.standalonePadAssignments;
+    const standalonePadVisibilityKey = storageKeys.standalonePadVisible;
+    const wifiTimerPanelVisibilityKey = storageKeys.wifiTimerPanelVisible;
     let currentWifiTimerProfiles: WifiTimerWifiProfile[] = [];
     let currentWifiTimerAudioToneLimits: WifiTimerAudioToneLimits = defaultWifiTimerAudioToneLimits;
     let currentWifiTimerAudioSettings: WifiTimerAudioSettings = defaultWifiTimerAudioSettings;
@@ -137,7 +175,7 @@
      */
     const applyCountdownInitialValue = (value: number, shouldNotify: boolean, shouldStart: boolean): void => {
         elements.countdownInitialValueInput.value = String(value);
-        localStorageStore.setString('countdownInitialValue', String(value));
+        localStorageStore.setString(storageKeys.countdownInitialValue, String(value));
         if (shouldNotify) {
             electronAPI.sendCountdownInitialValue(value);
         }
@@ -146,86 +184,29 @@
         }
     };
 
-    /**
-     * プリセットボタンを描画する。
-     * @returns なし
-     */
-    const renderPresets = (): void => {
-        elements.presetButtonsContainer.innerHTML = '';
-        state.currentPresets.forEach((time: number): void => {
-            const btn = document.createElement('button');
-            btn.className = 'preset-btn';
-            btn.dataset.time = String(time);
-            btn.textContent = timerMainLogic.formatPresetLabel(time);
-            btn.addEventListener('click', (): void => {
-                applyCountdownInitialValue(time, true, true);
-            });
-            elements.presetButtonsContainer.appendChild(btn);
-        });
-    };
-
-    /**
-     * プリセット編集 UI を描画する。
-     * @returns なし
-     */
-    const renderPresetConfig = (): void => {
-        elements.presetInputsList.innerHTML = '';
-        state.currentPresets.forEach((time: number, index: number): void => {
-            const item = document.createElement('div');
-            item.style.display = 'flex';
-            item.style.alignItems = 'center';
-            item.style.marginBottom = '5px';
-
-            const input = document.createElement('input');
-            input.type = 'number';
-            input.value = String(time);
-            input.min = '1';
-            input.max = '3600';
-            input.style.width = '60px';
-            input.style.marginRight = '5px';
-            input.addEventListener('change', (): void => {
-                state.currentPresets[index] = parseNumberUtils.parseIntOrFallback(input.value, 10);
-            });
-
-            const removeBtn = document.createElement('button');
-            removeBtn.textContent = '×';
-            removeBtn.style.padding = '2px 8px';
-            removeBtn.style.background = '#dc3545';
-            removeBtn.style.color = 'white';
-            removeBtn.addEventListener('click', (): void => {
-                state.currentPresets.splice(index, 1);
-                renderPresetConfig();
-            });
-
-            item.appendChild(input);
-            item.appendChild(removeBtn);
-            elements.presetInputsList.appendChild(item);
-        });
-    };
-
-    /**
-     * プリセット編集パネルの表示を切り替える。
-     * @returns なし
-     */
-    const togglePresetEditPanel = (): void => {
-        const isHidden = elements.presetEditContainer.style.display === 'none';
-        elements.presetEditContainer.style.display = isHidden ? 'block' : 'none';
-        elements.togglePresetEditBtn.textContent = isHidden ? '✕ Close Edit' : '⚙ Edit Presets';
-        elements.togglePresetEditBtn.style.background = isHidden ? '#dc3545' : '#6c757d';
-    };
-
-    /**
-     * プリセットの保存と適用を行う。
-     * @returns なし
-     */
-    const applyPresets = (): void => {
-        state.currentPresets.sort((a: number, b: number): number => a - b);
-        localStorageStore.setJsonValue('timerPresets', state.currentPresets);
-        renderPresets();
-        renderPresetConfig();
-        electronAPI.updateTimerPresets(state.currentPresets);
-    };
-
+    const presetController = timerPresetControllerFactory.createTimerPresetController({
+        elements,
+        state,
+        electronAPI,
+        timerMainLogic,
+        parseNumberUtils,
+        localStorageStore,
+        timerPresetsStorageKey: storageKeys.timerPresets,
+        applyCountdownInitialValue,
+    });
+    const renderPresets = presetController.renderPresets;
+    const renderPresetConfig = presetController.renderPresetConfig;
+    const wifiTimerSettingsController = wifiTimerSettingsControllerFactory.createWifiTimerSettingsController({
+        elements,
+        state,
+        electronAPI,
+        localStorageStore,
+        timerMainLogic,
+        wifiTimerSettingsStorageKey: storageKeys.wifiTimerSettings,
+        wifiTimerPanelVisibilityStorageKey: wifiTimerPanelVisibilityKey,
+    });
+    const initWifiTimerSettings = wifiTimerSettingsController.initWifiTimerSettings;
+    const applyWifiTimerPanelVisibility = wifiTimerSettingsController.applyWifiTimerPanelVisibility;
     /**
      * 通知音の振動設定を初期化する。
      * @returns なし
@@ -257,72 +238,6 @@
         elements.showClockTimerBtn.addEventListener('click', (): void => {
             electronAPI.showClockTimerWindow();
         });
-    };
-
-    /**
-     * WiFi タイマー設定をフォームへ反映する。
-     * @param settings 設定値
-     */
-    const applyWifiTimerSettingsToForm = (settings: WifiTimerSettings): void => {
-        elements.wifiTimerEnabledInput.checked = settings.enabled;
-        elements.wifiTimerIpAddressInput.value = settings.ipAddress;
-    };
-
-    /**
-     * フォームから WiFi タイマー設定を読み取る。
-     * @returns 読み取った設定
-     */
-    const readWifiTimerSettingsFromForm = (): WifiTimerSettings => {
-        return {
-            enabled: elements.wifiTimerEnabledInput.checked,
-            ipAddress: elements.wifiTimerIpAddressInput.value.trim(),
-        };
-    };
-
-    /**
-     * WiFi タイマー設定を保存してメインプロセスへ通知する。
-     * @param settings 保存する設定
-     */
-    const persistWifiTimerSettings = (settings: WifiTimerSettings): void => {
-        state.wifiTimerSettings = settings;
-        localStorageStore.setJsonValue('wifiTimerSettings', settings);
-        electronAPI.updateWifiTimerSettings(settings);
-        const currentCountdownValue = timerMainLogic.parseCountdownInitialValue(elements.countdownInitialValueInput.value, 1, 3600);
-        if (currentCountdownValue !== null) {
-            electronAPI.sendCountdownInitialValue(currentCountdownValue);
-        }
-    };
-
-    /**
-     * WiFi タイマー設定 UI を初期化する。
-     */
-    const initWifiTimerSettings = (): void => {
-        const storedSettings = localStorageStore.getJsonValue<WifiTimerSettings>('wifiTimerSettings', defaultWifiTimerSettings);
-        state.wifiTimerSettings = {
-            enabled: storedSettings.enabled,
-            ipAddress: storedSettings.ipAddress.trim(),
-        };
-        applyWifiTimerSettingsToForm(state.wifiTimerSettings);
-        electronAPI.updateWifiTimerSettings(state.wifiTimerSettings);
-
-        const handleChange = (): void => {
-            const nextSettings = readWifiTimerSettingsFromForm();
-            applyWifiTimerSettingsToForm(nextSettings);
-            persistWifiTimerSettings(nextSettings);
-        };
-
-        elements.wifiTimerEnabledInput.addEventListener('change', handleChange);
-        elements.wifiTimerIpAddressInput.addEventListener('change', handleChange);
-    };
-
-    /**
-     * WiFi タイマーパネルの表示状態を反映する。
-     * @param isVisible 表示するなら true
-     */
-    const applyWifiTimerPanelVisibility = (isVisible: boolean): void => {
-        elements.wifiTimerPanelContainer.querySelector('.wifi-timer-panel')?.setAttribute('style', `display: ${isVisible ? 'block' : 'none'};`);
-        elements.wifiTimerPanelToggleBtn.textContent = isVisible ? 'Hide WiFi Timer' : 'Show WiFi Timer';
-        localStorageStore.setString(wifiTimerPanelVisibilityKey, isVisible ? '1' : '0');
     };
 
     /**
@@ -1947,7 +1862,7 @@
      * @returns なし
      */
     const restoreNotificationSettings = (): void => {
-        const configs = localStorageStore.getJsonValue<TimerNotificationConfig[]>('timerNotifications', []);
+        const configs = localStorageStore.getJsonValue<TimerNotificationConfig[]>(storageKeys.timerNotifications, []);
         if (configs.length > 0) {
             if (configs[0]) {
                 elements.sound1TimeInput.value = String(configs[0].time);
@@ -2294,7 +2209,7 @@
                 rumble: elements.sound2RumbleToggle.checked,
             },
         ];
-        localStorageStore.setJsonValue('timerNotifications', configs);
+        localStorageStore.setJsonValue(storageKeys.timerNotifications, configs);
         electronAPI.updateTimerNotifications(configs);
     };
 
@@ -2329,7 +2244,7 @@
      * @returns なし
      */
     const initSoundPlayDelay = (): void => {
-        const storedDelay = localStorageStore.getString('soundPlayDelayMs', '');
+        const storedDelay = localStorageStore.getString(storageKeys.soundPlayDelayMs, '');
         const defaultDelay = 200;
         const initialDelay = parseNumberUtils.parseIntOrFallback(storedDelay, defaultDelay);
         const normalizedDelay = timerMainLogic.normalizeSoundPlayDelay(initialDelay, defaultDelay, 0, 5000);
@@ -2340,27 +2255,8 @@
             const nextValue = parseNumberUtils.parseIntOrFallback(elements.soundPlayDelayInput.value, defaultDelay);
             const clamped = timerMainLogic.normalizeSoundPlayDelay(nextValue, defaultDelay, 0, 5000);
             elements.soundPlayDelayInput.value = String(clamped);
-            localStorageStore.setString('soundPlayDelayMs', String(clamped));
+            localStorageStore.setString(storageKeys.soundPlayDelayMs, String(clamped));
             electronAPI.updateSoundPlayDelay(clamped);
-        });
-    };
-
-    /**
-     * プリセット編集関連イベントを登録する。
-     * @returns なし
-     */
-    const registerPresetEditHandlers = (): void => {
-        elements.togglePresetEditBtn.addEventListener('click', (): void => {
-            togglePresetEditPanel();
-        });
-
-        elements.addPresetConfigBtn.addEventListener('click', (): void => {
-            state.currentPresets.push(60);
-            renderPresetConfig();
-        });
-
-        elements.applyPresetsBtn.addEventListener('click', (): void => {
-            applyPresets();
         });
     };
 
@@ -2371,7 +2267,7 @@
     const registerTimerSyncHandlers = (): void => {
         electronAPI.onUpdateTimerPresets((presets: number[]): void => {
             state.currentPresets = presets;
-            localStorageStore.setJsonValue('timerPresets', state.currentPresets);
+            localStorageStore.setJsonValue(storageKeys.timerPresets, state.currentPresets);
             renderPresets();
             renderPresetConfig();
         });
@@ -2406,7 +2302,7 @@
      * @returns なし
      */
     const initTimerSection = (): void => {
-        registerPresetEditHandlers();
+        presetController.registerPresetEditHandlers();
 
         renderPresets();
         initTimerActionButtons();
@@ -2435,10 +2331,10 @@
 
         void timerUiUtils
             .applyStoredMediaDir(
-                localStorageStore.getString('soundMediaDir', ''),
+                localStorageStore.getString(storageKeys.soundMediaDir, ''),
                 electronAPI.setMediaBasePath,
                 (): void => {
-                    localStorageStore.remove('soundMediaDir');
+                    localStorageStore.remove(storageKeys.soundMediaDir);
                 },
             )
             .then(() => loadMediaFiles());
@@ -2447,7 +2343,7 @@
             electronAPI.toggleTimerWindow();
         });
         const storedInitialValue = timerUiUtils.resolveStoredCountdownInitialValue(
-            localStorageStore.getString('countdownInitialValue', ''),
+            localStorageStore.getString(storageKeys.countdownInitialValue, ''),
             timerMainLogic.parseCountdownInitialValue,
             1,
             3600,
@@ -2464,3 +2360,4 @@
 
     mainRenderer.initTimerSection = initTimerSection;
 }
+

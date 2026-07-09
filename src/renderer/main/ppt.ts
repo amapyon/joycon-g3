@@ -3,8 +3,11 @@
     type PresentationInfo = import('../../shared/main-renderer-types').PresentationInfo;
     type LocalStorageStoreApi = import('../../shared/local-storage-store-types').LocalStorageStoreApi;
     type MainWindowApiAccessorApi = import('../../shared/main-window-api-types').MainWindowApiAccessorApi;
-
-    const SELECTED_PRESENTATION_TARGET_KEY = 'selectedPresentationTarget';
+    type StorageKeys = typeof import('../../shared/storage-keys').storageKeys;
+    const storageKeys = (globalThis as typeof globalThis & { storageKeys?: StorageKeys }).storageKeys;
+    if (!storageKeys) {
+        throw new Error('storageKeys is not available');
+    }
 
     const mainWindowApiAccessor = (globalThis as typeof globalThis & {
         mainWindowApiAccessor?: MainWindowApiAccessorApi;
@@ -45,7 +48,7 @@
             return;
         }
         elements.pptSelect.value = selectedValue;
-        localStorageStore.setString(SELECTED_PRESENTATION_TARGET_KEY, selectedValue);
+        localStorageStore.setString(storageKeys.selectedPresentationTarget, selectedValue);
         electronAPI.setTargetPresentation(selectedValue);
     };
 
@@ -68,7 +71,7 @@
                     elements.pptSelect.appendChild(option);
                 });
                 elements.pptSelect.disabled = false;
-                const storedValue = localStorageStore.getString(SELECTED_PRESENTATION_TARGET_KEY, '');
+                const storedValue = localStorageStore.getString(storageKeys.selectedPresentationTarget, '');
                 const values = presentations.map(createPresentationTargetValue);
                 const selectedValue = values.includes(storedValue) ? storedValue : values[0];
                 selectPresentationTarget(selectedValue);
