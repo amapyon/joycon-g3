@@ -17,6 +17,7 @@ import type {
     WifiTimerDisplaySettings,
     WifiTimerWifiProfileInput,
 } from '../shared/wifi-timer-api-types';
+import type { MessageWindowBounds } from '../shared/main-renderer-types';
 
 type IpcHandlerDependencies = {
     mediaDirectoryStore?: MediaDirectoryStore;
@@ -159,6 +160,42 @@ function parseWifiTimerProfileId(value: unknown): number {
         throw new Error('invalid WiFi timer Wi-Fi profile id');
     }
     return value;
+}
+
+/**
+ * メッセージウィンドウの位置とサイズ入力を検証する。
+ * @param value 入力値
+ * @returns 正規化済みの位置とサイズ
+ */
+function parseMessageWindowBounds(value: unknown): MessageWindowBounds {
+    if (
+        typeof value !== 'object' || value === null
+        || typeof (value as { x?: unknown }).x !== 'number'
+        || typeof (value as { y?: unknown }).y !== 'number'
+        || typeof (value as { width?: unknown }).width !== 'number'
+        || typeof (value as { height?: unknown }).height !== 'number'
+    ) {
+        throw new Error('invalid message window bounds');
+    }
+
+    const bounds = value as MessageWindowBounds;
+    if (
+        !Number.isFinite(bounds.x)
+        || !Number.isFinite(bounds.y)
+        || !Number.isFinite(bounds.width)
+        || !Number.isFinite(bounds.height)
+        || bounds.width < 100
+        || bounds.height < 50
+    ) {
+        throw new Error('invalid message window bounds');
+    }
+
+    return {
+        x: Math.round(bounds.x),
+        y: Math.round(bounds.y),
+        width: Math.round(bounds.width),
+        height: Math.round(bounds.height),
+    };
 }
 
 /**
@@ -564,6 +601,10 @@ function registerMessageHandlers(context: IpcHandlerContext): void {
 
     ipcMain.on(IPC_HANDLER_INBOUND_CHANNELS.SET_MESSAGE_ALWAYS_ON_TOP, (_event: IpcMainEvent, alwaysOnTop: boolean) => {
         windowManagerInstance.setMessageAlwaysOnTop(alwaysOnTop);
+    });
+
+    ipcMain.on(IPC_HANDLER_INBOUND_CHANNELS.SET_MESSAGE_WINDOW_BOUNDS, (_event: IpcMainEvent, bounds: unknown) => {
+        windowManagerInstance.setMessageWindowBounds(parseMessageWindowBounds(bounds));
     });
 
     ipcMain.on(IPC_HANDLER_INBOUND_CHANNELS.TOGGLE_MESSAGE_WINDOW, () => {

@@ -3,6 +3,7 @@ import { app, BrowserWindow, screen, Display } from 'electron';
 import path from 'path';
 import { resolveInitialWindowBounds } from './window-bounds-logic';
 import { isUsableWindow } from './browser-window-utils';
+import type { MessageWindowBounds } from '../shared/main-renderer-types';
 
 let mainWindow: BrowserWindow | null = null;
 let cursorWindow: BrowserWindow | null = null;
@@ -205,7 +206,7 @@ export function createTimerWindow(targetDisplay?: Display): BrowserWindow | null
     return timerWindow;
 }
 
-let storedMessageBounds: { x: number, y: number, width: number, height: number } | null = null;
+let storedMessageBounds: MessageWindowBounds | null = null;
 
 /**
  * メッセージウィンドウを生成する。
@@ -273,6 +274,17 @@ export function setMessageAlwaysOnTop(alwaysOnTop: boolean): void {
     messageAlwaysOnTop = alwaysOnTop;
     if (isUsableWindow(messageWindow)) {
         messageWindow.setAlwaysOnTop(alwaysOnTop);
+    }
+}
+
+/**
+ * メッセージウィンドウの位置とサイズを復元する。
+ * @param bounds 復元する位置とサイズ
+ */
+export function setMessageWindowBounds(bounds: MessageWindowBounds): void {
+    storedMessageBounds = bounds;
+    if (isUsableWindow(messageWindow)) {
+        messageWindow.setBounds(bounds);
     }
 }
 /**
@@ -382,4 +394,5 @@ export default {
     createMessageWindow,
     getMessageWindow,
     setMessageAlwaysOnTop,
+    setMessageWindowBounds,
 };

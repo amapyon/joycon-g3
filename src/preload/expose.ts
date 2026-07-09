@@ -10,6 +10,7 @@ import type {
     JoyConButtonPress,
     JoyConButtonState,
     JoyConStatus,
+    MessageWindowBounds,
     PresentationInfo,
     TimerMode,
     TimerNotificationConfig,
@@ -601,6 +602,12 @@ export const electronAPI: ElectronAPI = {
      */
     setMessageAlwaysOnTop: (alwaysOnTop: boolean): void =>
         ipcRenderer.send('set-message-always-on-top', alwaysOnTop),
+    /**
+     * メッセージウィンドウの位置とサイズを設定する。
+     * @param bounds ウィンドウの位置とサイズ
+     */
+    setMessageWindowBounds: (bounds: MessageWindowBounds): void =>
+        ipcRenderer.send('set-message-window-bounds', bounds),
     /**
      * メッセージ本文の更新を購読する。
      * @param callback コールバック
