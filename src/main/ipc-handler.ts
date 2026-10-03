@@ -7,7 +7,7 @@ import imuProcessor from './imu-processor';
 import JoyConManager from './joycon';
 import { setScreenSize } from './screen-state';
 import { MediaDirectoryStore } from './media-directory-store';
-import { findDisplayById, resolveDisplayId, toPhysicalScreenSize } from './ipc-handler-logic';
+import { findDisplayById, resolveDisplayId, toLogicalScreenSize } from './ipc-handler-logic';
 import { isUsableWindow } from './browser-window-utils';
 import {
     parseWifiTimerAudioSettings,
@@ -234,8 +234,8 @@ function registerDisplayAndConnectionHandlers(context: IpcHandlerContext): void 
         windowManagerInstance.setTargetDisplay(id);
         const target = findDisplayById(screen.getAllDisplays(), id);
         if (target) {
-            const physicalSize = toPhysicalScreenSize(target);
-            setScreenSize(physicalSize.width, physicalSize.height);
+            const logicalSize = toLogicalScreenSize(target);
+            setScreenSize(logicalSize.width, logicalSize.height);
         }
     });
 

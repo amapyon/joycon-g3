@@ -52,6 +52,31 @@
             <input type="number" id="pointer-gyro-deadzone" min="0" max="300" step="5" value="120" style="width: 60px;">
             <button id="pointer-settings-reset-btn" style="background: #6c757d; color: white;">Reset</button>
         </div>
+        <div class="sub-section" style="align-items: center; margin-top: 6px; flex-wrap: wrap; gap: 8px;">
+            <label for="pointer-fixed-angle" style="width: 85px;">補正方式:</label>
+            <span style="font-size: 12px; color: #0f5c6e;">固定補正強度</span>
+            <select id="pointer-compensation-strength">
+                <option value="0.5">50%</option>
+                <option value="0.75">75%</option>
+                <option value="1" selected>100%</option>
+            </select>
+            <select id="pointer-fixed-angle">
+                <option value="auto" selected>重力基準（自動）</option>
+                <option value="-60">固定 -60°</option>
+                <option value="-30">固定 -30°</option>
+                <option value="0">固定 0°</option>
+                <option value="30">固定 30°</option>
+                <option value="60">固定 60°</option>
+            </select>
+            <label style="display: flex; align-items: center; gap: 4px; font-size: 12px; color: #0f5c6e;">
+                <input type="checkbox" id="pointer-diagnostics-enabled">診断表示
+            </label>
+        </div>
+        <div id="pointer-diagnostics-panel" style="display: none; margin: 6px 0 0 93px; font: 12px monospace; color: #0f5c6e;">
+            <div id="pointer-diagnostics-left">L: 操作待ち</div>
+            <div id="pointer-diagnostics-right">R: 操作待ち</div>
+            <div>軸漏れ率 = |補正後Y| / |補正後Z|（左右操作時は小さいほど良好）</div>
+        </div>
     </div>
 
     <div class="section" style="background: #fff3cd;">

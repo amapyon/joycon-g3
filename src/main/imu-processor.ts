@@ -7,6 +7,11 @@ const M_PI = Math.PI;
 const RAD_TO_DEG = 180 / M_PI;
 const ACCEL_SCALE_G = 1 / 16384;
 const GYRO_SCALE_DPS = 2000 / 32768;
+const DEG_TO_RAD = Math.PI / 180;
+const GRAVITY_MAGNITUDE_TOLERANCE = 0.05;
+const STATIONARY_GYRO_THRESHOLD_DPS = 5;
+const POINTER_GRAVITY_CORRECTION_TIME_SECONDS = 0.25;
+const POINTER_ACCEL_CONFIDENCE_RANGE_G = 0.2;
 
 // カーソルID型
 type CursorId = import('../shared/cursor-types').CursorId;
@@ -34,10 +39,18 @@ interface IMUState {
     rollOffset: number;
     yawOffset: number;
     lastTimestamp: number;
+    lastDeltaTime: number;
     alpha: number;
     gyroBiasX: number;
     gyroBiasY: number;
     gyroBiasZ: number;
+    xRotation: number;
+    hasXRotation: boolean;
+    pointerGravity: IMUVector;
+    hasPointerGravity: boolean;
+    pointerRightAxis: IMUVector;
+    pointerGyroY: number;
+    pointerGyroZ: number;
 }
 
 type ScaledMotion = {
@@ -98,10 +111,18 @@ export class IMUProcessor extends EventEmitter {
             rollOffset: 0,
             yawOffset: 0,
             lastTimestamp: 0,
+            lastDeltaTime: 1 / 60,
             alpha: alpha,
             gyroBiasX: 0,
             gyroBiasY: 0,
             gyroBiasZ: 0,
+            xRotation: 0,
+            hasXRotation: false,
+            pointerGravity: { x: 0, y: 0, z: 1 },
+            hasPointerGravity: false,
+            pointerRightAxis: { x: 0, y: 1, z: 0 },
+            pointerGyroY: 0,
+            pointerGyroZ: 0,
         };
     }
 
@@ -136,6 +157,158 @@ export class IMUProcessor extends EventEmitter {
             y: typeof state.gyroBiasY === 'number' && !Number.isNaN(state.gyroBiasY) ? state.gyroBiasY : 0,
             z: typeof state.gyroBiasZ === 'number' && !Number.isNaN(state.gyroBiasZ) ? state.gyroBiasZ : 0,
         };
+    }
+
+    /**
+     * ベクトルの長さを計算する。
+     * @param value 対象ベクトル
+     * @returns ベクトルの長さ
+     */
+    private vectorMagnitude(value: IMUVector): number {
+        return Math.sqrt(value.x * value.x + value.y * value.y + value.z * value.z);
+    }
+
+    /**
+     * ベクトルを正規化する。
+     * @param value 対象ベクトル
+     * @returns 正規化済みベクトル。正規化できない場合は null
+     */
+    private normalizeVector(value: IMUVector): IMUVector | null {
+        const magnitude = this.vectorMagnitude(value);
+        if (!Number.isFinite(magnitude) || magnitude <= Number.EPSILON) {
+            return null;
+        }
+        return { x: value.x / magnitude, y: value.y / magnitude, z: value.z / magnitude };
+    }
+
+    /**
+     * ベクトルの外積を計算する。
+     * @param left 左辺ベクトル
+     * @param right 右辺ベクトル
+     * @returns 外積
+     */
+    private crossVector(left: IMUVector, right: IMUVector): IMUVector {
+        return {
+            x: left.y * right.z - left.z * right.y,
+            y: left.z * right.x - left.x * right.z,
+            z: left.x * right.y - left.y * right.x,
+        };
+    }
+
+    /**
+     * ベクトルの内積を計算する。
+     * @param left 左辺ベクトル
+     * @param right 右辺ベクトル
+     * @returns 内積
+     */
+    private dotVector(left: IMUVector, right: IMUVector): number {
+        return left.x * right.x + left.y * right.y + left.z * right.z;
+    }
+
+    /**
+     * 左右 Joy-Con のセンサー座標を共通の本体座標へ揃える。
+     * @param value 変換前ベクトル
+     * @param id Joy-Con に対応するカーソル ID
+     * @returns 共通座標へ変換したベクトル
+     */
+    private alignPointerVector(value: IMUVector, id: CursorId): IMUVector {
+        return id === 'cursorLeft'
+            ? { ...value }
+            : { x: value.x, y: -value.y, z: -value.z };
+    }
+
+    /**
+     * ジャイロから本体座標上の重力方向を予測する。
+     * @param gravity 現在の重力方向
+     * @param angularVelocity ジャイロ角速度（rad/s）
+     * @param dt 前回更新からの経過秒
+     * @returns 予測後の重力方向
+     */
+    private predictPointerGravity(gravity: IMUVector, angularVelocity: IMUVector, dt: number): IMUVector {
+        const rotation = this.crossVector(angularVelocity, gravity);
+        return this.normalizeVector({
+            x: gravity.x - rotation.x * dt,
+            y: gravity.y - rotation.y * dt,
+            z: gravity.z - rotation.z * dt,
+        }) ?? gravity;
+    }
+
+    /**
+     * ジャイロ予測と加速度を融合して重力方向を更新する。
+     * @param state 更新対象の IMU 状態
+     * @param measuredGravity 加速度から得た重力方向
+     * @param accelerationMagnitude 加速度の大きさ（G）
+     * @param angularVelocity ジャイロ角速度（rad/s）
+     * @param dt 前回更新からの経過秒
+     */
+    private updatePointerGravity(
+        state: IMUState,
+        measuredGravity: IMUVector | null,
+        accelerationMagnitude: number,
+        angularVelocity: IMUVector,
+        dt: number,
+    ): void {
+        if (!state.hasPointerGravity && measuredGravity) {
+            state.pointerGravity = measuredGravity;
+            state.hasPointerGravity = true;
+            return;
+        }
+        if (!state.hasPointerGravity) {
+            return;
+        }
+
+        const predictedGravity = this.predictPointerGravity(state.pointerGravity, angularVelocity, dt);
+        if (!measuredGravity) {
+            state.pointerGravity = predictedGravity;
+            return;
+        }
+        const confidence = Math.max(
+            0,
+            1 - Math.abs(accelerationMagnitude - 1) / POINTER_ACCEL_CONFIDENCE_RANGE_G,
+        );
+        const correction = (1 - Math.exp(-dt / POINTER_GRAVITY_CORRECTION_TIME_SECONDS)) * confidence;
+        state.pointerGravity = this.normalizeVector({
+            x: predictedGravity.x + (measuredGravity.x - predictedGravity.x) * correction,
+            y: predictedGravity.y + (measuredGravity.y - predictedGravity.y) * correction,
+            z: predictedGravity.z + (measuredGravity.z - predictedGravity.z) * correction,
+        }) ?? predictedGravity;
+    }
+
+    /**
+     * 重力方向から画面基準軸を作り、ジャイロをポインター移動軸へ射影する。
+     * @param state 更新対象の IMU 状態
+     * @param motion スケーリング済みモーション
+     * @param dt 前回更新からの経過秒
+     * @param id Joy-Con に対応するカーソル ID
+     */
+    private updatePointerGravityFrame(state: IMUState, motion: ScaledMotion, dt: number, id: CursorId): void {
+        const acceleration = this.alignPointerVector({ x: motion.ax, y: motion.ay, z: motion.az }, id);
+        const alignedGyro = this.alignPointerVector({ x: motion.gx, y: motion.gy, z: motion.gz }, id);
+        const angularVelocity = {
+            x: alignedGyro.x * DEG_TO_RAD,
+            y: alignedGyro.y * DEG_TO_RAD,
+            z: alignedGyro.z * DEG_TO_RAD,
+        };
+        this.updatePointerGravity(
+            state,
+            this.normalizeVector(acceleration),
+            this.vectorMagnitude(acceleration),
+            angularVelocity,
+            dt,
+        );
+        if (!state.hasPointerGravity) {
+            return;
+        }
+
+        const rightAxis = this.normalizeVector(
+            this.crossVector(state.pointerGravity, { x: 1, y: 0, z: 0 }),
+        );
+        if (rightAxis) {
+            state.pointerRightAxis = rightAxis;
+        }
+        const sideSign = id === 'cursorLeft' ? 1 : -1;
+        state.pointerGyroZ = this.dotVector(alignedGyro, state.pointerGravity) * sideSign / GYRO_SCALE_DPS;
+        state.pointerGyroY = this.dotVector(alignedGyro, state.pointerRightAxis) * sideSign / GYRO_SCALE_DPS;
     }
 
     /**
@@ -178,6 +351,62 @@ export class IMUProcessor extends EventEmitter {
             rollAcc = Math.atan2(motion.ay, motion.az) * RAD_TO_DEG;
         }
         return { pitchAcc, rollAcc };
+    }
+
+    /**
+     * 重力加速度から X 軸まわりの保持角度を求める。
+     * @param motion スケーリング済みのモーション値
+     * @param id Joy-Con に対応するカーソル ID
+     * @returns X 軸まわりの角度。並進加速度が大きい場合は null
+     */
+    private computeXAxisRotationFromAccel(motion: ScaledMotion, id: CursorId): number | null {
+        const accelMagnitude = Math.sqrt(motion.ax * motion.ax + motion.ay * motion.ay + motion.az * motion.az);
+        const gyroMagnitude = Math.sqrt(motion.gx * motion.gx + motion.gy * motion.gy + motion.gz * motion.gz);
+        const isGravityStable = Number.isFinite(accelMagnitude)
+            && Math.abs(accelMagnitude - 1) <= GRAVITY_MAGNITUDE_TOLERANCE;
+        const isRotationStable = Number.isFinite(gyroMagnitude)
+            && gyroMagnitude <= STATIONARY_GYRO_THRESHOLD_DPS;
+        if (!isGravityStable || !isRotationStable) {
+            return null;
+        }
+        const rawRotation = Math.atan2(motion.ay, motion.az) * RAD_TO_DEG;
+        const neutralRotation = id === 'cursorRight' ? 180 : 0;
+        return this.normalizeDegrees(rawRotation - neutralRotation);
+    }
+
+    /**
+     * ジャイロと重力方向を融合し、X 軸まわりの保持角度を更新する。
+     * @param state 更新対象の IMU 状態
+     * @param motion スケーリング済みのモーション値
+     * @param dt 前回更新からの経過秒
+     * @param id Joy-Con に対応するカーソル ID
+     */
+    private updateXAxisRotation(state: IMUState, motion: ScaledMotion, dt: number, id: CursorId): void {
+        const accelRotation = this.computeXAxisRotationFromAccel(motion, id);
+        if (!state.hasXRotation && accelRotation !== null) {
+            state.xRotation = accelRotation;
+            state.hasXRotation = true;
+            return;
+        }
+
+        const predictedRotation = this.normalizeDegrees(state.xRotation + motion.gx * dt);
+        if (accelRotation === null) {
+            state.xRotation = predictedRotation;
+            return;
+        }
+
+        const correction = this.normalizeDegrees(accelRotation - predictedRotation);
+        state.xRotation = this.normalizeDegrees(predictedRotation + (1 - state.alpha) * correction);
+        state.hasXRotation = true;
+    }
+
+    /**
+     * 角度を -180 度以上 180 度未満へ正規化する。
+     * @param degrees 正規化する角度
+     * @returns 正規化後の角度
+     */
+    private normalizeDegrees(degrees: number): number {
+        return ((degrees + 180) % 360 + 360) % 360 - 180;
     }
 
     /**
@@ -236,6 +465,7 @@ export class IMUProcessor extends EventEmitter {
         // 前回からの経過時間を計算
         const dt = this.computeDeltaTime(state, now);
         state.lastTimestamp = now;
+        state.lastDeltaTime = dt;
 
         if (dt <= 0 || Number.isNaN(dt)) {
             return;
@@ -253,6 +483,8 @@ export class IMUProcessor extends EventEmitter {
         }
 
         const angles = this.computeAccelAngles(state, motion);
+        this.updateXAxisRotation(state, motion, dt, imuData.id);
+        this.updatePointerGravityFrame(state, motion, dt, imuData.id);
         const next = this.updateOrientation(state, motion, dt, angles);
         if (!next) {
             return;

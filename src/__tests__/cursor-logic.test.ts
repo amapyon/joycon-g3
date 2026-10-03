@@ -1,27 +1,10 @@
 export {};
 // eslint-disable-next-line @typescript-eslint/no-var-requires -- CommonJS 形式の読み込みが必要
 const cursorLogic = require('../renderer/cursor-logic') as {
-    calculateTargetFromAttitude: (
-        cursorData: {
-            x: number;
-            y: number;
-            sensitivityX: number;
-            sensitivityY: number;
-            map: { xFrom: 'roll' | 'pitch' | 'yaw'; yFrom: 'roll' | 'pitch' | 'yaw'; xSign: number; ySign: number };
-            isVisible: boolean;
-            pendingX: number | null;
-            pendingY: number | null;
-        },
-        attitude: { roll: number; pitch: number; yaw?: number },
-        viewportWidth: number,
-        viewportHeight: number
-    ) => { x: number; y: number };
     decideVisibilityTransition: (
         cursorData: {
             x: number;
             y: number;
-            sensitivityX: number;
-            sensitivityY: number;
             map: { xFrom: 'roll' | 'pitch' | 'yaw'; yFrom: 'roll' | 'pitch' | 'yaw'; xSign: number; ySign: number };
             isVisible: boolean;
             pendingX: number | null;
@@ -49,8 +32,6 @@ const cursorLogic = require('../renderer/cursor-logic') as {
 const baseCursor = {
     x: 120,
     y: 80,
-    sensitivityX: 36,
-    sensitivityY: 20,
     map: { xFrom: 'roll' as const, yFrom: 'pitch' as const, xSign: 1, ySign: -1 },
     isVisible: false,
     pendingX: null,
@@ -58,37 +39,6 @@ const baseCursor = {
 };
 
 describe('カーソルロジック', (): void => {
-    it('姿勢値から目標座標を計算できる', (): void => {
-        const target = cursorLogic.calculateTargetFromAttitude(
-            baseCursor,
-            { roll: 2, pitch: -1 },
-            400,
-            300
-        );
-
-        expect(target).toEqual({
-            x: 272,
-            y: 170,
-        });
-    });
-
-    it('yawマッピング時はyaw値を参照する', (): void => {
-        const target = cursorLogic.calculateTargetFromAttitude(
-            {
-                ...baseCursor,
-                map: { xFrom: 'yaw', yFrom: 'yaw', xSign: 1, ySign: 1 },
-            },
-            { roll: 5, pitch: 5, yaw: -2 },
-            400,
-            300
-        );
-
-        expect(target).toEqual({
-            x: 128,
-            y: 110,
-        });
-    });
-
     it('可視化時にpending座標を復元する遷移を返す', (): void => {
         const result = cursorLogic.decideVisibilityTransition(
             {

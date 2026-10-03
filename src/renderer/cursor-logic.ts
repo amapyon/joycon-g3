@@ -1,50 +1,8 @@
-type SharedCursorAxis = import('../shared/cursor-types').CursorAxis;
 type SharedCursorStateSnapshot = import('../shared/cursor-types').CursorStateSnapshot;
-type SharedAttitudeValues = import('../shared/cursor-types').AttitudeValues;
 type SharedPointerTarget = import('../shared/cursor-types').PointerTarget;
 type SharedClampToViewportInput = import('../shared/cursor-types').ClampToViewportInput;
 type SharedVisibilityTransition = import('../shared/cursor-types').VisibilityTransition;
 type SharedCursorLogicApi = import('../shared/cursor-types').CursorLogicApi;
-
-/**
- * 姿勢軸に応じた値を取得する。
- * @param axis 参照する軸
- * @param attitude 姿勢値
- * @returns 指定軸の値
- */
-function pickAxisValue(axis: SharedCursorAxis, attitude: SharedAttitudeValues): number {
-    if (axis === 'pitch') {
-        return attitude.pitch;
-    }
-    if (axis === 'yaw') {
-        return attitude.yaw ?? 0;
-    }
-    return attitude.roll;
-}
-
-/**
- * 姿勢値から目標座標を計算する。
- * @param cursorData カーソル状態
- * @param attitude 姿勢値
- * @param viewportWidth 表示幅
- * @param viewportHeight 表示高
- * @returns 目標座標
- */
-function calculateTargetFromAttitude(
-    cursorData: SharedCursorStateSnapshot,
-    attitude: SharedAttitudeValues,
-    viewportWidth: number,
-    viewportHeight: number
-): SharedPointerTarget {
-    const centerX = viewportWidth / 2;
-    const centerY = viewportHeight / 2;
-    const sourceX = pickAxisValue(cursorData.map.xFrom, attitude);
-    const sourceY = pickAxisValue(cursorData.map.yFrom, attitude);
-    return {
-        x: centerX + sourceX * cursorData.sensitivityX * cursorData.map.xSign,
-        y: centerY + sourceY * cursorData.sensitivityY * cursorData.map.ySign,
-    };
-}
 
 /**
  * 表示状態切替時の次状態を算出する。
@@ -103,7 +61,6 @@ function clampToViewport(input: SharedClampToViewportInput): SharedPointerTarget
 }
 
 const cursorLogicApi: SharedCursorLogicApi = {
-    calculateTargetFromAttitude,
     decideVisibilityTransition,
     clampToViewport,
 };

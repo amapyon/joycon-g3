@@ -2,6 +2,7 @@ import { JOYCON_MANAGER_EVENTS } from '../shared/joycon-event-channels';
 import { registerImuHandlers, registerRStickHandlers } from '../main/main-joycon-motion-registrars';
 import type { JoyConEventsContext } from '../main/main-joycon-events-types';
 import type { RStickConfig, RStickState } from '../main/r-stick-handler';
+import type { PointerMotionSettings } from '../shared/pointer-motion-settings';
 
 type JoyConHandlerMap = Record<string, (payload: unknown) => void>;
 type ImuHandlerMap = Record<string, (payload: unknown) => void>;
@@ -61,8 +62,8 @@ function createTestContext(overrides: TestContextOverrides = {}): TestContextBun
                     imuHandlers[eventName] = (payload: unknown): void => handler(payload);
                 },
                 states: {
-                    cursorLeft: { gyroBiasX: 0, gyroBiasY: 0, gyroBiasZ: 0 },
-                    cursorRight: { gyroBiasX: 0, gyroBiasY: 0, gyroBiasZ: 0 },
+                    cursorLeft: { gyroBiasX: 0, gyroBiasY: 0, gyroBiasZ: 0, lastDeltaTime: 1 / 60 },
+                    cursorRight: { gyroBiasX: 0, gyroBiasY: 0, gyroBiasZ: 0, lastDeltaTime: 1 / 60 },
                 },
                 isCalibrating: {
                     cursorLeft: false,
@@ -78,7 +79,13 @@ function createTestContext(overrides: TestContextOverrides = {}): TestContextBun
             ensureTimerWindow: () => null,
             toggleTimerWindowVisibility: jest.fn(),
             getCursorMapConfig: () => ({}),
-            getPointerMotionSettings: () => ({ moveSpeed: 0.05, gyroDeadzone: 120 }),
+            getPointerMotionSettings: () => ({
+                moveSpeed: 0.05,
+                gyroDeadzone: 120,
+                xRotationCompensationStrength: 1,
+                fixedXRotationDegrees: null,
+                diagnosticsEnabled: false,
+            }),
             getCursorVisibility: overrides.getCursorVisibility ?? (() : boolean => true),
             powerpointControl: {
                 hasTarget: () => false,
@@ -157,7 +164,13 @@ describe('main-joycon-motion-registrars', (): void => {
         const { context, joyConHandlers } = createTestContext({
             getCursorWindow: () => cursorWindow,
         });
-        context.options.getPointerMotionSettings = (): { moveSpeed: number; gyroDeadzone: number } => ({ moveSpeed: 0.02, gyroDeadzone: 100 });
+        context.options.getPointerMotionSettings = (): PointerMotionSettings => ({
+            moveSpeed: 0.02,
+            gyroDeadzone: 100,
+            xRotationCompensationStrength: 1,
+            fixedXRotationDegrees: null,
+            diagnosticsEnabled: false,
+        });
         registerImuHandlers(context);
 
         joyConHandlers[JOYCON_MANAGER_EVENTS.IMU_DATA]?.({
@@ -191,7 +204,38 @@ describe('main-joycon-motion-registrars', (): void => {
         expect(send).not.toHaveBeenCalled();
     });
 
-    it('attitude-update が有効ならカーソルウィンドウへ送信する', (): void => {
+    it('診断表示が有効ならメインウィンドウへ軸漏れ率を送信する', (): void => {
+        const send = jest.fn();
+        const mainWindow = {
+            isDestroyed: (): boolean => false,
+            webContents: { send },
+        } as unknown as ReturnType<JoyConEventsContext['options']['windowManager']['getMainWindow']>;
+        const { context, joyConHandlers } = createTestContext({
+            getMainWindow: () => mainWindow,
+        });
+        context.options.getPointerMotionSettings = (): PointerMotionSettings => ({
+            moveSpeed: 0.05,
+            gyroDeadzone: 90,
+            xRotationCompensationStrength: 1,
+            fixedXRotationDegrees: 0,
+            diagnosticsEnabled: true,
+        });
+        registerImuHandlers(context);
+
+        joyConHandlers[JOYCON_MANAGER_EVENTS.IMU_DATA]?.({
+            id: 'cursorLeft',
+            accel: { x: 0, y: 0, z: 16384 },
+            gyro: { x: 0, y: 100, z: 200 },
+        });
+
+        expect(send).toHaveBeenCalledWith('pointer-motion-diagnostics', expect.objectContaining({
+            id: 'cursorLeft',
+            appliedXRotationDegrees: 0,
+            axisLeakageRatio: 0.5,
+        }));
+    });
+
+    it('attitude-update はカーソルウィンドウへ送信しない', (): void => {
         const send = jest.fn();
         const cursorWindow = {
             isDestroyed: (): boolean => false,
@@ -209,7 +253,7 @@ describe('main-joycon-motion-registrars', (): void => {
             yaw: 3,
         });
 
-        expect(send).toHaveBeenCalledTimes(1);
+        expect(send).not.toHaveBeenCalled();
     });
 
     it('calibration-status が有効ならメインウィンドウへ送信する', (): void => {

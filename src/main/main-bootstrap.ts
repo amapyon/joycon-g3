@@ -20,15 +20,15 @@ type MainBootstrapResult = {
 };
 
 /**
- * 物理ピクセルでの画面サイズを取得する。
+ * カーソルウィンドウと同じ論理座標系の画面サイズを取得する。
  * @returns 画面サイズ
  */
-function getPhysicalScreenSize(): { width: number; height: number } {
+function getLogicalScreenSize(): { width: number; height: number } {
     const primaryDisplay = screen.getPrimaryDisplay();
-    if (primaryDisplay && primaryDisplay.size && primaryDisplay.scaleFactor) {
+    if (primaryDisplay && primaryDisplay.size) {
         return {
-            width: primaryDisplay.size.width * primaryDisplay.scaleFactor,
-            height: primaryDisplay.size.height * primaryDisplay.scaleFactor,
+            width: primaryDisplay.size.width,
+            height: primaryDisplay.size.height,
         };
     }
     return { width: 1200, height: 600 };
@@ -38,7 +38,7 @@ function getPhysicalScreenSize(): { width: number; height: number } {
  * メイン起動時の画面サイズを初期化する。
  */
 export function initializeScreenSize(): void {
-    const { width, height } = getPhysicalScreenSize();
+    const { width, height } = getLogicalScreenSize();
     setScreenSize(width, height);
 }
 

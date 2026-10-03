@@ -1,4 +1,4 @@
-import { findDisplayById, resolveDisplayId, toPhysicalScreenSize } from '../main/ipc-handler-logic';
+import { findDisplayById, resolveDisplayId, toLogicalScreenSize } from '../main/ipc-handler-logic';
 
 describe('IPCハンドラの純粋ロジック', (): void => {
     it('表示先 ID を数値へ正規化する', (): void => {
@@ -20,13 +20,12 @@ describe('IPCハンドラの純粋ロジック', (): void => {
         expect(missing).toBeUndefined();
     });
 
-    it('論理解像度とスケールから物理解像度を計算する', (): void => {
-        const size = toPhysicalScreenSize({
+    it('拡大率にかかわらず論理解像度を返す', (): void => {
+        const size = toLogicalScreenSize({
             id: 2,
             size: { width: 1920, height: 1080 },
-            scaleFactor: 1.5,
         });
 
-        expect(size).toEqual({ width: 2880, height: 1620 });
+        expect(size).toEqual({ width: 1920, height: 1080 });
     });
 });

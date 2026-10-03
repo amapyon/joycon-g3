@@ -343,7 +343,13 @@ describe('main IPC の振動トリガー', (): void => {
         registerMainIpcHandlers(options);
         listeners['update-pointer-motion-settings']?.({} as IpcMainEvent, { moveSpeed: 0.02, gyroDeadzone: 180 });
 
-        expect(setPointerMotionSettings).toHaveBeenCalledWith({ moveSpeed: 0.02, gyroDeadzone: 180 });
+        expect(setPointerMotionSettings).toHaveBeenCalledWith({
+            moveSpeed: 0.02,
+            gyroDeadzone: 180,
+            xRotationCompensationStrength: 1,
+            fixedXRotationDegrees: null,
+            diagnosticsEnabled: false,
+        });
     });
 
     it('不正なpointer-motion-settingsでは状態更新しない', (): void => {

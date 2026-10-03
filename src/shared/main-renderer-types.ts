@@ -1,5 +1,5 @@
 import type { TimerNotificationConfig } from './timer-notification-config';
-import type { PointerMotionSettings } from './pointer-motion-settings';
+import type { PointerMotionDiagnostics, PointerMotionSettings } from './pointer-motion-settings';
 import type { WifiTimerSettings } from './wifi-timer-settings';
 import type {
     WifiTimerAudioSettings,
@@ -92,6 +92,7 @@ export type ElectronAPI = {
     rebootWifiTimer: () => Promise<void>;
     updateSoundPlayDelay: (delayMs: number) => void;
     updatePointerMotionSettings: (settings: PointerMotionSettings) => void;
+    onPointerMotionDiagnostics: (callback: (diagnostics: PointerMotionDiagnostics) => void) => void;
     updateTimerNotifications: (configs: TimerNotificationConfig[]) => void;
     onUpdateTimerNotifications: (callback: (configs: TimerNotificationConfig[]) => void) => void;
     onUpdateSoundPlayDelay: (callback: (delayMs: number) => void) => void;
@@ -114,6 +115,12 @@ export type MainRendererElements = {
     pointerMoveSpeedInput: HTMLInputElement;
     pointerMoveSpeedValue: HTMLElement;
     pointerGyroDeadzoneInput: HTMLInputElement;
+    pointerCompensationStrengthSelect: HTMLSelectElement;
+    pointerFixedAngleSelect: HTMLSelectElement;
+    pointerDiagnosticsEnabledInput: HTMLInputElement;
+    pointerDiagnosticsPanel: HTMLElement;
+    pointerDiagnosticsLeft: HTMLElement;
+    pointerDiagnosticsRight: HTMLElement;
     pointerSettingsResetBtn: HTMLButtonElement;
     mainBatteryStatusLeft: HTMLElement;
     mainBatteryStatusRight: HTMLElement;

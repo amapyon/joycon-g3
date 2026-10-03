@@ -8,11 +8,9 @@ type SharedCursorRuntimeLogicApi = import('../shared/cursor-types').CursorRuntim
 type CursorData = import('./cursor-renderer-types').CursorData;
 type CursorMapConfig = import('../shared/cursor-types').CursorMapConfig;
 type UpdatePointerData = import('../shared/joycon-event-types').UpdatePointerData;
-type JoyConAttitudeData = import('../shared/joycon-event-types').JoyConAttitudeData;
 type ButtonStateData = import('../shared/joycon-event-types').JoyConButtonStateData;
 type ButtonPressData = import('../shared/joycon-event-types').JoyConCursorIdData;
 type CursorRendererApiResolverBootstrapApi = import('../shared/renderer-api-resolver-types').RendererApiResolverBootstrapApi;
-type CursorStateSnapshot = import('./cursor-renderer-types').CursorStateSnapshot;
 type CursorRendererElectronAPI = import('./cursor-renderer-types').CursorRendererElectronAPI;
 type WindowWithIpcRenderer = Window & { ipcRenderer?: { send: (channel: string, ...args: unknown[]) => void } };
 
@@ -44,10 +42,8 @@ const cursorElements: Record<CursorId, HTMLElement | null> = {
 let windowWidth: number = window.innerWidth;
 let windowHeight: number = window.innerHeight;
 
-// 感度・スムージングのデフォルト値
-const defaultSensitivityX = 36;
-const defaultSensitivityY = 36;
-const defaultSmoothingFactor = 0.7;
+// 描画間隔に依存しないスムージングの時定数
+const defaultSmoothingTimeConstantMs = 20;
 
 // カーソルごとの状態管理
 const cursors: Record<CursorId, CursorData> = {
@@ -56,32 +52,26 @@ const cursors: Record<CursorId, CursorData> = {
         y: windowHeight / 2 || 100,
         targetX: windowWidth / 2 || 100,
         targetY: windowHeight / 2 || 100,
-        sensitivityX: defaultSensitivityX,
-        sensitivityY: defaultSensitivityY,
-        smoothing: defaultSmoothingFactor,
+        smoothingTimeConstantMs: defaultSmoothingTimeConstantMs,
         map: { xFrom: 'roll', yFrom: 'pitch', xSign: -1, ySign: -1 },
         isVisible: false,
         opacity: 1,
         blink: true,
         pendingX: null,
         pendingY: null,
-        lastExternalUpdate: 0,
     },
     cursorRight: {
         x: windowWidth / 2 || 100,
         y: windowHeight / 2 || 100,
         targetX: windowWidth / 2 || 100,
         targetY: windowHeight / 2 || 100,
-        sensitivityX: defaultSensitivityX,
-        sensitivityY: defaultSensitivityY,
-        smoothing: defaultSmoothingFactor,
+        smoothingTimeConstantMs: defaultSmoothingTimeConstantMs,
         map: { xFrom: 'roll', yFrom: 'pitch', xSign: 1, ySign: -1 },
         isVisible: false,
         opacity: 1,
         blink: true,
         pendingX: null,
         pendingY: null,
-        lastExternalUpdate: 0,
     },
 };
 
@@ -100,7 +90,6 @@ electronAPI.onUpdatePointer((pos: UpdatePointerData): void => {
     if (!cursorData) return;
 
     if (cursorData.isVisible) {
-        cursorData.lastExternalUpdate = performance.now();
         cursorData.targetX = pos.x;
         cursorData.targetY = pos.y;
         cursorData.isVisible = true;
@@ -182,34 +171,6 @@ const applyCursorVisibility = (cursorId: CursorId, shouldBeVisible: boolean): vo
 };
 
 /**
- * カーソル入力が有効な状態か判定する。
- * @param cursorId 対象カーソル ID
- * @returns 入力が有効なら true
- */
-const isCursorInputEnabled = (cursorId: CursorId): boolean => {
-    return cursorId === 'cursorRight' ? isRightXPressed : isLeftDownPressed;
-};
-
-/**
- * ロジック計算用にカーソル状態を抽出する。
- * @param cursorId 対象カーソル ID
- * @returns ロジック計算用スナップショット
- */
-const toCursorStateSnapshot = (cursorId: CursorId): CursorStateSnapshot => {
-    const cursorData = cursors[cursorId];
-    return {
-        x: cursorData.x,
-        y: cursorData.y,
-        sensitivityX: cursorData.sensitivityX,
-        sensitivityY: cursorData.sensitivityY,
-        map: cursorData.map,
-        isVisible: cursorData.isVisible,
-        pendingX: cursorData.pendingX,
-        pendingY: cursorData.pendingY,
-    };
-};
-
-/**
  * カーソル DOM 要素の位置を更新する。
  * @param cursorId 対象カーソル ID
  */
@@ -235,29 +196,6 @@ const updateCursorElementPosition = (cursorId: CursorId): void => {
 let isRightXPressed = false;
 let isLeftDownPressed = false;
 
-
-// Joy-Conの姿勢データ受信時の処理
-electronAPI.onJoyConAttitude((data: JoyConAttitudeData): void => {
-    const cursorId = data.id;
-    // 右はXボタン押下中、左はDownボタン押下中のみ反映
-    if (!isCursorInputEnabled(cursorId)) {
-        return;
-    }
-    const cursorData = cursors[cursorId];
-    if (!cursorData) return;
-    if (performance.now() - cursorData.lastExternalUpdate < 250) {
-        return;
-    }
-
-    const target = cursorLogic.calculateTargetFromAttitude(
-        toCursorStateSnapshot(cursorId),
-        { roll: data.roll, pitch: data.pitch, yaw: data.yaw },
-        windowWidth,
-        windowHeight
-    );
-    cursorData.targetX = target.x;
-    cursorData.targetY = target.y;
-});
 
 // Joy-Con Xボタンの押下/離上イベント（右JoyCon）
 electronAPI.onJoyConButtonX((data: ButtonStateData): void => {
@@ -297,9 +235,14 @@ electronAPI.onJoyConButtonDownPressed((data: ButtonPressData): void => {
 window.addEventListener('resize', (): void => {
     windowWidth = window.innerWidth;
     windowHeight = window.innerHeight;
-    // console.log(`Cursor window resized to: ${windowWidth}x${windowHeight}`);
-    resetCursor('cursorLeft');
-    resetCursor('cursorRight');
+    for (const id of CURSOR_IDS) {
+        const cursorData = cursors[id];
+        cursorData.x = Math.max(0, Math.min(windowWidth, cursorData.x));
+        cursorData.y = Math.max(0, Math.min(windowHeight, cursorData.y));
+        cursorData.targetX = Math.max(0, Math.min(windowWidth, cursorData.targetX));
+        cursorData.targetY = Math.max(0, Math.min(windowHeight, cursorData.targetY));
+        updateCursorElementPosition(id);
+    }
 });
 
 /**
@@ -318,19 +261,22 @@ const hasValidCursorCoordinates = (cursorData: CursorData): boolean => {
     return !Number.isNaN(cursorData.x) && !Number.isNaN(cursorData.y);
 };
 
-const applyCursorSmoothing = (cursorData: CursorData): void => {
-    const smoothing = cursorData.smoothing || 0.1;
+const applyCursorSmoothing = (cursorData: CursorData, deltaTimeMs: number): void => {
+    const smoothing = cursorRuntimeLogic.calculateTimeBasedSmoothingFactor(
+        deltaTimeMs,
+        cursorData.smoothingTimeConstantMs,
+    );
     cursorData.x += (cursorData.targetX - cursorData.x) * smoothing;
     cursorData.y += (cursorData.targetY - cursorData.y) * smoothing;
 };
 
-const updateVisibleCursorPosition = (id: CursorId): void => {
+const updateVisibleCursorPosition = (id: CursorId, deltaTimeMs: number): void => {
     const cursorData = cursors[id];
     const element = cursorElements[id];
     if (!element || !cursorData.isVisible) {
         return;
     }
-    applyCursorSmoothing(cursorData);
+    applyCursorSmoothing(cursorData, deltaTimeMs);
     const halfSize = getCursorElementHalfSize(element);
     if (!halfSize || !hasValidCursorCoordinates(cursorData)) {
         return;
@@ -348,7 +294,13 @@ const updateVisibleCursorPosition = (id: CursorId): void => {
     updateCursorElementPosition(id);
 };
 
-const renderLoop = (): void => {
+let lastRenderTimestamp: number | null = null;
+
+const renderLoop = (timestamp: number): void => {
+    const deltaTimeMs = lastRenderTimestamp === null
+        ? 1000 / 60
+        : Math.min(Math.max(timestamp - lastRenderTimestamp, 0), 100);
+    lastRenderTimestamp = timestamp;
     if (!cursorRuntimeLogic.isValidViewport(windowWidth, windowHeight)) {
         windowWidth = window.innerWidth;
         windowHeight = window.innerHeight;
@@ -356,7 +308,7 @@ const renderLoop = (): void => {
         return;
     }
     for (const id of CURSOR_IDS) {
-        updateVisibleCursorPosition(id);
+        updateVisibleCursorPosition(id, deltaTimeMs);
     }
     requestAnimationFrame(renderLoop);
 };

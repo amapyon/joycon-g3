@@ -4,6 +4,7 @@ export type ImuData = { id: string; accel: Vector3; gyro: Vector3 };
 export type PointerPosition = { x: number; y: number };
 export type PointerPositions = { [key in CursorId]: PointerPosition };
 export type CursorMapConfig = import('../shared/cursor-types').PartialCursorMapConfig;
+export type PointerMotionDiagnostics = import('../shared/pointer-motion-settings').PointerMotionDiagnostics;
 
 export type PointerUpdateInput = {
     data: ImuData;
@@ -11,19 +12,30 @@ export type PointerUpdateInput = {
     cursorVisible: boolean;
     isCalibrating: boolean;
     gyroBias: Vector3;
+    xRotationDegrees: number;
+    xRotationCompensationStrength: number;
+    fixedXRotationDegrees: number | null;
+    screenGyro: Vector3 | null;
     cursorMapConfig: CursorMapConfig;
     currentPosition: PointerPosition | null;
     defaultPosition: PointerPosition;
     screenSize: { width: number; height: number };
     moveSpeed: number;
     gyroDeadzone: number;
+    deltaTimeSeconds: number;
 };
 
 export type PointerUpdateDecision = {
     position: PointerPosition;
     sendPayload: { id: CursorId; x: number; y: number };
     configMissing: boolean;
+    diagnostics: PointerMotionDiagnostics;
 };
+
+const POINTER_REFERENCE_RATE_HZ = 60;
+const POINTER_DEFAULT_DELTA_TIME_SECONDS = 1 / POINTER_REFERENCE_RATE_HZ;
+const POINTER_MIN_DELTA_TIME_SECONDS = 1 / 240;
+const POINTER_MAX_DELTA_TIME_SECONDS = 1 / 20;
 
 /**
  * ポインターの更新結果を判定する。
@@ -36,23 +48,124 @@ export function decidePointerUpdate(input: PointerUpdateInput): PointerUpdateDec
     }
 
     const position = input.currentPosition ?? input.defaultPosition;
-    const gyro = applyDeadzone(
-        subtractVector(input.data.gyro, input.gyroBias),
-        input.gyroDeadzone,
+    const appliedXRotationDegrees = resolveXAxisCompensationDegrees(
+        input.xRotationDegrees,
+        input.xRotationCompensationStrength,
+        input.fixedXRotationDegrees,
     );
+    const deviceGyro = compensateXAxisRotation(
+        subtractVector(input.data.gyro, input.gyroBias),
+        appliedXRotationDegrees,
+    );
+    const screenGyro = input.screenGyro && isFiniteVector(input.screenGyro)
+        ? input.screenGyro
+        : deviceGyro;
+    const gyro = applyDeadzone(screenGyro, input.gyroDeadzone);
     const config = input.cursorMapConfig[input.cursorId];
     const xSign = config?.xSign ?? 1;
     const ySign = config?.ySign ?? 1;
+    const frameScale = normalizePointerDeltaTime(input.deltaTimeSeconds) * POINTER_REFERENCE_RATE_HZ;
 
     const nextPosition = clampPosition({
-        x: position.x + gyro.z * input.moveSpeed * xSign,
-        y: position.y + gyro.y * input.moveSpeed * ySign,
+        x: position.x + gyro.z * input.moveSpeed * frameScale * xSign,
+        y: position.y + gyro.y * input.moveSpeed * frameScale * ySign,
     }, input.screenSize);
 
     return {
         position: nextPosition,
         sendPayload: { id: input.cursorId, x: nextPosition.x, y: nextPosition.y },
         configMissing: !config,
+        diagnostics: {
+            id: input.cursorId,
+            estimatedXRotationDegrees: input.xRotationDegrees,
+            appliedXRotationDegrees,
+            correctedGyroY: gyro.y,
+            correctedGyroZ: gyro.z,
+            axisLeakageRatio: gyro.z === 0 ? null : Math.abs(gyro.y) / Math.abs(gyro.z),
+            coordinateMode: input.screenGyro && isFiniteVector(input.screenGyro)
+                ? 'gravity-frame'
+                : 'x-rotation',
+        },
+    };
+}
+
+/**
+ * ベクトルの全成分が有限値か判定する。
+ * @param value 判定対象ベクトル
+ * @returns 全成分が有限値なら true
+ */
+function isFiniteVector(value: Vector3): boolean {
+    return Number.isFinite(value.x) && Number.isFinite(value.y) && Number.isFinite(value.z);
+}
+
+/**
+ * ポインター移動に使う経過時間を安全な範囲へ正規化する。
+ * @param deltaTimeSeconds 前回更新からの経過秒
+ * @returns 正規化後の経過秒
+ */
+export function normalizePointerDeltaTime(deltaTimeSeconds: number): number {
+    if (!Number.isFinite(deltaTimeSeconds) || deltaTimeSeconds <= 0) {
+        return POINTER_DEFAULT_DELTA_TIME_SECONDS;
+    }
+    return Math.min(Math.max(deltaTimeSeconds, POINTER_MIN_DELTA_TIME_SECONDS), POINTER_MAX_DELTA_TIME_SECONDS);
+}
+
+/**
+ * 表示先の変更後も相対位置を維持するようポインター座標を変換する。
+ * @param position 変更前のポインター座標
+ * @param previousSize 変更前の画面サイズ
+ * @param nextSize 変更後の画面サイズ
+ * @returns 変更後の画面に対応する座標
+ */
+export function scalePointerPosition(
+    position: PointerPosition,
+    previousSize: { width: number; height: number },
+    nextSize: { width: number; height: number },
+): PointerPosition {
+    if (previousSize.width <= 0 || previousSize.height <= 0) {
+        return { x: nextSize.width / 2, y: nextSize.height / 2 };
+    }
+    return clampPosition({
+        x: position.x * nextSize.width / previousSize.width,
+        y: position.y * nextSize.height / previousSize.height,
+    }, nextSize);
+}
+
+/**
+ * 推定角度または固定角度へ補正強度を適用する。
+ * @param estimatedDegrees 推定された X 軸まわりの角度
+ * @param strength 補正強度（0～1）
+ * @param fixedDegrees 実験用の固定角度。null の場合は推定角度を使用する
+ * @returns 実際に座標変換へ使用する角度
+ */
+export function resolveXAxisCompensationDegrees(
+    estimatedDegrees: number,
+    strength: number,
+    fixedDegrees: number | null,
+): number {
+    const sourceDegrees = typeof fixedDegrees === 'number' && Number.isFinite(fixedDegrees)
+        ? fixedDegrees
+        : estimatedDegrees;
+    const safeStrength = Number.isFinite(strength) ? Math.min(Math.max(strength, 0), 1) : 1;
+    return sourceDegrees * safeStrength;
+}
+
+/**
+ * Joy-Con の X 軸まわりの保持角度を打ち消し、ジャイロを基準座標へ変換する。
+ * @param value バイアス補正済みのジャイロ値
+ * @param rotationDegrees X 軸まわりの保持角度（度）
+ * @returns 基準座標へ変換したジャイロ値
+ */
+function compensateXAxisRotation(value: Vector3, rotationDegrees: number): Vector3 {
+    const safeRotation = Number.isFinite(rotationDegrees) ? rotationDegrees : 0;
+    const radians = safeRotation * Math.PI / 180;
+    const cosine = Math.cos(radians);
+    const sine = Math.sin(radians);
+
+    return {
+        x: value.x,
+        y: value.y * cosine - value.z * sine,
+        z: value.y * sine + value.z * cosine,
     };
 }
 

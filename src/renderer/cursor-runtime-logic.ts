@@ -53,10 +53,27 @@ function resolveCursorMapSendDecision(
     return { method: 'none', nextRetry: null };
 }
 
+/**
+ * 経過時間に依存しない指数平滑化係数を計算する。
+ * @param deltaTimeMs 前回描画からの経過ミリ秒
+ * @param timeConstantMs 平滑化の時定数（ミリ秒）
+ * @returns 0以上1以下の平滑化係数
+ */
+function calculateTimeBasedSmoothingFactor(deltaTimeMs: number, timeConstantMs: number): number {
+    if (!Number.isFinite(deltaTimeMs) || deltaTimeMs <= 0) {
+        return 0;
+    }
+    if (!Number.isFinite(timeConstantMs) || timeConstantMs <= 0) {
+        return 1;
+    }
+    return 1 - Math.exp(-deltaTimeMs / timeConstantMs);
+}
+
 const cursorRuntimeLogicApi: SharedCursorRuntimeLogicApi = {
     isValidViewport,
     resolveResetPosition,
     resolveCursorMapSendDecision,
+    calculateTimeBasedSmoothingFactor,
 };
 
 const cursorRuntimeLogicRoot = globalThis as typeof globalThis & {

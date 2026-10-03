@@ -2,7 +2,6 @@ import type { ElectronAPI as MainRendererElectronAPI } from '../shared/main-rend
 import type {
     BatteryStatus,
     CalibrationStatus,
-    JoyConAttitudeData,
     JoyConButtonStateData,
     JoyConCursorIdData,
     JoyConStatus,
@@ -29,11 +28,6 @@ export type { DisplayInfo, PresentationInfo } from '../shared/main-renderer-type
  * Joy-Con の接続状態。
  */
 export type { JoyConStatus };
-
-/**
- * Joy-Con の姿勢情報。
- */
-export type JoyConAttitude = JoyConAttitudeData;
 
 /**
  * Joy-Con ボタンの押下状態。
@@ -70,7 +64,6 @@ export type { CalibrationStatus };
  * 各メソッドの引数・戻り値は IPC ペイロード仕様として扱う。
  */
 export interface ElectronAPI extends MainRendererElectronAPI {
-    onJoyConAttitude: (callback: (data: JoyConAttitude) => void) => void;
     onJoyConButtonX: (callback: (data: JoyConButtonState) => void) => void;
     onJoyConButtonDown: (callback: (data: JoyConButtonState) => void) => void;
     onJoyConButtonXPressed: (callback: (data: JoyConButtonPress) => void) => void;

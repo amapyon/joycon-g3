@@ -25,7 +25,7 @@ export const JOYCON_MANAGER_EVENTS = {
  */
 export const JOYCON_IPC_CHANNELS = {
     UPDATE_POINTER: 'update-pointer',
-    JOYCON_ATTITUDE: 'joycon-attitude',
+    POINTER_MOTION_DIAGNOSTICS: 'pointer-motion-diagnostics',
     CALIBRATION_STATUS_UPDATE: 'calibration-status-update',
     JOYCON_STATUS_UPDATE: 'joycon-status-update',
     JOYCON_BATTERY_STATUS_UPDATE: 'joycon-battery-status-update',

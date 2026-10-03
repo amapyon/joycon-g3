@@ -129,7 +129,28 @@ function parsePointerMotionSettings(value: unknown): PointerMotionSettings | nul
     if (moveSpeed === null || gyroDeadzone === null) {
         return null;
     }
-    return normalizePointerMotionSettings({ moveSpeed, gyroDeadzone });
+    const strength = value.xRotationCompensationStrength === undefined
+        ? undefined
+        : parseNumberPayload(value.xRotationCompensationStrength);
+    if (strength === null) {
+        return null;
+    }
+    const fixedAngle = value.fixedXRotationDegrees === undefined || value.fixedXRotationDegrees === null
+        ? null
+        : parseNumberPayload(value.fixedXRotationDegrees);
+    if (fixedAngle === null && value.fixedXRotationDegrees !== undefined && value.fixedXRotationDegrees !== null) {
+        return null;
+    }
+    if (value.diagnosticsEnabled !== undefined && typeof value.diagnosticsEnabled !== 'boolean') {
+        return null;
+    }
+    return normalizePointerMotionSettings({
+        moveSpeed,
+        gyroDeadzone,
+        xRotationCompensationStrength: strength,
+        fixedXRotationDegrees: fixedAngle,
+        diagnosticsEnabled: value.diagnosticsEnabled as boolean | undefined,
+    });
 }
 
 /**

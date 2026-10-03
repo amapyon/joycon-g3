@@ -13,6 +13,7 @@ const cursorRuntimeLogic = require('../renderer/cursor-runtime-logic') as {
         method: 'api' | 'send' | 'ipc' | 'retry' | 'none';
         nextRetry: number | null;
     };
+    calculateTimeBasedSmoothingFactor: (deltaTimeMs: number, timeConstantMs: number) => number;
 };
 
 describe('カーソルランタイムロジック', (): void => {
@@ -69,5 +70,15 @@ describe('カーソルランタイムロジック', (): void => {
             retry: 10,
             maxRetry: 10,
         })).toEqual({ method: 'none', nextRetry: null });
+    });
+
+    it('描画間隔から時間ベースの平滑化係数を計算する', (): void => {
+        const oneFrame = cursorRuntimeLogic.calculateTimeBasedSmoothingFactor(1000 / 60, 20);
+        const twoFrames = cursorRuntimeLogic.calculateTimeBasedSmoothingFactor(2000 / 60, 20);
+
+        expect(oneFrame).toBeGreaterThan(0);
+        expect(oneFrame).toBeLessThan(1);
+        expect(1 - twoFrames).toBeCloseTo((1 - oneFrame) ** 2);
+        expect(cursorRuntimeLogic.calculateTimeBasedSmoothingFactor(16, 0)).toBe(1);
     });
 });

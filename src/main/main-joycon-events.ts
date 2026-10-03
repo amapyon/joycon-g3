@@ -9,6 +9,7 @@ import { JOYCON_IPC_CHANNELS, JOYCON_MANAGER_EVENTS } from '../shared/joycon-eve
 import { registerImuHandlers, registerRStickHandlers } from './main-joycon-motion-registrars';
 import { registerButtonHandlers } from './main-joycon-button-registrars';
 import { registerPresentationHandlers } from './main-joycon-presentation-registrar';
+import { getScreenSize } from './screen-state';
 import {
     JoyConEventsContext,
     RegisterMainJoyConEventsOptions,
@@ -56,9 +57,11 @@ export function registerMainJoyConEvents(options: RegisterMainJoyConEventsOption
         lastFontSizeChangeTime: 0,
         isTimerMenuNavActive: false,
     };
+    const screenSize = getScreenSize();
+    const initialPointerPosition = { x: screenSize.width / 2, y: screenSize.height / 2 };
     const pointerPositions: PointerPositions = {
-        cursorLeft: { x: 600, y: 300 },
-        cursorRight: { x: 600, y: 300 },
+        cursorLeft: { ...initialPointerPosition },
+        cursorRight: { ...initialPointerPosition },
     };
     const context: JoyConEventsContext = {
         options,

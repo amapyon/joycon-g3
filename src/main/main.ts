@@ -33,7 +33,7 @@ const wifiTimerClient = createWifiTimerClient();
 let cursorMapConfig: CursorMapConfig = {};
 
 app.whenReady().then(() => {
-    // 物理ピクセルでの画面サイズを初期化
+    // カーソルウィンドウと同じ論理座標系で画面サイズを初期化
     initializeScreenSize();
     // console.log('App Ready. Initializing modules...');
     WindowManager.createMainWindow();

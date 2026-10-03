@@ -42,21 +42,10 @@ export type CursorMap = {
 export type CursorStateSnapshot = {
     x: number;
     y: number;
-    sensitivityX: number;
-    sensitivityY: number;
     map: CursorMap;
     isVisible: boolean;
     pendingX: number | null;
     pendingY: number | null;
-};
-
-/**
- * Joy-Con 姿勢値。
- */
-export type AttitudeValues = {
-    roll: number;
-    pitch: number;
-    yaw?: number;
 };
 
 /**
@@ -95,12 +84,6 @@ export type VisibilityTransition = {
  * カーソル計算ロジックAPI。
  */
 export type CursorLogicApi = {
-    calculateTargetFromAttitude: (
-        cursorData: CursorStateSnapshot,
-        attitude: AttitudeValues,
-        viewportWidth: number,
-        viewportHeight: number
-    ) => PointerTarget;
     decideVisibilityTransition: (cursorData: CursorStateSnapshot, shouldBeVisible: boolean) => VisibilityTransition;
     clampToViewport: (input: ClampToViewportInput) => PointerTarget;
 };
@@ -139,4 +122,5 @@ export type CursorRuntimeLogicApi = {
     isValidViewport: (width: number, height: number) => boolean;
     resolveResetPosition: (width: number, height: number, fallback: number) => CursorResetPosition;
     resolveCursorMapSendDecision: (input: CursorRuntimeSendDecisionInput) => CursorRuntimeSendDecision;
+    calculateTimeBasedSmoothingFactor: (deltaTimeMs: number, timeConstantMs: number) => number;
 };

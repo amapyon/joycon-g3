@@ -28,6 +28,11 @@ export type ImuStateLike = {
     gyroBiasX: number;
     gyroBiasY: number;
     gyroBiasZ: number;
+    xRotation?: number;
+    lastDeltaTime?: number;
+    hasPointerGravity?: boolean;
+    pointerGyroY?: number;
+    pointerGyroZ?: number;
 };
 
 export type ImuProcessorLike = {

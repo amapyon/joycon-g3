@@ -6,7 +6,6 @@ type DisplaySizeLike = {
 type DisplayLike = {
     id: number;
     size: DisplaySizeLike;
-    scaleFactor: number;
 };
 
 /**
@@ -33,13 +32,13 @@ export function findDisplayById<T extends { id: number }>(displays: T[], targetI
 }
 
 /**
- * ディスプレイの物理解像度を計算する。
+ * カーソルウィンドウと同じ論理座標系の画面サイズを取得する。
  * @param display 対象ディスプレイ
- * @returns 物理解像度
+ * @returns 論理座標での画面サイズ
  */
-export function toPhysicalScreenSize(display: DisplayLike): DisplaySizeLike {
+export function toLogicalScreenSize(display: DisplayLike): DisplaySizeLike {
     return {
-        width: display.size.width * display.scaleFactor,
-        height: display.size.height * display.scaleFactor,
+        width: display.size.width,
+        height: display.size.height,
     };
 }

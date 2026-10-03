@@ -6,7 +6,6 @@ import type {
     CursorMapConfig,
     DisplayInfo,
     ElectronAPI,
-    JoyConAttitude,
     JoyConButtonPress,
     JoyConButtonState,
     JoyConStatus,
@@ -15,7 +14,7 @@ import type {
     TimerNotificationConfig,
     UpdatePointerData,
 } from './types';
-import type { PointerMotionSettings } from '../shared/pointer-motion-settings';
+import type { PointerMotionDiagnostics, PointerMotionSettings } from '../shared/pointer-motion-settings';
 import type { WifiTimerSettings } from '../shared/wifi-timer-settings';
 import type {
     WifiTimerAudioSettings,
@@ -251,6 +250,11 @@ export const electronAPI: ElectronAPI = {
      * @param settings 設定値
      */
     updatePointerMotionSettings: (settings: PointerMotionSettings): void => ipcRenderer.send('update-pointer-motion-settings', settings),
+    onPointerMotionDiagnostics: (callback: (diagnostics: PointerMotionDiagnostics) => void): void => {
+        ipcRenderer.on('pointer-motion-diagnostics', (_event: IpcRendererEvent, diagnostics: PointerMotionDiagnostics) => {
+            callback(diagnostics);
+        });
+    },
 
     // --- Cursor Window Control ---
     /**
@@ -259,13 +263,6 @@ export const electronAPI: ElectronAPI = {
      */
     onJoyConStatusUpdate: (callback: (status: JoyConStatus) => void): void => {
         ipcRenderer.on('joycon-status-update', (event: IpcRendererEvent, status: JoyConStatus) => callback(status));
-    },
-    /**
-     * Joy-Con の姿勢更新を購読する。
-     * @param callback コールバック
-     */
-    onJoyConAttitude: (callback: (data: JoyConAttitude) => void): void => {
-        ipcRenderer.on('joycon-attitude', (event: IpcRendererEvent, data: JoyConAttitude) => callback(data));
     },
     /**
      * Joy-Con の X ボタン状態を購読する。

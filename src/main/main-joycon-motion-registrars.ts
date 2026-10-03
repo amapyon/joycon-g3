@@ -1,9 +1,8 @@
-import { decidePointerUpdate } from './imu-pointer';
+import { decidePointerUpdate, scalePointerPosition } from './imu-pointer';
 import { decideRStickAnalog, decideRStickPress } from './r-stick-handler';
 import { getScreenSize } from './screen-state';
 import { sendToWindow } from './main-joycon-window-dispatch';
 import {
-    parseAttitudeData,
     parseCalibrationStatus,
     parseImuData,
     parseJoyConButtonStateData,
@@ -34,6 +33,7 @@ function resolveCursorIdFromImuId(id: string): 'cursorLeft' | 'cursorRight' | nu
 export function registerImuHandlers(context: JoyConEventsContext): void {
     const { options } = context;
     const { joyConManager, imuProcessor, windowManager } = options;
+    let pointerScreenSize = getScreenSize();
 
     joyConManager.on(JOYCON_MANAGER_EVENTS.IMU_DATA, (data: unknown): void => {
         const imuData = parseImuData(data);
@@ -47,6 +47,12 @@ export function registerImuHandlers(context: JoyConEventsContext): void {
         imuProcessor.update({ id: cursorId, accel: imuData.accel, gyro: imuData.gyro });
 
         const positions = context.pointerPositions;
+        const screenSize = getScreenSize();
+        if (screenSize.width !== pointerScreenSize.width || screenSize.height !== pointerScreenSize.height) {
+            positions.cursorLeft = scalePointerPosition(positions.cursorLeft, pointerScreenSize, screenSize);
+            positions.cursorRight = scalePointerPosition(positions.cursorRight, pointerScreenSize, screenSize);
+            pointerScreenSize = screenSize;
+        }
         const state = imuProcessor.states[cursorId];
         const pointerMotionSettings = options.getPointerMotionSettings();
         const decision = decidePointerUpdate({
@@ -55,12 +61,19 @@ export function registerImuHandlers(context: JoyConEventsContext): void {
             cursorVisible: options.getCursorVisibility(cursorId),
             isCalibrating: imuProcessor.isCalibrating[cursorId],
             gyroBias: { x: state.gyroBiasX, y: state.gyroBiasY, z: state.gyroBiasZ },
+            xRotationDegrees: state.xRotation ?? 0,
+            xRotationCompensationStrength: pointerMotionSettings.xRotationCompensationStrength,
+            fixedXRotationDegrees: pointerMotionSettings.fixedXRotationDegrees,
+            screenGyro: state.hasPointerGravity && pointerMotionSettings.fixedXRotationDegrees === null
+                ? { x: 0, y: state.pointerGyroY ?? 0, z: state.pointerGyroZ ?? 0 }
+                : null,
             cursorMapConfig: options.getCursorMapConfig(),
             currentPosition: positions[cursorId],
             defaultPosition: { x: 600, y: 300 },
-            screenSize: getScreenSize(),
+            screenSize,
             moveSpeed: pointerMotionSettings.moveSpeed,
             gyroDeadzone: pointerMotionSettings.gyroDeadzone,
+            deltaTimeSeconds: state.lastDeltaTime ?? 1 / 60,
         });
 
         if (!decision) {
@@ -71,14 +84,9 @@ export function registerImuHandlers(context: JoyConEventsContext): void {
         }
         positions[cursorId] = decision.position;
         sendToWindow(windowManager.getCursorWindow(), JOYCON_IPC_CHANNELS.UPDATE_POINTER, decision.sendPayload);
-    });
-
-    imuProcessor.on('attitude-update', (attitudeData: unknown): void => {
-        const typedData = parseAttitudeData(attitudeData);
-        if (!typedData) {
-            return;
+        if (pointerMotionSettings.diagnosticsEnabled) {
+            sendToWindow(windowManager.getMainWindow(), JOYCON_IPC_CHANNELS.POINTER_MOTION_DIAGNOSTICS, decision.diagnostics);
         }
-        sendToWindow(windowManager.getCursorWindow(), JOYCON_IPC_CHANNELS.JOYCON_ATTITUDE, typedData);
     });
 
     imuProcessor.on('calibration-status', (statusInfo: unknown): void => {
