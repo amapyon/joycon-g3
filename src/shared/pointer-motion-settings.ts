@@ -20,7 +20,34 @@ export type PointerMotionDiagnostics = {
     correctedGyroZ: number;
     axisLeakageRatio: number | null;
     coordinateMode: 'gravity-frame' | 'x-rotation';
+    sample?: PointerValidationSample;
 };
+
+/** センサーの各処理段階を比較するための検証サンプル。値の単位はフィールド名に示す。 */
+export type PointerValidationSample = {
+    timestampMs: number;
+    cursorVisible: boolean;
+    isCalibrating: boolean;
+    deltaTimeSeconds: number;
+    rawAccel: PointerValidationVector;
+    rawGyro: PointerValidationVector;
+    gyroBiasRaw: PointerValidationVector;
+    accelG: PointerValidationVector;
+    accelerationMagnitudeG: number;
+    gyroDps: PointerValidationVector;
+    gravity: PointerValidationVector | null;
+    verticalAxis: PointerValidationVector | null;
+    projectedGyroRaw: PointerValidationVector;
+    filteredGyroRaw: PointerValidationVector;
+    requestedDeltaPixels: { x: number; y: number };
+    actualDeltaPixels: { x: number; y: number };
+    positionPixels: { x: number; y: number };
+    settings: PointerMotionSettings;
+    signs: { x: number; y: number };
+};
+
+/** 検証データの3軸値。 */
+export type PointerValidationVector = { x: number; y: number; z: number };
 
 /**
  * X 軸補正の実験で選択できる固定角度。

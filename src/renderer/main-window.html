@@ -69,13 +69,29 @@
                 <option value="60">固定 60°</option>
             </select>
             <label style="display: flex; align-items: center; gap: 4px; font-size: 12px; color: #0f5c6e;">
-                <input type="checkbox" id="pointer-diagnostics-enabled">診断表示
+                <input type="checkbox" id="pointer-diagnostics-enabled">姿勢・操作の検証モード
             </label>
         </div>
         <div id="pointer-diagnostics-panel" style="display: none; margin: 6px 0 0 93px; font: 12px monospace; color: #0f5c6e;">
             <div id="pointer-diagnostics-left">L: 操作待ち</div>
             <div id="pointer-diagnostics-right">R: 操作待ち</div>
             <div>軸漏れ率 = |補正後Y| / |補正後Z|（左右操作時は小さいほど良好）</div>
+            <div style="margin-top: 8px; display: flex; flex-wrap: wrap; gap: 8px; align-items: center;">
+                <label>対象 <select id="pointer-validation-device"><option value="cursorRight">R（右）</option><option value="cursorLeft">L（左）</option></select></label>
+                <label>持ち方 <select id="pointer-validation-posture"><option>通常持ち</option><option>左へ45°ひねって保持</option><option>右へ45°ひねって保持</option><option>左へ90°ひねって保持</option><option>右へ90°ひねって保持</option><option>その他（メモに記載）</option></select></label>
+                <label>操作 <select id="pointer-validation-action"><option>静止</option><option>左へ振る</option><option>右へ振る</option><option>上へ振る</option><option>下へ振る</option><option>左へひねる</option><option>右へひねる</option><option>非表示でひねる→表示して左右へ振る</option><option>非表示でひねる→表示して上下へ振る</option></select></label>
+                <label>メモ <input id="pointer-validation-note" type="text" maxlength="200" placeholder="握り方・角度・実際の動き" style="width: 200px;"></label>
+            </div>
+            <p>表示・非表示の両方で測定します。持ち方と操作は実験用のラベルです。加速度・角速度の単位換算は現在の設定に基づきます。</p>
+            <pre id="pointer-validation-live" style="white-space: pre-wrap;">R: データ待ち（Joy-Conを接続してください）</pre>
+            <div style="display: flex; flex-wrap: wrap; gap: 8px;">
+                <button id="pointer-validation-start">2秒後から5秒記録</button>
+                <button id="pointer-validation-stop" disabled>停止</button>
+                <button id="pointer-validation-export" disabled>JSON保存</button>
+                <button id="pointer-validation-copy" disabled>結果をコピー</button>
+            </div>
+            <p id="pointer-validation-status" role="status">操作ごとに記録してください。結果には非表示中の値と、各サンプルの表示状態も含みます。</p>
+            <textarea id="pointer-validation-result" readonly aria-label="検証結果JSON" style="width: 100%; height: 140px; box-sizing: border-box;" placeholder="記録後、結果をコピーしてチャットへ貼り付けられます。"></textarea>
         </div>
     </div>
 
@@ -368,6 +384,7 @@
     <script src="main/main-renderer-access.js"></script>
     <script src="main/display.js"></script>
     <script src="main/pointer-settings.js"></script>
+    <script src="main/pointer-validation.js"></script>
     <script src="main/ppt.js"></script>
     <script src="main/joycon-logic.js"></script>
     <script src="main/joycon.js"></script>

@@ -19,6 +19,49 @@ function createImuData(id: 'cursorLeft' | 'cursorRight'): {
 }
 
 describe('IMUProcessor の動作', (): void => {
+    it('約4096カウントの静止加速度でずれた重力推定を復帰させる', (): void => {
+        const processor = new IMUProcessor();
+        const state = processor.states.cursorRight;
+        state.pointerGravity = { x: -0.29, y: -0.945, z: 0.151 };
+        state.hasPointerGravity = true;
+        const data = createImuData('cursorRight');
+        data.accel = { x: -360, y: 383, z: -4068 };
+        for (let index = 0; index < 120; index += 1) {
+            state.lastTimestamp = performance.now() - 1000 / 60;
+            processor.update(data);
+        }
+        expect(state.pointerGravity.x).toBeCloseTo(-360 / Math.hypot(360, 383, 4068), 2);
+        expect(state.pointerGravity.y).toBeCloseTo(-383 / Math.hypot(360, 383, 4068), 2);
+        expect(state.pointerGravity.z).toBeGreaterThan(0.99);
+    });
+
+    it('キャリブレーション成功後は次の重力測定から姿勢を初期化する', (): void => {
+        const processor = new IMUProcessor();
+        const state = processor.states.cursorRight;
+        state.hasPointerGravity = true;
+        state.hasXRotation = true;
+        state.pointerGravity = { x: 0, y: -1, z: 0 };
+        processor.calibrationData.cursorRight = { x: [6, 8], y: [-53, -51], z: [-30, -28] };
+        processor.finishGyroCalibration('cursorRight');
+        expect(state.hasPointerGravity).toBe(false);
+        expect(state.hasXRotation).toBe(false);
+        const data = createImuData('cursorRight');
+        data.accel = { x: 0, y: 0, z: -4096 };
+        data.gyro = { x: 7, y: -52, z: -29 };
+        processor.update(data);
+        expect(state.hasPointerGravity).toBe(true);
+        expect(state.pointerGravity.z).toBeCloseTo(1);
+        expect(state.xRotation).toBeCloseTo(0);
+    });
+
+    it('初期化時も1Gから外れる加速度は重力方向として採用しない', (): void => {
+        const processor = new IMUProcessor();
+        const data = createImuData('cursorRight');
+        data.accel = { x: 0, y: 6144, z: 0 };
+        processor.update(data);
+        expect(processor.states.cursorRight.hasPointerGravity).toBe(false);
+    });
+
     it('初期状態の生成が正しい', (): void => {
         const processor = new IMUProcessor(0.8);
         const stateLeft = processor.states.cursorLeft;
@@ -62,7 +105,7 @@ describe('IMUProcessor の動作', (): void => {
     it('重力方向から X 軸まわりの保持角度を初期化する', (): void => {
         const processor = new IMUProcessor(0.95);
         const data = createImuData('cursorLeft');
-        data.accel = { x: 0, y: 16384, z: 0 };
+        data.accel = { x: 0, y: 4096, z: 0 };
 
         processor.update(data);
 
@@ -73,7 +116,7 @@ describe('IMUProcessor の動作', (): void => {
     it('右 Joy-Con は反対向きの Z 軸を水平保持の基準にする', (): void => {
         const processor = new IMUProcessor(0.95);
         const data = createImuData('cursorRight');
-        data.accel = { x: 0, y: 0, z: -16384 };
+        data.accel = { x: 0, y: 0, z: -4096 };
 
         processor.update(data);
 
@@ -84,11 +127,11 @@ describe('IMUProcessor の動作', (): void => {
     it('左右操作中の加速度を X 軸まわりのひねりとして取り込まない', (): void => {
         const processor = new IMUProcessor(0.95);
         const stationaryData = createImuData('cursorLeft');
-        stationaryData.accel = { x: 0, y: 0, z: 16384 };
+        stationaryData.accel = { x: 0, y: 0, z: 4096 };
         processor.update(stationaryData);
 
         const movingData = createImuData('cursorLeft');
-        movingData.accel = { x: 0, y: 8192, z: 14189 };
+        movingData.accel = { x: 0, y: 2048, z: 3547 };
         movingData.gyro = { x: 0, y: 0, z: 1000 };
         for (let index = 0; index < 20; index += 1) {
             processor.update(movingData);
@@ -100,7 +143,7 @@ describe('IMUProcessor の動作', (): void => {
     it('90度ねじった状態でも水平操作を画面の横軸へ変換する', (): void => {
         const processor = new IMUProcessor(0.95);
         const data = createImuData('cursorLeft');
-        data.accel = { x: 0, y: 16384, z: 0 };
+        data.accel = { x: 0, y: 4096, z: 0 };
         data.gyro = { x: 0, y: 200, z: 0 };
 
         processor.update(data);
@@ -113,7 +156,7 @@ describe('IMUProcessor の動作', (): void => {
     it('90度ねじった状態でも垂直操作を画面の縦軸へ変換する', (): void => {
         const processor = new IMUProcessor(0.95);
         const data = createImuData('cursorLeft');
-        data.accel = { x: 0, y: 16384, z: 0 };
+        data.accel = { x: 0, y: 4096, z: 0 };
         data.gyro = { x: 0, y: 0, z: -200 };
 
         processor.update(data);
@@ -125,7 +168,7 @@ describe('IMUProcessor の動作', (): void => {
     it('右 Joy-Con のセンサー向きを共通座標へ揃える', (): void => {
         const processor = new IMUProcessor(0.95);
         const data = createImuData('cursorRight');
-        data.accel = { x: 0, y: 0, z: -16384 };
+        data.accel = { x: 0, y: 0, z: -4096 };
         data.gyro = { x: 0, y: 150, z: 250 };
 
         processor.update(data);
@@ -137,7 +180,7 @@ describe('IMUProcessor の動作', (): void => {
     it('右 Joy-Con の通常持ちで左右操作を画面の横軸へ変換する', (): void => {
         const processor = new IMUProcessor(0.95);
         const data = createImuData('cursorRight');
-        data.accel = { x: 0, y: 0, z: -16384 };
+        data.accel = { x: 0, y: 0, z: -4096 };
         data.gyro = { x: 0, y: 0, z: 200 };
 
         processor.update(data);
@@ -149,7 +192,7 @@ describe('IMUProcessor の動作', (): void => {
     it('右 Joy-Con の通常持ちで上下操作を画面の縦軸へ変換する', (): void => {
         const processor = new IMUProcessor(0.95);
         const data = createImuData('cursorRight');
-        data.accel = { x: 0, y: 0, z: -16384 };
+        data.accel = { x: 0, y: 0, z: -4096 };
         data.gyro = { x: 0, y: 200, z: 0 };
 
         processor.update(data);
@@ -161,7 +204,7 @@ describe('IMUProcessor の動作', (): void => {
     it('右 Joy-Con の長手方向のひねりをポインター移動へ混入させない', (): void => {
         const processor = new IMUProcessor(0.95);
         const data = createImuData('cursorRight');
-        data.accel = { x: 0, y: 0, z: -16384 };
+        data.accel = { x: 0, y: 0, z: -4096 };
         data.gyro = { x: 200, y: 0, z: 0 };
 
         processor.update(data);
@@ -178,8 +221,8 @@ describe('IMUProcessor の動作', (): void => {
             const horizontal = createImuData('cursorRight');
             horizontal.accel = {
                 x: 0,
-                y: -Math.sin(radians) * 16384,
-                z: -Math.cos(radians) * 16384,
+                y: -Math.sin(radians) * 4096,
+                z: -Math.cos(radians) * 4096,
             };
             horizontal.gyro = {
                 x: 0,
@@ -213,8 +256,8 @@ describe('IMUProcessor の動作', (): void => {
             const horizontal = createImuData('cursorLeft');
             horizontal.accel = {
                 x: 0,
-                y: Math.sin(radians) * 16384,
-                z: Math.cos(radians) * 16384,
+                y: Math.sin(radians) * 4096,
+                z: Math.cos(radians) * 4096,
             };
             horizontal.gyro = {
                 x: 0,
@@ -243,22 +286,22 @@ describe('IMUProcessor の動作', (): void => {
     it('操作中にねじっても画面基準の横軸を維持する', (): void => {
         const processor = new IMUProcessor(0.95);
         const data = createImuData('cursorLeft');
-        data.accel = { x: 0, y: 0, z: 16384 };
+        data.accel = { x: 0, y: 0, z: 4096 };
         processor.update(data);
 
         for (let index = 1; index <= 60; index += 1) {
             const angle = Math.PI * 0.5 * index / 60;
             data.accel = {
                 x: 0,
-                y: Math.sin(angle) * 16384,
-                z: Math.cos(angle) * 16384,
+                y: Math.sin(angle) * 4096,
+                z: Math.cos(angle) * 4096,
             };
             data.gyro = { x: 1475, y: 0, z: 0 };
             processor.states.cursorLeft.lastTimestamp = performance.now() - 1000 / 60;
             processor.update(data);
         }
 
-        data.accel = { x: 0, y: 16384, z: 0 };
+        data.accel = { x: 0, y: 4096, z: 0 };
         data.gyro = { x: 0, y: 200, z: 0 };
         processor.states.cursorLeft.lastTimestamp = performance.now() - 1000 / 60;
         processor.update(data);
@@ -267,13 +310,42 @@ describe('IMUProcessor の動作', (): void => {
         expect(Math.abs(processor.states.cursorLeft.pointerGyroY)).toBeLessThan(20);
     });
 
+    it('非表示中にひねった場合も再表示時の横軸を現在姿勢に合わせる', (): void => {
+        const processor = new IMUProcessor(0.95);
+        const data = createImuData('cursorRight');
+        data.accel = { x: 0, y: 0, z: -4096 };
+        processor.update(data);
+
+        // ポインター非表示中に右 Joy-Con を 90 度ひねる状況を再現する。
+        for (let index = 1; index <= 60; index += 1) {
+            const angle = Math.PI * 0.5 * index / 60;
+            data.accel = {
+                x: 0,
+                y: -Math.sin(angle) * 4096,
+                z: -Math.cos(angle) * 4096,
+            };
+            data.gyro = { x: 1475, y: 0, z: 0 };
+            processor.states.cursorRight.lastTimestamp = performance.now() - 1000 / 60;
+            processor.update(data);
+        }
+
+        // 再表示後、ひねった姿勢のまま左右へ振る。
+        data.accel = { x: 0, y: -4096, z: 0 };
+        data.gyro = { x: 0, y: 200, z: 0 };
+        processor.states.cursorRight.lastTimestamp = performance.now() - 1000 / 60;
+        processor.update(data);
+
+        expect(processor.states.cursorRight.pointerGyroZ).toBeCloseTo(200, -1);
+        expect(Math.abs(processor.states.cursorRight.pointerGyroY)).toBeLessThan(20);
+    });
+
     it('1Gから外れる並進加速度で重力方向を急変させない', (): void => {
         const processor = new IMUProcessor(0.95);
         const data = createImuData('cursorLeft');
-        data.accel = { x: 0, y: 0, z: 16384 };
+        data.accel = { x: 0, y: 0, z: 4096 };
         processor.update(data);
 
-        data.accel = { x: 0, y: 24576, z: 0 };
+        data.accel = { x: 0, y: 6144, z: 0 };
         data.gyro = { x: 0, y: 0, z: 0 };
         processor.states.cursorLeft.lastTimestamp = performance.now() - 1000 / 60;
         processor.update(data);

@@ -31,6 +31,8 @@ export type ImuStateLike = {
     xRotation?: number;
     lastDeltaTime?: number;
     hasPointerGravity?: boolean;
+    pointerGravity?: { x: number; y: number; z: number };
+    pointerRightAxis?: { x: number; y: number; z: number };
     pointerGyroY?: number;
     pointerGyroZ?: number;
 };

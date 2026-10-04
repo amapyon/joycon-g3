@@ -1,11 +1,11 @@
 // imu-processor.ts
 import { EventEmitter } from 'events';
 import { performance } from 'perf_hooks';
+import { ACCEL_SCALE_G } from '../shared/imu-units';
 
 // 定数定義
 const M_PI = Math.PI;
 const RAD_TO_DEG = 180 / M_PI;
-const ACCEL_SCALE_G = 1 / 16384;
 const GYRO_SCALE_DPS = 2000 / 32768;
 const DEG_TO_RAD = Math.PI / 180;
 const GRAVITY_MAGNITUDE_TOLERANCE = 0.05;
@@ -248,7 +248,11 @@ export class IMUProcessor extends EventEmitter {
         angularVelocity: IMUVector,
         dt: number,
     ): void {
-        if (!state.hasPointerGravity && measuredGravity) {
+        const confidence = Math.max(
+            0,
+            1 - Math.abs(accelerationMagnitude - 1) / POINTER_ACCEL_CONFIDENCE_RANGE_G,
+        );
+        if (!state.hasPointerGravity && measuredGravity && confidence > 0) {
             state.pointerGravity = measuredGravity;
             state.hasPointerGravity = true;
             return;
@@ -262,10 +266,6 @@ export class IMUProcessor extends EventEmitter {
             state.pointerGravity = predictedGravity;
             return;
         }
-        const confidence = Math.max(
-            0,
-            1 - Math.abs(accelerationMagnitude - 1) / POINTER_ACCEL_CONFIDENCE_RANGE_G,
-        );
         const correction = (1 - Math.exp(-dt / POINTER_GRAVITY_CORRECTION_TIME_SECONDS)) * confidence;
         state.pointerGravity = this.normalizeVector({
             x: predictedGravity.x + (measuredGravity.x - predictedGravity.x) * correction,
@@ -543,6 +543,11 @@ export class IMUProcessor extends EventEmitter {
         this.states[id].gyroBiasX = avg(data.x);
         this.states[id].gyroBiasY = avg(data.y);
         this.states[id].gyroBiasZ = avg(data.z);
+        // 補正前のジャイロで積分した姿勢を破棄し、次の有効な重力測定から復帰する。
+        this.states[id].hasPointerGravity = false;
+        this.states[id].hasXRotation = false;
+        this.states[id].pointerGyroY = 0;
+        this.states[id].pointerGyroZ = 0;
         this.isCalibrating[id] = false;
         this.emit('calibration-status', { id, status: 'complete' });
     }

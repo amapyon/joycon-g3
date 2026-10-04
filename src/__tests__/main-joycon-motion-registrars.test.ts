@@ -3,6 +3,7 @@ import { registerImuHandlers, registerRStickHandlers } from '../main/main-joycon
 import type { JoyConEventsContext } from '../main/main-joycon-events-types';
 import type { RStickConfig, RStickState } from '../main/r-stick-handler';
 import type { PointerMotionSettings } from '../shared/pointer-motion-settings';
+import { IMUProcessor } from '../main/imu-processor';
 
 type JoyConHandlerMap = Record<string, (payload: unknown) => void>;
 type ImuHandlerMap = Record<string, (payload: unknown) => void>;
@@ -182,7 +183,7 @@ describe('main-joycon-motion-registrars', (): void => {
         expect(send).toHaveBeenCalledWith('update-pointer', { id: 'cursorLeft', x: 620, y: 300 });
     });
 
-    it('カーソル非表示時は有効なIMUデータでも送信しない', (): void => {
+    it('カーソル非表示時も姿勢追跡を継続しポインター座標は送信しない', (): void => {
         const send = jest.fn();
         const cursorWindow = {
             isDestroyed: (): boolean => false,
@@ -224,7 +225,7 @@ describe('main-joycon-motion-registrars', (): void => {
 
         joyConHandlers[JOYCON_MANAGER_EVENTS.IMU_DATA]?.({
             id: 'cursorLeft',
-            accel: { x: 0, y: 0, z: 16384 },
+            accel: { x: 0, y: 0, z: 4096 },
             gyro: { x: 0, y: 100, z: 200 },
         });
 
@@ -232,6 +233,54 @@ describe('main-joycon-motion-registrars', (): void => {
             id: 'cursorLeft',
             appliedXRotationDegrees: 0,
             axisLeakageRatio: 0.5,
+        }));
+    });
+
+    it('非表示のR実機相当データで姿勢と全軸値を送信しポインターを動かさない', (): void => {
+        const diagnosticSend = jest.fn();
+        const pointerSend = jest.fn();
+        const { context, joyConHandlers } = createTestContext({
+            getCursorVisibility: (): boolean => false,
+            getMainWindow: () => ({ isDestroyed: (): boolean => false, webContents: { send: diagnosticSend } }) as unknown as ReturnType<JoyConEventsContext['options']['windowManager']['getMainWindow']>,
+            getCursorWindow: () => ({ isDestroyed: (): boolean => false, webContents: { send: pointerSend } }) as unknown as ReturnType<JoyConEventsContext['options']['windowManager']['getCursorWindow']>,
+        });
+        context.options.imuProcessor = new IMUProcessor();
+        const settings = context.options.getPointerMotionSettings();
+        context.options.getPointerMotionSettings = (): PointerMotionSettings => ({ ...settings, diagnosticsEnabled: true });
+        registerImuHandlers(context);
+
+        joyConHandlers[JOYCON_MANAGER_EVENTS.IMU_DATA]?.({
+            id: 'R', accel: { x: 0, y: -4096, z: 0 }, gyro: { x: 100, y: 200, z: 0 },
+        });
+
+        expect(pointerSend).not.toHaveBeenCalled();
+        expect(context.pointerPositions.cursorRight).toEqual({ x: 600, y: 300 });
+        expect(diagnosticSend).toHaveBeenCalledWith('pointer-motion-diagnostics', expect.objectContaining({
+            id: 'cursorRight', coordinateMode: 'gravity-frame',
+            sample: expect.objectContaining({
+                cursorVisible: false,
+                rawGyro: { x: 100, y: 200, z: 0 },
+                gravity: { x: 0, y: 1, z: -0 },
+                projectedGyroRaw: { x: 0, y: -0, z: 200 },
+                actualDeltaPixels: { x: 0, y: 0 },
+            }),
+        }));
+    });
+
+    it('キャリブレーション中も生値を送信し補正値が参考値であることを示す', (): void => {
+        const send = jest.fn();
+        const { context, joyConHandlers } = createTestContext({
+            getMainWindow: () => ({ isDestroyed: (): boolean => false, webContents: { send } }) as unknown as ReturnType<JoyConEventsContext['options']['windowManager']['getMainWindow']>,
+        });
+        const settings = context.options.getPointerMotionSettings();
+        context.options.getPointerMotionSettings = (): PointerMotionSettings => ({ ...settings, diagnosticsEnabled: true });
+        context.options.imuProcessor.isCalibrating.cursorRight = true;
+        registerImuHandlers(context);
+        joyConHandlers[JOYCON_MANAGER_EVENTS.IMU_DATA]?.({
+            id: 'cursorRight', accel: { x: 0, y: 0, z: -4096 }, gyro: { x: 80, y: 0, z: 0 },
+        });
+        expect(send).toHaveBeenCalledWith('pointer-motion-diagnostics', expect.objectContaining({
+            sample: expect.objectContaining({ isCalibrating: true, rawGyro: { x: 80, y: 0, z: 0 }, actualDeltaPixels: { x: 0, y: 0 } }),
         }));
     });
 

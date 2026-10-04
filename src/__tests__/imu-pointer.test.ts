@@ -2,6 +2,7 @@ import {
     ImuData,
     PointerUpdateInput,
     decidePointerUpdate,
+    inspectPointerMotion,
     scalePointerPosition,
 } from '../main/imu-pointer';
 
@@ -157,7 +158,7 @@ describe('decidePointerUpdate の動作', (): void => {
         const input = createInput({
             data: {
                 id: 'cursorLeft',
-                accel: { x: 0, y: 16384, z: 0 },
+                accel: { x: 0, y: 4096, z: 0 },
                 gyro: { x: 0, y: 200, z: 0 },
             },
             xRotationDegrees: 90,
@@ -174,7 +175,7 @@ describe('decidePointerUpdate の動作', (): void => {
         const input = createInput({
             data: {
                 id: 'cursorLeft',
-                accel: { x: 0, y: 16384, z: 0 },
+                accel: { x: 0, y: 4096, z: 0 },
                 gyro: { x: 0, y: 0, z: -200 },
             },
             xRotationDegrees: 90,
@@ -210,7 +211,7 @@ describe('decidePointerUpdate の動作', (): void => {
         const result = decidePointerUpdate(createInput({
             data: {
                 id: 'cursorLeft',
-                accel: { x: 0, y: 0, z: 16384 },
+                accel: { x: 0, y: 0, z: 4096 },
                 gyro: { x: 0, y: 100, z: 200 },
             },
         }));
@@ -222,7 +223,7 @@ describe('decidePointerUpdate の動作', (): void => {
         const result = decidePointerUpdate(createInput({
             data: {
                 id: 'cursorLeft',
-                accel: { x: 0, y: 16384, z: 0 },
+                accel: { x: 0, y: 4096, z: 0 },
                 gyro: { x: 0, y: 500, z: 500 },
             },
             xRotationDegrees: 90,
@@ -241,5 +242,43 @@ describe('scalePointerPosition の動作', (): void => {
             { width: 1920, height: 1080 },
             { width: 1280, height: 720 },
         )).toEqual({ x: 640, y: 360 });
+    });
+});
+
+describe('姿勢検証用の処理段階別データ', (): void => {
+    it('非表示でも生値とバイアス補正と閾値前後を取得し座標を変えない', (): void => {
+        const input = createInput({
+            cursorVisible: false,
+            data: { id: 'cursorRight', accel: { x: 0, y: 0, z: -4096 }, gyro: { x: 100, y: 200, z: 300 } },
+            gyroBias: { x: 10, y: 20, z: 30 },
+            screenGyro: { x: 0, y: 50, z: 200 },
+            cursorId: 'cursorRight',
+            cursorMapConfig: { cursorRight: { xSign: 1, ySign: -1 } },
+        });
+        const diagnostics = inspectPointerMotion(input);
+
+        expect(decidePointerUpdate(input)).toBeNull();
+        expect(input.currentPosition).toEqual({ x: 100, y: 100 });
+        expect(diagnostics.sample).toMatchObject({
+            cursorVisible: false,
+            rawGyro: { x: 100, y: 200, z: 300 },
+            accelG: { x: 0, y: 0, z: -1 },
+            accelerationMagnitudeG: 1,
+            gyroDps: { x: 90 * 2000 / 32768, y: 180 * 2000 / 32768, z: 270 * 2000 / 32768 },
+            projectedGyroRaw: { x: 0, y: 50, z: 200 },
+            filteredGyroRaw: { x: 0, y: 0, z: 200 },
+            requestedDeltaPixels: { x: 20, y: -0 },
+            actualDeltaPixels: { x: 0, y: 0 },
+        });
+    });
+
+    it('予定移動と画面端の制限後の実移動を区別する', (): void => {
+        const decision = decidePointerUpdate(createInput({
+            currentPosition: { x: 995, y: 100 },
+            screenGyro: { x: 0, y: 0, z: 200 },
+        }));
+        expect(decision?.diagnostics.sample?.requestedDeltaPixels.x).toBe(20);
+        expect(decision?.diagnostics.sample?.actualDeltaPixels.x).toBe(5);
+        expect(decision?.diagnostics.sample?.positionPixels).toEqual(decision?.position);
     });
 });
