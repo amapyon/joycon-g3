@@ -45,6 +45,11 @@
     "eslint": "^8.57.0",
     "typescript": "^5.8.3"
   },
+  "overrides": {
+    "extract-zip": {
+      "yauzl": "3.4.0"
+    }
+  },
   "dependencies": {
     "@openai/codex": "^0.77.0",
     "audit": "^0.0.6",

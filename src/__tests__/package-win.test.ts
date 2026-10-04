@@ -1,12 +1,16 @@
 import { readFileSync } from 'fs';
 import * as path from 'path';
 import { runInNewContext } from 'vm';
+import { EventEmitter } from 'events';
+import * as crypto from 'crypto';
 
 type PackageOptions = { ignore: RegExp[] };
 type PackageApi = {
     replacePackagedApp: (directory: string) => void;
     packageToNextOutput: () => Promise<string>;
     resolveInsideRoot: (directory: string) => string;
+    verifyPackagedBuild: (directory: string) => void;
+    runPackageCommand: (task: () => Promise<void>) => Promise<void>;
 };
 
 /**
@@ -16,7 +20,8 @@ type PackageApi = {
 function createPackageEnvironment(): {
     api: PackageApi;
     files: Set<string>;
-    fs: { renameSync: jest.Mock; rmSync: jest.Mock; statSync: jest.Mock };
+    fs: { renameSync: jest.Mock; rmSync: jest.Mock; statSync: jest.Mock; readdirSync: jest.Mock; readFileSync: jest.Mock };
+    process: EventEmitter & { exitCode: number };
     packager: jest.Mock;
     root: string;
     source: string;
@@ -36,6 +41,8 @@ function createPackageEnvironment(): {
         existsSync: (target: string): boolean => files.has(target),
         statSync: jest.fn((target: string) => ({ isFile: (): boolean => path.extname(target) !== '' })),
         mkdirSync: jest.fn(),
+        readdirSync: jest.fn((): unknown[] => []),
+        readFileSync: jest.fn((): Buffer => Buffer.from('最新ビルド')),
         renameSync: jest.fn((from: string, to: string): void => {
             if (!files.has(from) || files.has(to)) throw new Error('移動できません');
             const moved = [...files].filter((value: string): boolean => value === from || value.startsWith(`${from}${path.sep}`));
@@ -52,19 +59,59 @@ function createPackageEnvironment(): {
     };
     const packager = jest.fn(async (): Promise<string[]> => [source]);
     const moduleObject = { exports: {} as PackageApi };
+    const processMock = Object.assign(new EventEmitter(), { exitCode: 0 });
     runInNewContext(readFileSync(path.join(root, 'scripts/package-win.js'), 'utf8'), {
         __dirname: path.join(root, 'scripts'), module: moduleObject,
+        process: processMock, console: { error: jest.fn(), info: jest.fn() },
         require: (name: string): unknown => {
             if (name === 'fs') return fs;
             if (name === 'path') return path;
             if (name === 'electron-packager') return packager;
+            if (name === 'crypto') return crypto;
             throw new Error(`想定外の依存: ${name}`);
         },
     });
-    return { api: moduleObject.exports, files, fs, packager, root, source, output, backup };
+    return { api: moduleObject.exports, files, fs, packager, root, source, output, backup, process: processMock };
 }
 
 describe('Windows配布用アプリの安全な更新', (): void => {
+    it('ZIP展開の読み取りライブラリを修正版へ固定する', (): void => {
+        const root = path.resolve(__dirname, '../..');
+        const manifest = JSON.parse(readFileSync(path.join(root, 'package.json'), 'utf8')) as {
+            overrides: { 'extract-zip': { yauzl: string } };
+        };
+        expect(manifest.overrides['extract-zip'].yauzl).toBe('3.4.0');
+    });
+
+    it('未完了のまま終了する場合は終了コードを失敗にする', (): void => {
+        const env = createPackageEnvironment();
+        void env.api.runPackageCommand((): Promise<void> => new Promise(() => {}));
+        env.process.emit('beforeExit');
+        expect(env.process.exitCode).toBe(1);
+    });
+
+    it('正常完了や例外時は未完了検出のリスナーを解除する', async (): Promise<void> => {
+        const env = createPackageEnvironment();
+        await env.api.runPackageCommand(async (): Promise<void> => {});
+        expect(env.process.listenerCount('beforeExit')).toBe(0);
+        await expect(env.api.runPackageCommand(async (): Promise<void> => { throw new Error('失敗'); })).rejects.toThrow('失敗');
+        expect(env.process.listenerCount('beforeExit')).toBe(0);
+    });
+
+    it('配布物のビルドが欠落・古い内容・空の場合は成功にしない', (): void => {
+        const env = createPackageEnvironment();
+        const packagedFile = path.join(env.source, 'resources/app/dist/main.js');
+        env.fs.readdirSync.mockReturnValue([{ name: 'main.js', isFile: (): boolean => true, isDirectory: (): boolean => false }]);
+        expect(() => env.api.verifyPackagedBuild(env.source)).toThrow('ありません');
+        env.files.add(packagedFile);
+        env.fs.readFileSync.mockImplementation((file: string): Buffer => Buffer.from(file === packagedFile ? '旧ビルド' : '最新ビルド'));
+        expect(() => env.api.verifyPackagedBuild(env.source)).toThrow('一致しません');
+        env.fs.readFileSync.mockReturnValue(Buffer.from('最新ビルド'));
+        expect(() => env.api.verifyPackagedBuild(env.source)).not.toThrow();
+        env.fs.readdirSync.mockReturnValue([]);
+        expect(() => env.api.verifyPackagedBuild(env.source)).toThrow('ビルド済みファイルがありません');
+    });
+
     it('旧ファイルを残さず新アプリへ切り替え、無関係な出力は保持する', (): void => {
         const env = createPackageEnvironment();
         env.api.replacePackagedApp(env.source);

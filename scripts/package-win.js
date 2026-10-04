@@ -1,6 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 const packager = require('electron-packager');
+const { createHash } = require('crypto');
 
 const rootDir = path.resolve(__dirname, '..');
 const appName = 'JoyCon Clicker';
@@ -52,6 +53,45 @@ function validatePackagedApp(targetDir) {
     const exePath = path.join(targetDir, `${appName}.exe`);
     if (!fs.existsSync(exePath) || !fs.statSync(exePath).isFile()) {
         throw new Error(`アプリ本体の exe が見つかりません: ${exePath}`);
+    }
+}
+
+/**
+ * ビルド済みファイルが配布物へ欠落・変更なく収録されたことを確認する。
+ * @param packagedAppDir 配布用アプリのディレクトリ。
+ * @returns {void}
+ */
+function verifyPackagedBuild(packagedAppDir) {
+    const buildDir = path.join(rootDir, 'dist');
+    const packagedBuildDir = path.join(packagedAppDir, 'resources', 'app', 'dist');
+    let checkedFiles = 0;
+    /**
+     * ビルドのディレクトリを再帰的に比較する。
+     * @param relativeDir ビルド内の相対ディレクトリ。
+     * @returns {void}
+     */
+    function compareDirectory(relativeDir) {
+        for (const entry of fs.readdirSync(path.join(buildDir, relativeDir), { withFileTypes: true })) {
+            const relativeFile = path.join(relativeDir, entry.name);
+            if (entry.isDirectory()) {
+                compareDirectory(relativeFile);
+            } else if (entry.isFile()) {
+                const packagedFile = path.join(packagedBuildDir, relativeFile);
+                if (!fs.existsSync(packagedFile) || !fs.statSync(packagedFile).isFile()) {
+                    throw new Error(`配布物にビルド済みファイルがありません: ${relativeFile}`);
+                }
+                const expectedHash = createHash('sha256').update(fs.readFileSync(path.join(buildDir, relativeFile))).digest('hex');
+                const actualHash = createHash('sha256').update(fs.readFileSync(packagedFile)).digest('hex');
+                if (expectedHash !== actualHash) {
+                    throw new Error(`配布物の内容が最新ビルドと一致しません: ${relativeFile}`);
+                }
+                checkedFiles += 1;
+            }
+        }
+    }
+    compareDirectory('');
+    if (checkedFiles === 0) {
+        throw new Error('ビルド済みファイルがありません。npm run build を実行してください。');
     }
 }
 
@@ -147,16 +187,37 @@ function replacePackagedApp(packagedAppDir) {
  * @returns {Promise<void>}
  */
 async function main() {
+    console.info(`Windowsパッケージ作成開始（Node ${process.version}）`);
     removeDirectoryIfExists(nextOutputDir);
     const packagedAppDir = await packageToNextOutput();
+    verifyPackagedBuild(packagedAppDir);
     replacePackagedApp(packagedAppDir);
     removeDirectoryIfExists(nextOutputDir);
+    console.info(`作成完了（最新ビルドとの一致を確認）: ${path.join(appOutputDir, `${appName}.exe`)}`);
 }
 
-module.exports = { replacePackagedApp, packageToNextOutput, resolveInsideRoot };
+/**
+ * 未完了の非同期処理が残ったまま正常終了することを防ぐ。
+ * @param task 実行するパッケージ処理。
+ * @returns {Promise<void>} パッケージ処理の完了。
+ */
+async function runPackageCommand(task = main) {
+    const onBeforeExit = () => {
+        console.error('パッケージ作成が未完了のまま終了しました。ZIP展開ライブラリを更新するため npm install を実行してください。');
+        process.exitCode = 1;
+    };
+    process.once('beforeExit', onBeforeExit);
+    try {
+        await task();
+    } finally {
+        process.removeListener('beforeExit', onBeforeExit);
+    }
+}
+
+module.exports = { replacePackagedApp, packageToNextOutput, resolveInsideRoot, verifyPackagedBuild, runPackageCommand };
 
 if (require.main === module) {
-    main().catch((error) => {
+    runPackageCommand().catch((error) => {
         console.error(error);
         process.exitCode = 1;
     });
