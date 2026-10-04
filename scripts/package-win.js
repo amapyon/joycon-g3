@@ -4,9 +4,12 @@ const packager = require('electron-packager');
 
 const rootDir = path.resolve(__dirname, '..');
 const appName = 'JoyCon Clicker';
+const appDirName = `${appName}-win32-x64`;
 const outputDir = path.join(rootDir, 'dist_packager');
 const nextOutputDir = path.join(rootDir, 'dist_packager_next');
 const cacheDir = path.join(rootDir, '.electron-cache');
+const appOutputDir = path.join(outputDir, appDirName);
+const backupDir = path.join(outputDir, `${appDirName}.backup`);
 
 /**
  * 指定されたパスがリポジトリ内にあることを確認する。
@@ -18,7 +21,7 @@ function resolveInsideRoot(targetPath) {
     const resolvedPath = path.resolve(targetPath);
     const relativePath = path.relative(rootDir, resolvedPath);
 
-    if (relativePath.startsWith('..') || path.isAbsolute(relativePath)) {
+    if (!relativePath || relativePath === '..' || relativePath.startsWith(`..${path.sep}`) || path.isAbsolute(relativePath)) {
         throw new Error(`リポジトリ外のパスは操作できません: ${resolvedPath}`);
     }
 
@@ -40,35 +43,16 @@ function removeDirectoryIfExists(targetPath) {
 }
 
 /**
- * 指定されたディレクトリ配下から exe ファイルを探す。
+ * アプリ本体の実行ファイルが存在することを確認する。
  *
  * @param {string} targetDir 検索対象のディレクトリ。
- * @returns {string | null} 見つかった exe の絶対パス。
+ * @returns {void}
  */
-function findExeFile(targetDir) {
-    if (!fs.existsSync(targetDir)) {
-        return null;
+function validatePackagedApp(targetDir) {
+    const exePath = path.join(targetDir, `${appName}.exe`);
+    if (!fs.existsSync(exePath) || !fs.statSync(exePath).isFile()) {
+        throw new Error(`アプリ本体の exe が見つかりません: ${exePath}`);
     }
-
-    const entries = fs.readdirSync(targetDir, { withFileTypes: true });
-
-    for (const entry of entries) {
-        const entryPath = path.join(targetDir, entry.name);
-
-        if (entry.isFile() && entry.name.toLowerCase().endsWith('.exe')) {
-            return entryPath;
-        }
-
-        if (entry.isDirectory()) {
-            const nestedExePath = findExeFile(entryPath);
-
-            if (nestedExePath) {
-                return nestedExePath;
-            }
-        }
-    }
-
-    return null;
 }
 
 /**
@@ -95,6 +79,7 @@ async function packageToNextOutput() {
             /^\/\.electron-cache(\/|$)/,
             /^\/\.packager-tmp(\/|$)/,
             /^\/\.pnpm-store(\/|$)/,
+            /^\/joycon-validation-[^/]*\.json$/,
             /^\/node_modules\/(electron|electron-packager|electron-rebuild|\.bin)(\/|$)/,
             /^\/\.git$/,
             /^\/\.vscode$/,
@@ -112,26 +97,48 @@ async function packageToNextOutput() {
 }
 
 /**
- * 作成済みの一時出力を正式な出力先へ反映する。
+ * 旧アプリを退避して新アプリへ切り替え、失敗時は旧アプリを復元する。
  *
  * @param {string} packagedAppDir 作成されたアプリディレクトリのパス。
  * @returns {void}
  */
-function replaceOutputDirectory(packagedAppDir) {
+function replacePackagedApp(packagedAppDir) {
     const resolvedPackagedAppDir = resolveInsideRoot(packagedAppDir);
-    const packagedExePath = findExeFile(resolvedPackagedAppDir);
-
-    if (!packagedExePath) {
-        throw new Error(`作成済み exe が見つかりません: ${resolvedPackagedAppDir}`);
+    if (resolvedPackagedAppDir !== path.join(nextOutputDir, appDirName)) {
+        throw new Error(`想定外のパッケージ出力先です: ${resolvedPackagedAppDir}`);
     }
-
-    removeDirectoryIfExists(outputDir);
+    validatePackagedApp(resolvedPackagedAppDir);
+    // 前回の退避データが残っている場合は、自動で削除せず確認を求める。
+    if (fs.existsSync(backupDir)) {
+        throw new Error(`前回の退避データを確認してください: ${backupDir}`);
+    }
     fs.mkdirSync(outputDir, { recursive: true });
-    fs.cpSync(resolveInsideRoot(nextOutputDir), resolveInsideRoot(outputDir), {
-        recursive: true,
-        force: true,
-    });
-    removeDirectoryIfExists(nextOutputDir);
+    const hadPreviousApp = fs.existsSync(appOutputDir);
+    if (hadPreviousApp) {
+        fs.renameSync(appOutputDir, backupDir);
+    }
+    let installed = false;
+    try {
+        fs.renameSync(resolvedPackagedAppDir, appOutputDir);
+        installed = true;
+        validatePackagedApp(appOutputDir);
+    } catch (error) {
+        try {
+            // 新アプリは一時出力へ戻し、調査用に残す。
+            if (installed) {
+                fs.renameSync(appOutputDir, resolvedPackagedAppDir);
+            }
+            if (hadPreviousApp) {
+                fs.renameSync(backupDir, appOutputDir);
+            }
+        } catch (restoreError) {
+            throw new Error(`復元に失敗しました。退避先を保全してください: ${backupDir}\n更新エラー: ${error}\n復元エラー: ${restoreError}`);
+        }
+        throw error;
+    }
+    if (hadPreviousApp) {
+        removeDirectoryIfExists(backupDir);
+    }
 }
 
 /**
@@ -142,10 +149,15 @@ function replaceOutputDirectory(packagedAppDir) {
 async function main() {
     removeDirectoryIfExists(nextOutputDir);
     const packagedAppDir = await packageToNextOutput();
-    replaceOutputDirectory(packagedAppDir);
+    replacePackagedApp(packagedAppDir);
+    removeDirectoryIfExists(nextOutputDir);
 }
 
-main().catch((error) => {
-    console.error(error);
-    process.exitCode = 1;
-});
+module.exports = { replacePackagedApp, packageToNextOutput, resolveInsideRoot };
+
+if (require.main === module) {
+    main().catch((error) => {
+        console.error(error);
+        process.exitCode = 1;
+    });
+}

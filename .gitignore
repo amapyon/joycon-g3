@@ -3,6 +3,8 @@ node_modules
 # ビルド出力
 dist
 dist_packager
+dist_packager_next
+dist_packager_next
 coverage
 
 # ログ
@@ -17,6 +19,18 @@ pnpm-debug.log*
 .eslintcache
 .npm
 .cache
+.electron-cache/
+.packager-tmp/
+.pnpm-store/
+
+# 姿勢検証の測定原本（回帰テスト用 fixtures は管理する）
+/joycon-validation-*.json
+.electron-cache/
+.packager-tmp/
+.pnpm-store/
+
+# 姿勢検証の測定原本（回帰テスト用 fixtures は管理する）
+/joycon-validation-*.json
 
 # 環境ファイル
 .env
