@@ -16,35 +16,31 @@ export type JoyConPaths = {
 };
 
 /**
- * 接続可能な Joy-Con のデバイスパスを探索する。
+ * デバイス一覧から左右の Joy-Con のパスを抽出する。
+ * @param devices 列挙された HID デバイス
  * @returns 左右のデバイスパス
  */
-export function findJoyConPaths(): JoyConPaths {
+function extractJoyConPaths(devices: HidDeviceInfo[]): JoyConPaths {
+    let joyconLPath: string | null = null;
+    let joyconRPath: string | null = null;
+    devices.forEach((device: HidDeviceInfo): void => {
+        if (device.vendorId !== VENDOR_ID) return;
+        if (device.productId === PRODUCT_ID_L) joyconLPath = device.path || null;
+        if (device.productId === PRODUCT_ID_R) joyconRPath = device.path || null;
+    });
+    return { joyconLPath, joyconRPath };
+}
+
+/**
+ * メインスレッドを止めずに接続可能な Joy-Con を探索する。
+ * @returns 左右のデバイスパス。探索失敗時は両方 null
+ */
+export async function findJoyConPaths(): Promise<JoyConPaths> {
     try {
-        if (!HID || typeof HID.devices !== 'function') {
+        if (!HID || typeof HID.devicesAsync !== 'function') {
             throw new Error('node-hid not available');
         }
-
-        const devices = HID.devices();
-        let joyconLPath: string | null = null;
-        let joyconRPath: string | null = null;
-
-        devices.forEach((device: HidDeviceInfo): void => {
-            if (device.vendorId !== VENDOR_ID) {
-                return;
-            }
-
-            if (device.productId === PRODUCT_ID_L) {
-                joyconLPath = device.path || null;
-                return;
-            }
-
-            if (device.productId === PRODUCT_ID_R) {
-                joyconRPath = device.path || null;
-            }
-        });
-
-        return { joyconLPath, joyconRPath };
+        return extractJoyConPaths(await HID.devicesAsync());
     } catch {
         return { joyconLPath: null, joyconRPath: null };
     }

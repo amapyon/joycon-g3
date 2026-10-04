@@ -92,9 +92,11 @@
             timer = null;
         }
         const samples = recording.samples;
+        const runtimeEvents = samples.flatMap((value: Diagnostics) => value.runtimeEvents ?? []);
         result.value = JSON.stringify({
             ...recording,
             finishedAt: new Date().toISOString(),
+            runtimeEvents,
             units: { raw: 'センサー生値', accelG: 'G（1/4096換算）', gyroDps: '°/s（2000/32768換算、バイアス補正済み）', gravity: '共通本体座標の単位ベクトル', projectedGyroRaw: '補正後・デッドゾーン前の生値相当', filteredGyroRaw: 'デッドゾーン後の生値相当', deltaPixels: '論理ピクセル、予定値は表示状態に関係なく算出、実値は画面端の制限後' },
             summary: {
                 count: samples.length,
@@ -126,7 +128,7 @@
             enabled.checked = true;
             enabled.dispatchEvent(new Event('change'));
         }
-        recording = { schemaVersion: 1, labels: readLabels(), startedAt: new Date().toISOString(), samples: [] };
+        recording = { schemaVersion: 2, labels: readLabels(), startedAt: new Date().toISOString(), samples: [] };
         startedAt = performance.now() + 2000;
         start.disabled = true;
         stop.disabled = false;

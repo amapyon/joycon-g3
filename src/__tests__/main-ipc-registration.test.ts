@@ -1,5 +1,6 @@
 import type { IpcMain, IpcMainEvent } from 'electron';
 import { registerMainIpcHandlers } from '../main/main-ipc-registration';
+import { readRuntimeTrace, setRuntimeTraceEnabled } from '../main/pointer-runtime-trace';
 import type {
     WifiTimerAudioStreamChunkResult,
     WifiTimerAudioStreamEndResult,
@@ -364,6 +365,33 @@ describe('main IPC の振動トリガー', (): void => {
         listeners['update-pointer-motion-settings']?.({} as IpcMainEvent, { moveSpeed: 'fast', gyroDeadzone: 180 });
 
         expect(setPointerMotionSettings).not.toHaveBeenCalled();
+    });
+
+    it('描画測定は検証中のカーソル画面からの有効な値だけを保存する', (): void => {
+        setRuntimeTraceEnabled(false);
+        const { options, listeners } = createRegisterOptions({ playRumblePattern: jest.fn() });
+        const webContents = { send: jest.fn() };
+        options.windowManager.getCursorWindow = (() => ({ webContents })) as unknown as typeof options.windowManager.getCursorWindow;
+        registerMainIpcHandlers(options);
+        const event = { sender: webContents } as unknown as IpcMainEvent;
+        const data = {
+            id: 'cursorRight', timestampMs: 123, maxFrameIntervalMs: 320,
+            maxUpdateIntervalMs: 300, lastUpdateAgeMs: null, x: 10, y: 20,
+            visible: true, documentHidden: false, cssVisibility: 'visible',
+        };
+        listeners['cursor-render-trace'](event, data);
+        expect(readRuntimeTrace('cursorRight')).toEqual([]);
+        listeners['update-pointer-motion-settings'](event, { moveSpeed: 0.05, gyroDeadzone: 30, diagnosticsEnabled: true });
+        expect(webContents.send).toHaveBeenCalledWith('pointer-runtime-trace-enabled', true);
+        listeners['cursor-render-trace']({ sender: {} } as IpcMainEvent, data);
+        listeners['cursor-render-trace'](event, { ...data, maxFrameIntervalMs: NaN });
+        expect(readRuntimeTrace('cursorRight')).toEqual([]);
+        listeners['cursor-render-trace'](event, data);
+        expect(readRuntimeTrace('cursorRight')).toEqual([{ kind: 'render', ...data }]);
+        listeners['update-pointer-motion-settings'](event, { moveSpeed: 0.05, gyroDeadzone: 30, diagnosticsEnabled: false });
+        listeners['cursor-render-trace'](event, data);
+        expect(readRuntimeTrace('cursorRight')).toEqual([]);
+        setRuntimeTraceEnabled(false);
     });
 
     it('不正なupdate-timer-notificationsでは配信しない', (): void => {

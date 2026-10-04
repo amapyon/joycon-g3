@@ -427,6 +427,12 @@ export const electronAPI: ElectronAPI = {
      * @param isVisible 表示状態
      */
     sendCursorVisibilityUpdate: (id: CursorId, isVisible: boolean): void => ipcRenderer.send('cursor-visibility-update', { id, isVisible }),
+    /** @param callback 検証用の描画測定を開始・停止する処理。 */
+    onPointerRuntimeTraceEnabled: (callback: (enabled: boolean) => void): void => {
+        ipcRenderer.on('pointer-runtime-trace-enabled', (_event: IpcRendererEvent, enabled: boolean): void => callback(enabled));
+    },
+    /** @param event メインプロセスでセンサー値と併せて保存する描画測定。 */
+    sendCursorRenderTrace: (event: import('../shared/pointer-runtime-trace').PointerRuntimeEvent): void => ipcRenderer.send('cursor-render-trace', event),
     /**
      * カウントダウン初期値を送信する。
      * @param value 初期値

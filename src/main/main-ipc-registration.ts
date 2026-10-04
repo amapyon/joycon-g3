@@ -9,6 +9,7 @@ import { normalizePointerMotionSettings, PointerMotionSettings } from '../shared
 import type { TimerNotificationConfig } from '../shared/timer-notification-config';
 import type { WifiTimerSettings } from '../shared/wifi-timer-settings';
 import type { WifiTimerClientApi } from './wifi-timer-client';
+import { appendRuntimeTrace, setRuntimeTraceEnabled } from './pointer-runtime-trace';
 
 type WindowManagerApi = {
     getCursorWindow: () => BrowserWindow | null;
@@ -255,6 +256,7 @@ function broadcastToAppWindows(windowManager: WindowManagerApi, channel: string,
  */
 function registerStateSyncHandlers(registerOnChannel: RegisterOnChannel, options: RegisterMainIpcHandlersOptions): void {
     const { state, windowManager, wifiTimerClient } = options;
+    let runtimeTraceEnabled = false;
 
     registerOnChannel(MAIN_IPC_INBOUND_CHANNELS.CURSOR_MAP_CONFIG, (_event: IpcMainEvent, config: unknown): void => {
         const nextConfig = parseCursorMapConfig(config);
@@ -262,6 +264,7 @@ function registerStateSyncHandlers(registerOnChannel: RegisterOnChannel, options
             return;
         }
         state.setCursorMapConfig(nextConfig);
+        windowManager.getCursorWindow()?.webContents.send('pointer-runtime-trace-enabled', runtimeTraceEnabled);
         // console.log('[main.ts] Received cursorMapConfig from renderer:', nextConfig);
     });
 
@@ -271,6 +274,9 @@ function registerStateSyncHandlers(registerOnChannel: RegisterOnChannel, options
             return;
         }
         state.setPointerMotionSettings(nextSettings);
+        runtimeTraceEnabled = nextSettings.diagnosticsEnabled;
+        setRuntimeTraceEnabled(runtimeTraceEnabled);
+        windowManager.getCursorWindow()?.webContents.send('pointer-runtime-trace-enabled', runtimeTraceEnabled);
     });
 
     registerOnChannel(MAIN_IPC_INBOUND_CHANNELS.CURSOR_VISIBILITY_UPDATE, (_event: IpcMainEvent, data: unknown): void => {
@@ -279,6 +285,24 @@ function registerStateSyncHandlers(registerOnChannel: RegisterOnChannel, options
             return;
         }
         state.setCursorVisibility(typedData.id, typedData.isVisible);
+        appendRuntimeTrace({ kind: 'visibility', id: typedData.id, timestampMs: Date.now(), visible: typedData.isVisible });
+    });
+
+    registerOnChannel(MAIN_IPC_INBOUND_CHANNELS.CURSOR_RENDER_TRACE, (event: IpcMainEvent, data: unknown): void => {
+        if (!runtimeTraceEnabled || event.sender !== windowManager.getCursorWindow()?.webContents || !isRecord(data) || !isCursorId(data.id)) return;
+        const fields = ['timestampMs', 'maxFrameIntervalMs', 'maxUpdateIntervalMs', 'x', 'y'] as const;
+        if (fields.some((field: typeof fields[number]): boolean => typeof data[field] !== 'number' || !Number.isFinite(data[field]))) return;
+        if (typeof data.visible !== 'boolean' || typeof data.documentHidden !== 'boolean') return;
+        if (data.lastUpdateAgeMs !== null && (typeof data.lastUpdateAgeMs !== 'number' || !Number.isFinite(data.lastUpdateAgeMs))) return;
+        appendRuntimeTrace({
+            kind: 'render', id: data.id, timestampMs: data.timestampMs as number,
+            maxFrameIntervalMs: data.maxFrameIntervalMs as number,
+            maxUpdateIntervalMs: data.maxUpdateIntervalMs as number,
+            lastUpdateAgeMs: data.lastUpdateAgeMs as number | null,
+            x: data.x as number, y: data.y as number, visible: data.visible,
+            documentHidden: data.documentHidden,
+            cssVisibility: typeof data.cssVisibility === 'string' ? data.cssVisibility.slice(0, 16) : '',
+        });
     });
 
     registerOnChannel(MAIN_IPC_INBOUND_CHANNELS.COUNTDOWN_INITIAL_VALUE, (_event: IpcMainEvent, value: unknown): void => {

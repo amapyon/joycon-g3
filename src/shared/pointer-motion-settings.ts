@@ -21,6 +21,7 @@ export type PointerMotionDiagnostics = {
     axisLeakageRatio: number | null;
     coordinateMode: 'gravity-frame' | 'x-rotation';
     sample?: PointerValidationSample;
+    runtimeEvents?: import('./pointer-runtime-trace').PointerRuntimeEvent[];
 };
 
 /** センサーの各処理段階を比較するための検証サンプル。値の単位はフィールド名に示す。 */

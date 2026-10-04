@@ -32,6 +32,18 @@ const electronAPI = rendererApiResolverUtils.resolveGlobal<CursorRendererElectro
 const cursorLogic = rendererApiResolverUtils.resolveApi<SharedCursorLogicApi>('cursorLogic', './cursor-logic');
 const cursorRuntimeLogic = rendererApiResolverUtils.resolveApi<SharedCursorRuntimeLogicApi>('cursorRuntimeLogic', './cursor-runtime-logic');
 const CURSOR_IDS: ReadonlyArray<CursorId> = ['cursorLeft', 'cursorRight'];
+let runtimeTraceEnabled = false;
+let lastTraceAt = 0;
+let maxFrameIntervalMs = 0;
+const updateTimings: Record<CursorId, { last: number | null; maximum: number }> = {
+    cursorLeft: { last: null, maximum: 0 }, cursorRight: { last: null, maximum: 0 },
+};
+electronAPI.onPointerRuntimeTraceEnabled?.((enabled: boolean): void => {
+    runtimeTraceEnabled = enabled;
+    maxFrameIntervalMs = 0;
+    lastTraceAt = performance.now();
+    for (const id of CURSOR_IDS) updateTimings[id] = { last: null, maximum: 0 };
+});
 
 // カーソルDOM要素の参照
 const cursorElements: Record<CursorId, HTMLElement | null> = {
@@ -88,6 +100,12 @@ electronAPI.onUpdatePointer((pos: UpdatePointerData): void => {
     const cursorId = pos.id;
     const cursorData = cursors[cursorId];
     if (!cursorData) return;
+    if (runtimeTraceEnabled) {
+        const now = performance.now();
+        const timing = updateTimings[cursorId];
+        if (timing.last !== null) timing.maximum = Math.max(timing.maximum, now - timing.last);
+        timing.last = now;
+    }
 
     if (cursorData.isVisible) {
         cursorData.targetX = pos.x;
@@ -297,6 +315,9 @@ const updateVisibleCursorPosition = (id: CursorId, deltaTimeMs: number): void =>
 let lastRenderTimestamp: number | null = null;
 
 const renderLoop = (timestamp: number): void => {
+    if (runtimeTraceEnabled && lastRenderTimestamp !== null) {
+        maxFrameIntervalMs = Math.max(maxFrameIntervalMs, timestamp - lastRenderTimestamp);
+    }
     const deltaTimeMs = lastRenderTimestamp === null
         ? 1000 / 60
         : Math.min(Math.max(timestamp - lastRenderTimestamp, 0), 100);
@@ -309,6 +330,22 @@ const renderLoop = (timestamp: number): void => {
     }
     for (const id of CURSOR_IDS) {
         updateVisibleCursorPosition(id, deltaTimeMs);
+    }
+    if (runtimeTraceEnabled && timestamp - lastTraceAt >= 250) {
+        for (const id of CURSOR_IDS) {
+            const timing = updateTimings[id];
+            electronAPI.sendCursorRenderTrace?.({
+                kind: 'render', timestampMs: Date.now(), id,
+                maxFrameIntervalMs, maxUpdateIntervalMs: timing.maximum,
+                lastUpdateAgeMs: timing.last === null ? null : Math.max(0, performance.now() - timing.last),
+                visible: cursors[id].isVisible, documentHidden: document.hidden,
+                cssVisibility: cursorElements[id]?.style.visibility ?? '',
+                x: cursors[id].x, y: cursors[id].y,
+            });
+            timing.maximum = 0;
+        }
+        lastTraceAt = timestamp;
+        maxFrameIntervalMs = 0;
     }
     requestAnimationFrame(renderLoop);
 };

@@ -3,6 +3,7 @@ import type { PointerUpdateInput } from './imu-pointer';
 import { decideRStickAnalog, decideRStickPress } from './r-stick-handler';
 import { getScreenSize } from './screen-state';
 import { sendToWindow } from './main-joycon-window-dispatch';
+import { readRuntimeTrace } from './pointer-runtime-trace';
 import {
     parseCalibrationStatus,
     parseImuData,
@@ -85,6 +86,7 @@ export function registerImuHandlers(context: JoyConEventsContext): void {
 
         if (pointerMotionSettings.diagnosticsEnabled) {
             const diagnostics = decision?.diagnostics ?? inspectPointerMotion(input);
+            diagnostics.runtimeEvents = readRuntimeTrace(cursorId);
             if (diagnostics.sample) {
                 diagnostics.sample.gravity = state.hasPointerGravity && state.pointerGravity ? { ...state.pointerGravity } : null;
                 diagnostics.sample.verticalAxis = state.hasPointerGravity && state.pointerRightAxis ? { ...state.pointerRightAxis } : null;

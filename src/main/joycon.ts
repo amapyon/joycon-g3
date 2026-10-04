@@ -3,6 +3,8 @@
 
 import HID from 'node-hid';
 import { EventEmitter } from 'events';
+import { performance } from 'perf_hooks';
+import { appendRuntimeTrace } from './pointer-runtime-trace';
 import { shouldAttemptAutoConnect, shouldSkipConnect } from './joycon-connection-utils';
 import { createInitialButtonState, ButtonState } from './joycon-state';
 import { findJoyConPaths } from './joycon-device-discovery';
@@ -29,6 +31,8 @@ export default class JoyConManager extends EventEmitter {
     connectingR = false;
     autoConnectL = true;
     autoConnectR = true;
+    private scanPromise: Promise<void> | null = null;
+    private scanGeneration = 0;
 
     /**
      * Joy-Con 管理クラスを生成する。
@@ -325,10 +329,7 @@ export default class JoyConManager extends EventEmitter {
      * 全ての Joy-Con に接続を試行する。
      */
     connectAll(): void {
-        // console.log('Attempting to connect all available Joy-Cons...');
-        const { joyconLPath, joyconRPath } = findJoyConPaths();
-        this.connectJoyCon(joyconLPath, true);
-        this.connectJoyCon(joyconRPath, false);
+        void this.scheduleScan(true);
     }
 
 
@@ -348,29 +349,71 @@ export default class JoyConManager extends EventEmitter {
     }
 
     /**
-     * 定期的にデバイスをスキャンして未接続の Joy-Con に接続を試行する。
+     * 再接続が必要な場合だけ非同期に探索し、電池情報を更新する。
+     * @returns 探索と接続試行開始までの完了通知
      */
-    scanDevices(): void {
-        // console.log('[Debug] scanDevices() called.');
-        const { joyconLPath, joyconRPath } = findJoyConPaths();
+    scanDevices(): Promise<void> {
+        return this.scheduleScan(false);
+    }
+
+    /**
+     * 探索の重複を防ぎ、探索中の手動接続要求は終了後に再評価する。
+     * @param force 自動接続設定に関係なく手動接続を試行するか
+     * @returns 処理の完了通知
+     */
+    private scheduleScan(force: boolean): Promise<void> {
+        if (this.scanPromise) {
+            const generation = this.scanGeneration;
+            return force ? this.scanPromise.then((): Promise<void> | void => {
+                if (generation === this.scanGeneration) return this.scheduleScan(true);
+            }) : this.scanPromise;
+        }
+        this.scanPromise = this.performScan(force, this.scanGeneration).finally((): void => {
+            this.scanPromise = null;
+        });
+        return this.scanPromise;
+    }
+
+    /**
+     * 非同期探索の結果を最新の接続状態・自動接続設定に照らして適用する。
+     * @param force 手動接続要求か
+     * @param generation 停止による古い探索結果の無効化番号
+     * @returns 電池情報更新と接続試行開始までの完了通知
+     */
+    private async performScan(force: boolean, generation: number): Promise<void> {
+        const timestampMs = Date.now();
+        const scanStarted = performance.now();
+        const needsLeft = !this.hidL && !this.connectingL && (force || this.autoConnectL);
+        const needsRight = !this.hidR && !this.connectingR && (force || this.autoConnectR);
+        const discoverySkipped = !needsLeft && !needsRight;
+        const paths = discoverySkipped ? { joyconLPath: null, joyconRPath: null } : await findJoyConPaths();
+        const discoveryDurationMs = discoverySkipped ? 0 : performance.now() - scanStarted;
+        if (generation !== this.scanGeneration) return;
+        let batteryDurationMs = 0;
 
         // Handle Left Joy-Con
         if (this.hidL) {
             // console.log('[Debug] Left Joy-Con is connected. Requesting battery status.');
+            const batteryStarted = performance.now();
             this.requestBatteryStatus(true);
-        } else if (shouldAttemptAutoConnect(joyconLPath, false, this.autoConnectL)) { // Check autoConnectL
+            batteryDurationMs += performance.now() - batteryStarted;
+        } else if (needsLeft && shouldAttemptAutoConnect(paths.joyconLPath, false, force || this.autoConnectL)) {
             // console.log('[Debug] Found disconnected Left Joy-Con. Attempting to connect.');
-            this.connectJoyCon(joyconLPath, true);
+            this.connectJoyCon(paths.joyconLPath, true);
         }
 
         // Handle Right Joy-Con
         if (this.hidR) {
             // console.log('[Debug] Right Joy-Con is connected. Requesting battery status.');
+            const batteryStarted = performance.now();
             this.requestBatteryStatus(false);
-        } else if (shouldAttemptAutoConnect(joyconRPath, false, this.autoConnectR)) { // Check autoConnectR
+            batteryDurationMs += performance.now() - batteryStarted;
+        } else if (needsRight && shouldAttemptAutoConnect(paths.joyconRPath, false, force || this.autoConnectR)) {
             // console.log('[Debug] Found disconnected Right Joy-Con. Attempting to connect.');
-            this.connectJoyCon(joyconRPath, false);
+            this.connectJoyCon(paths.joyconRPath, false);
         }
+        const durationMs = performance.now() - scanStarted;
+        appendRuntimeTrace({ kind: 'device-scan', timestampMs, durationMs, discoveryDurationMs, batteryDurationMs, discoverySkipped });
     }
 
     /**
@@ -408,7 +451,7 @@ export default class JoyConManager extends EventEmitter {
         // console.log(`Starting device scan and initial connection (Interval: ${this.scanIntervalMs}ms)`);
         this.connectAll();
         this.scanTimer = setInterval(() => {
-            this.scanDevices();
+            void this.scanDevices();
         }, this.scanIntervalMs);
     }
 
@@ -416,6 +459,7 @@ export default class JoyConManager extends EventEmitter {
      * デバイススキャンを停止する。
      */
     stopScanning(): void {
+        this.scanGeneration++;
         if (this.scanTimer) {
             // console.log('Stopping device scan.');
             clearInterval(this.scanTimer); this.scanTimer = null;

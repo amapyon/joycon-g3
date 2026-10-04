@@ -76,6 +76,8 @@ export interface ElectronAPI extends MainRendererElectronAPI {
     onUpdatePointer: (callback: (pos: UpdatePointerData) => void) => void;
     sendCursorMapConfig: (config: CursorMapConfig) => void;
     sendCursorVisibilityUpdate: (id: CursorId, isVisible: boolean) => void;
+    onPointerRuntimeTraceEnabled?: (callback: (enabled: boolean) => void) => void;
+    sendCursorRenderTrace?: (event: import('../shared/pointer-runtime-trace').PointerRuntimeEvent) => void;
     onChangeFontSize: (callback: (delta: number) => void) => void;
     onStartCountdown: (callback: (duration: number) => void) => void;
     onTimerMenuNavigate: (callback: (direction: number) => void) => void;

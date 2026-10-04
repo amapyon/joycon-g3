@@ -102,4 +102,24 @@ describe('姿勢・操作検証モードの記録', (): void => {
         expect(controls['pointer-validation-status'].textContent).toContain('データを受信できませんでした');
         expect(controls['pointer-validation-export'].disabled).toBe(true);
     });
+
+    it('探索・ボタン・描画の測定をバージョン2のJSONへまとめる', (): void => {
+        const { controls, receive } = createValidationPage();
+        controls['pointer-validation-start'].dispatchEvent({ type: 'click' });
+        jest.advanceTimersByTime(2000);
+        const first = createSample();
+        first.runtimeEvents = [
+            { kind: 'device-scan', timestampMs: Date.now(), durationMs: 300, discoveryDurationMs: 295, batteryDurationMs: 5 },
+            { kind: 'button', timestampMs: Date.now(), id: 'cursorRight', pressed: false },
+        ];
+        receive(first);
+        const second = createSample();
+        second.runtimeEvents = [{ kind: 'render', timestampMs: Date.now(), id: 'cursorRight', maxFrameIntervalMs: 320, maxUpdateIntervalMs: 300, visible: false }];
+        receive(second);
+        jest.advanceTimersByTime(5000);
+        const report = JSON.parse(controls['pointer-validation-result'].value);
+        expect(report.schemaVersion).toBe(2);
+        expect(report.runtimeEvents).toEqual([...first.runtimeEvents, ...second.runtimeEvents]);
+        expect(report.summary.count).toBe(2);
+    });
 });

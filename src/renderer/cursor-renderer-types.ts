@@ -43,4 +43,6 @@ export type CursorRendererElectronAPI = {
     sendCursorVisibilityUpdate: (id: CursorId, isVisible: boolean) => void;
     sendCursorMapConfig: (config: CursorMapConfig) => void;
     send?: (channel: string, ...args: unknown[]) => void;
+    onPointerRuntimeTraceEnabled?: (callback: (enabled: boolean) => void) => void;
+    sendCursorRenderTrace?: (event: import('../shared/pointer-runtime-trace').PointerRuntimeEvent) => void;
 };

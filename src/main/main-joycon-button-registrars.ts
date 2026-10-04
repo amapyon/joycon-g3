@@ -6,6 +6,7 @@ import {
 } from './main-joycon-event-parsers';
 import { JOYCON_IPC_CHANNELS, JOYCON_MANAGER_EVENTS, JoyConIpcChannel, JoyConManagerEventName } from '../shared/joycon-event-channels';
 import type { JoyConEventsContext } from './main-joycon-events-types';
+import { appendRuntimeTrace } from './pointer-runtime-trace';
 
 type ButtonForwardConfig = {
     sourceEvent: JoyConManagerEventName;
@@ -23,6 +24,8 @@ type PressForwardConfig = {
  */
 function registerButtonForwardHandlers(context: JoyConEventsContext): void {
     const { joyConManager, windowManager } = context.options;
+    let lastRightButton: boolean | null = null;
+    let lastLeftButton: boolean | null = null;
     const forwardConfigs: ButtonForwardConfig[] = [
         { sourceEvent: JOYCON_MANAGER_EVENTS.BUTTON_X, targetChannel: JOYCON_IPC_CHANNELS.JOYCON_BUTTON_X },
         { sourceEvent: JOYCON_MANAGER_EVENTS.BUTTON_DOWN, targetChannel: JOYCON_IPC_CHANNELS.JOYCON_BUTTON_DOWN },
@@ -35,6 +38,14 @@ function registerButtonForwardHandlers(context: JoyConEventsContext): void {
                 return;
             }
             sendToWindow(windowManager.getCursorWindow(), config.targetChannel, typedData);
+            if (config.sourceEvent === JOYCON_MANAGER_EVENTS.BUTTON_X && lastRightButton !== typedData.pressed) {
+                appendRuntimeTrace({ kind: 'button', id: 'cursorRight', timestampMs: Date.now(), pressed: typedData.pressed });
+                lastRightButton = typedData.pressed;
+            }
+            if (config.sourceEvent === JOYCON_MANAGER_EVENTS.BUTTON_DOWN && lastLeftButton !== typedData.pressed) {
+                appendRuntimeTrace({ kind: 'button', id: 'cursorLeft', timestampMs: Date.now(), pressed: typedData.pressed });
+                lastLeftButton = typedData.pressed;
+            }
         });
     });
 }
